@@ -1,4 +1,4 @@
-# netip-map
+# netipmap
 This project adds to the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
 family, providing an associative data structure for IP networks.
