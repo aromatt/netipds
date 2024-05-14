@@ -35,13 +35,13 @@ func TestIsPrefixOf(t *testing.T) {
 		b    label
 		want bool
 	}{
-		{NewLabel(uint128{0, 0}, 0), NewLabel(uint128{0, 0}, 0), true},
-		{NewLabel(uint128{0, 0}, 0), NewLabel(uint128{0, 0}, 1), true},
-		{NewLabel(uint128{0, 2}, 127), NewLabel(uint128{0, 3}, 128), true},
-		{NewLabel(uint128{1, 2}, 127), NewLabel(uint128{1, 3}, 128), true},
-		{NewLabel(uint128{1, 0}, 64), NewLabel(uint128{1, 1}, 128), true},
-		{NewLabel(uint128{1 << 63, 0}, 1), NewLabel(uint128{1 << 63, 1}, 128), true},
-		{NewLabel(uint128{1 << 63, 0}, 1), NewLabel(uint128{0, 1}, 128), false},
+		{newLabel(uint128{0, 0}, 0), newLabel(uint128{0, 0}, 0), true},
+		{newLabel(uint128{0, 0}, 0), newLabel(uint128{0, 0}, 1), true},
+		{newLabel(uint128{0, 2}, 127), newLabel(uint128{0, 3}, 128), true},
+		{newLabel(uint128{1, 2}, 127), newLabel(uint128{1, 3}, 128), true},
+		{newLabel(uint128{1, 0}, 64), newLabel(uint128{1, 1}, 128), true},
+		{newLabel(uint128{1 << 63, 0}, 1), newLabel(uint128{1 << 63, 1}, 128), true},
+		{newLabel(uint128{1 << 63, 0}, 1), newLabel(uint128{0, 1}, 128), false},
 	}
 	for _, tt := range tests {
 		if got := tt.a.isPrefixOf(tt.b); got != tt.want {
@@ -56,14 +56,14 @@ func TestPrefixUnion(t *testing.T) {
 		b    label
 		want uint8
 	}{
-		{NewLabel(uint128{0, 0}, 0), NewLabel(uint128{0, 0}, 0), 0},
-		{NewLabel(uint128{0, 0}, 0), NewLabel(uint128{0, 0}, 1), 1},
-		{NewLabel(uint128{0, 0}, 1), NewLabel(uint128{0, 0}, 0), 1},
-		{NewLabel(uint128{0, 0}, 1), NewLabel(uint128{0, 0}, 1), 1},
-		{NewLabel(uint128{0, 0}, 1), NewLabel(uint128{0, 0}, 2), 2},
-		{NewLabel(uint128{0, 0}, 2), NewLabel(uint128{0, 0}, 1), 2},
-		{NewLabel(uint128{0, 0}, 2), NewLabel(uint128{0, 0}, 2), 2},
-		{NewLabel(uint128{0, 0}, 127), NewLabel(uint128{0, 1}, 128), 128},
+		{newLabel(uint128{0, 0}, 0), newLabel(uint128{0, 0}, 0), 0},
+		{newLabel(uint128{0, 0}, 0), newLabel(uint128{0, 0}, 1), 1},
+		{newLabel(uint128{0, 0}, 1), newLabel(uint128{0, 0}, 0), 1},
+		{newLabel(uint128{0, 0}, 1), newLabel(uint128{0, 0}, 1), 1},
+		{newLabel(uint128{0, 0}, 1), newLabel(uint128{0, 0}, 2), 2},
+		{newLabel(uint128{0, 0}, 2), newLabel(uint128{0, 0}, 1), 2},
+		{newLabel(uint128{0, 0}, 2), newLabel(uint128{0, 0}, 2), 2},
+		{newLabel(uint128{0, 0}, 127), newLabel(uint128{0, 1}, 128), 128},
 	}
 	for _, tt := range tests {
 		if got := tt.a.prefixUnionLen(tt.b); got != tt.want {
@@ -72,7 +72,7 @@ func TestPrefixUnion(t *testing.T) {
 	}
 }
 
-func TestBasicPrefixMap(t *testing.T) {
+func TestPrefixMapSetGet(t *testing.T) {
 	tests := []struct {
 		setPrefixes []string
 		getPrefix   string
@@ -83,6 +83,9 @@ func TestBasicPrefixMap(t *testing.T) {
 		{[]string{"0::1/128"}, "0::1/128", true},
 		{[]string{"0::2/128"}, "0::2/128", true},
 		{[]string{"0::2/127"}, "0::2/127", true},
+		{[]string{"0::0/128", "0::1/128", "0::2/127", "0::3/127"}, "0::1/128", true},
+		{[]string{"1.2.3.0/24"}, "1.2.3.0/24", true},
+		{[]string{"1.2.3.0/24"}, "1.2.3.4/32", false},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}

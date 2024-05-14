@@ -5,6 +5,15 @@ import (
 	"net/netip"
 )
 
+// getBit returns true if bit at position i is set in u, counting from the
+// most-significant bit toward the least.
+func getBit(u uint128, i uint8) bool {
+	if i < 64 {
+		return u.hi&(uint64(1)<<(63-i)) > 0
+	}
+	return u.lo&(uint64(1)<<(127-i)) > 0
+}
+
 // label represents one node's key fragment.
 // len is the length of the label in bits, counting from the most-significant
 // bit toward the least.
@@ -14,18 +23,23 @@ type label struct {
 	len   uint8
 }
 
-func NewLabel(value uint128, len uint8) label {
+func newLabel(value uint128, len uint8) label {
 	return label{value: value.bitsClearedFrom(len), len: len}
 }
 
+func labelFromPrefix(prefix netip.Prefix) label {
+	return newLabel(u128From16(prefix.Addr().As16()), uint8(prefix.Bits()))
+}
+
+// bitsClearedFrom returns a copy of label truncated to n bits.
 func (l label) truncated(n uint8) label {
-	return label{l.value.bitsClearedFrom(n), n}
+	return newLabel(l.value, n)
 }
 
 // rest returns a new label starting from the bit at position from, counting
 // from the most-significant bit toward the least.
 func (l label) rest(from uint8) label {
-	return label{l.value.shiftLeft(from), l.len - from}
+	return newLabel(l.value.shiftLeft(from), l.len-from)
 }
 
 // Prints the most significant l.len bits of l.value, as hex
@@ -85,23 +99,42 @@ type node[T any] struct {
 	value T
 	left  *node[T]
 	right *node[T]
+
+	// Not every node has a value. A node may by just a shared prefix.
+	hasValue bool
 }
 
-func NewNode[T any](label label, value T) *node[T] {
-	return &node[T]{label: label, value: value}
+func newNode[T any](label label) *node[T] {
+	return &node[T]{label: label}
 }
 
-// getBit returns true if bit at position i is set in u, counting from the
-// most-significant bit toward the least.
-func getBit(u uint128, i uint8) bool {
-	if i < 64 {
-		return u.hi&(uint64(1)<<(63-i)) > 0
+func (n *node[T]) withValue(value T) *node[T] {
+	n.value = value
+	n.hasValue = true
+	return n
+}
+
+func (n *node[T]) withChildren(left *node[T], right *node[T]) *node[T] {
+	n.left = left
+	n.right = right
+	return n
+}
+
+func (n *node[T]) withChildrenFrom(other *node[T]) *node[T] {
+	if other == nil {
+		return n
 	}
-	return u.lo&(uint64(1)<<(127-i)) > 0
+	return n.withChildren(other.left.copy(), other.right.copy())
 }
 
-func labelFromPrefix(prefix netip.Prefix) label {
-	return label{value: u128From16(prefix.Addr().As16()), len: uint8(prefix.Bits())}
+func (n *node[T]) withValueFrom(other *node[T]) *node[T] {
+	if other == nil {
+		return n
+	}
+	if other.hasValue {
+		return n.withValue(other.value)
+	}
+	return n
 }
 
 func (n *node[T]) set(label label, value T) {
@@ -112,6 +145,7 @@ func (n *node[T]) set(label label, value T) {
 	}*/
 	if label == n.label {
 		n.value = value
+		n.hasValue = true
 		return
 	}
 
@@ -125,16 +159,17 @@ func (n *node[T]) set(label label, value T) {
 			next = &n.left
 		}
 		if *next == nil {
-			*next = &node[T]{label.rest(n.label.len), value, nil, nil}
+			*next = newNode[T](label.rest(n.label.len)).withValue(value)
 		} else {
 			(*next).set(label.rest(n.label.len), value)
 		}
 	} else {
-		// Split n and create two new children: an 'heir' to inherit n's
-		// suffix, and a 'sibling' to handle the new suffix.
 		common := n.label.commonPrefixLen(label)
-		heir := &node[T]{n.label.rest(common), n.value, n.left, n.right}
-		sibling := &node[T]{label.rest(common), value, nil, nil}
+
+		// Split n and create two new children: an "heir" to inherit n's
+		// suffix, and a sibling to handle the new suffix.
+		heir := newNode[T](n.label.rest(common)).withChildrenFrom(n).withValueFrom(n)
+		sibling := newNode[T](label.rest(common)).withValue(value)
 
 		// The bit after the common prefix determines which child will handle
 		// which suffix. If n.label has a 0, then left will inherit n.label's
@@ -158,26 +193,21 @@ func (n *node[T]) prettyPrint(indent string, prefix string) {
 		return
 	}
 
-	fmt.Printf("%s%s%s: %v\n", indent, prefix, n.label, n.value)
+	fmt.Printf("%s%s%s: %v %v\n", indent, prefix, n.label, n.value, n.hasValue)
 	n.left.prettyPrint(indent+"  ", "L:")
 	n.right.prettyPrint(indent+"  ", "R:")
 }
 
-// have: 0000
-// get:  0011 -> nil
-// get:  00001 -> nil
-//
 // have: 00
-// -       L:01
-// -       R:10
-// get:  0001 ->
+// -       01
+// -       10
+// get:  00
 func (n *node[T]) get(label label) (val T, ok bool) {
-	fmt.Println("get", label)
-	if label == n.label {
+	fmt.Println("get", label, n.label, n.hasValue)
+	if label == n.label && n.hasValue {
 		return n.value, true
 	}
 	common := n.label.commonPrefixLen(label)
-
 	var next *node[T]
 	if getBit(label.value, common) {
 		next = n.right
@@ -194,13 +224,7 @@ func (n *node[T]) copy() *node[T] {
 	if n == nil {
 		return nil
 	}
-
-	return &node[T]{
-		label: n.label,
-		value: n.value,
-		left:  n.left.copy(),
-		right: n.right.copy(),
-	}
+	return newNode[T](n.label).withValueFrom(n).withChildrenFrom(n)
 }
 
 type PrefixMapBuilder[T any] struct {
@@ -211,24 +235,12 @@ type PrefixMap[T any] struct {
 	root node[T]
 }
 
-//func (m *IPMapBuilder[T]) Set(ip netip.Addr, value T) error {
-//	// TODO: do we care?
-//	if !ip.IsValid() {
-//		return fmt.Errorf("IP is not valid: %v", ip)
-//	}
-//
-//	m.root.set(ip, value)
-//	return nil
-//}
-
 func (m *PrefixMapBuilder[T]) Set(prefix netip.Prefix, value T) error {
 	// TODO: do we care?
 	if !prefix.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", prefix)
 	}
-
 	m.root.set(labelFromPrefix(prefix), value)
-
 	return nil
 }
 
@@ -239,3 +251,7 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 func (m *PrefixMap[T]) Get(prefix netip.Prefix) (T, bool) {
 	return m.root.get(labelFromPrefix(prefix))
 }
+
+// GetDescendants returns all descendants of prefic found in m as a map of Prefixes to values.
+//func (m *PrefixMap[T]) GetDescendants(prefix netip.Prefix) (map[netip.Prefix]T, bool) {
+//}
