@@ -83,9 +83,9 @@ func TestPrefixMapSetGet(t *testing.T) {
 		{[]string{"0::1/128"}, "0::1/128", true},
 		{[]string{"0::2/128"}, "0::2/128", true},
 		{[]string{"0::2/127"}, "0::2/127", true},
-		{[]string{"0::0/128", "0::1/128", "0::2/127", "0::3/127"}, "0::1/128", true},
 		{[]string{"1.2.3.0/24"}, "1.2.3.0/24", true},
 		{[]string{"1.2.3.0/24"}, "1.2.3.4/32", false},
+		{[]string{"0::0/128", "0::1/128", "0::2/127", "0::3/127"}, "0::1/128", true},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}

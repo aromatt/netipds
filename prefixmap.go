@@ -42,6 +42,11 @@ func (l label) rest(from uint8) label {
 	return newLabel(l.value.shiftLeft(from), l.len-from)
 }
 
+// concat returns a new label with the bits of other appended to l.
+func (l label) concat(other label) label {
+	return newLabel(l.value.or(other.value.shiftLeft(l.len)), l.len+other.len)
+}
+
 // Prints the most significant l.len bits of l.value, as hex
 func (l label) String() string {
 	out := fmt.Sprintf("%0*x", (l.len+3)/4, l.value.hi)
@@ -104,8 +109,8 @@ type node[T any] struct {
 	hasValue bool
 }
 
-func newNode[T any](label label) *node[T] {
-	return &node[T]{label: label}
+func newNode[T any](l label) *node[T] {
+	return &node[T]{label: l}
 }
 
 func (n *node[T]) withValue(value T) *node[T] {
@@ -137,39 +142,39 @@ func (n *node[T]) withValueFrom(other *node[T]) *node[T] {
 	return n
 }
 
-func (n *node[T]) set(label label, value T) {
-	fmt.Println("set", label, value)
+func (n *node[T]) set(l label, value T) {
+	fmt.Println("set", l, value)
 	/*if n == nil {
 		n = &node[T]{label: label, value: value}
 		return
 	}*/
-	if label == n.label {
+	if l == n.label {
 		n.value = value
 		n.hasValue = true
 		return
 	}
 
-	if n.label.isPrefixOf(label) {
+	if n.label.isPrefixOf(l) {
 		// n.label is a prefix of the new label, so recurse into the
 		// appropriate child of n (or create it).
 		var next **node[T]
-		if getBit(label.value, n.label.len) {
+		if getBit(l.value, n.label.len) {
 			next = &n.right
 		} else {
 			next = &n.left
 		}
 		if *next == nil {
-			*next = newNode[T](label.rest(n.label.len)).withValue(value)
+			*next = newNode[T](l.rest(n.label.len)).withValue(value)
 		} else {
-			(*next).set(label.rest(n.label.len), value)
+			(*next).set(l.rest(n.label.len), value)
 		}
 	} else {
-		common := n.label.commonPrefixLen(label)
+		common := n.label.commonPrefixLen(l)
 
 		// Split n and create two new children: an "heir" to inherit n's
 		// suffix, and a sibling to handle the new suffix.
 		heir := newNode[T](n.label.rest(common)).withChildrenFrom(n).withValueFrom(n)
-		sibling := newNode[T](label.rest(common)).withValue(value)
+		sibling := newNode[T](l.rest(common)).withValue(value)
 
 		// The bit after the common prefix determines which child will handle
 		// which suffix. If n.label has a 0, then left will inherit n.label's
@@ -202,23 +207,49 @@ func (n *node[T]) prettyPrint(indent string, prefix string) {
 // -       01
 // -       10
 // get:  00
-func (n *node[T]) get(label label) (val T, ok bool) {
-	fmt.Println("get", label, n.label, n.hasValue)
-	if label == n.label && n.hasValue {
-		return n.value, true
+func (n *node[T]) walkLabel(
+	l label,
+	pre label,
+	fn func(label, *node[T]) error,
+) error {
+	fmt.Println("traverse", l)
+	if err := fn(pre, n); err != nil {
+		return err
 	}
-	common := n.label.commonPrefixLen(label)
+	common := n.label.commonPrefixLen(l)
 	var next *node[T]
-	if getBit(label.value, common) {
+	if getBit(l.value, common) {
+		fmt.Println("going right")
 		next = n.right
 	} else {
+		fmt.Println("going left")
 		next = n.left
 	}
-	if next == nil {
-		return val, false
+	if next != nil {
+		return next.walkLabel(l.rest(n.label.len), pre.concat(n.label), fn)
 	}
-	return next.get(label.rest(n.label.len))
+	return nil
 }
+
+func (n *node[T]) get(l label) (val T, ok bool) {
+	n.walkLabel(l, label{}, func(pre label, m *node[T]) error {
+		fmt.Printf("walking\tpre: %s\tfull: %s\n", pre, pre.concat(m.label))
+		if m.hasValue && pre.concat(m.label) == l {
+			val = m.value
+			ok = true
+		}
+		return nil
+	})
+	return val, ok
+}
+
+//func (n *node[T]) getDescendants(l label) (map[label]T, error) {
+//	descendants := make(map[label]T)
+//	n.traverse(l, label{}, func(pre label, node *node[T]) error {
+//	})
+//	return descendants, nil
+//
+//}
 
 func (n *node[T]) copy() *node[T] {
 	if n == nil {
