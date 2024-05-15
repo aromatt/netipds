@@ -98,6 +98,7 @@ func TestShift(t *testing.T) {
 		want uint128
 	}{
 		{uint128{0, 0}, left, 0, uint128{0, 0}},
+		{uint128{0, 1}, left, 0, uint128{0, 1}},
 		{uint128{0, 0}, left, 1, uint128{0, 0}},
 		{uint128{0, 1}, left, 1, uint128{0, 2}},
 		{uint128{0, 1}, left, 63, uint128{0, 1 << 63}},
