@@ -47,14 +47,25 @@ func (l label) concat(other label) label {
 	return newLabel(l.value.or(other.value.shiftLeft(l.len)), l.len+other.len)
 }
 
-// Prints the most significant l.len bits of l.value, as hex
+// Prints the least significant bits of l.value as hex, followed by "/len".
 func (l label) String() string {
-	out := fmt.Sprintf("%0*x", (l.len+3)/4, l.value.hi)
-	if l.len > 64 {
-		out += fmt.Sprintf("%0*x", (l.len-64+3)/4, l.value.lo)
+	var ret string
+	just := l.value.shiftRight(128 - l.len)
+	if l.value.hi == 0 && l.value.lo == 0 {
+		ret = "0"
+	} else {
+		if just.hi > 0 {
+			ret = fmt.Sprintf("%x", just.hi)
+		}
+		if just.lo > 0 {
+			if just.hi > 0 {
+				ret = fmt.Sprintf("%s%0*x", ret, (l.len-64)/4, just.lo)
+			} else {
+				ret = fmt.Sprintf("%s%x", ret, just.lo)
+			}
+		}
 	}
-	out += fmt.Sprintf("/%d", l.len)
-	return out
+	return fmt.Sprintf("%s/%d", ret, l.len)
 }
 
 // commonPrefixLen returns the length of the common prefix between l and
