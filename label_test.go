@@ -99,20 +99,31 @@ func TestString(t *testing.T) {
 	}
 }
 
-func TestFromString(t *testing.T) {
+func TestParse(t *testing.T) {
 	tests := []struct {
 		s    string
 		want label
 	}{
-		//{"0/0", l(uint128{0, 0}, 0)},
-		//{"0/1", l(uint128{0, 0}, 1)},
-		//{"0/64", l(uint128{0, 0}, 64)},
-		//{"1/64", l(uint128{1, 0}, 64)},
-		//{"2/65", l(uint128{1, 0}, 65)},
+		{"0/0", l(uint128{0, 0}, 0)},
+		{"0/1", l(uint128{0, 0}, 1)},
+		{"0/64", l(uint128{0, 0}, 64)},
+		{"1/64", l(uint128{1, 0}, 64)},
+		{"1/56", l(uint128{256, 0}, 56)},
+		{"100/64", l(uint128{256, 0}, 64)},
+		{"0/65", l(uint128{0, 0}, 65)},
+		{"1/65", l(uint128{0, 1 << 63}, 65)},
+		{"2/65", l(uint128{1, 0}, 65)},
+		{"1/128", l(uint128{0, 1}, 128)},
+		{"1/127", l(uint128{0, 2}, 127)},
+		{"10000000000000001/128", l(uint128{1, 1}, 128)},
+		{"100000000000001/120", l(uint128{1, 256}, 120)},
 	}
 	for _, tt := range tests {
-		if got, err := labelFromString(tt.s); err != nil || got != tt.want {
-			t.Errorf("labelFromString(%q) = %v, %v, want %v, nil", tt.s, got, err, tt.want)
+		var got label
+		if err := got.Parse(tt.s); err != nil {
+			t.Errorf("label.Parse(%q) = %v", tt.s, err)
+		} else if got != tt.want {
+			t.Errorf("label.Parse(%q) = %v, want %v", tt.s, got, tt.want)
 		}
 	}
 }
@@ -123,11 +134,12 @@ func TestConcat(t *testing.T) {
 		b    label
 		want label
 	}{
-		{l(uint128{0, 0}, 0), l(uint128{0, 0}, 0), l(uint128{0, 0}, 0)},
-		{l(uint128{0, 0}, 0), l(uint128{0, 0}, 1), l(uint128{0, 0}, 1)},
-		{l(uint128{0, 0}, 0), l(uint128{0, 1}, 1), l(uint128{0, 1}, 1)},
-		{l(uint128{0, 0}, 63), l(uint128{1 << 63, 0}, 1), l(uint128{1, 0}, 64)},
-		{l(uint128{0, 0}, 127), l(uint128{1 << 63, 0}, 1), l(uint128{0, 1}, 128)},
+		{l(uint128{}, 0), l(uint128{}, 0), l(uint128{}, 0)},
+		{l(uint128{}, 0), l(uint128{}, 1), l(uint128{}, 1)},
+		{l(uint128{}, 0), l(uint128{0, 1}, 1), l(uint128{0, 1}, 1)},
+		{l(uint128{}, 63), l(uint128{1 << 63, 0}, 1), l(uint128{1, 0}, 64)},
+		{l(uint128{}, 127), l(uint128{1 << 63, 0}, 1), l(uint128{0, 1}, 128)},
+		{l(uint128{1 << 63, 0}, 1), l(uint128{}, 1), l(uint128{1 << 63, 0}, 2)},
 	}
 	for _, tt := range tests {
 		if got := tt.a.concat(tt.b); got != tt.want {
