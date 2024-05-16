@@ -10,7 +10,7 @@ type node[T any] struct {
 	left  *node[T]
 	right *node[T]
 
-	// Not every node has a value. A node may by just a shared prefix.
+	// Not every node has a value. A node may be just a shared prefix.
 	hasValue bool
 }
 
@@ -99,7 +99,12 @@ func (n *node[T]) set(l label, value T) {
 		// n.label is a prefix of the new label, so recurse into the
 		// appropriate child of n (or create it).
 		var next **node[T]
-		if l.getBit(n.label.len) {
+		one, ok := l.getBit(n.label.len)
+		if !ok {
+			// n.label is a prefix of l, so this should never happen
+			panic("unexpected end of label")
+		}
+		if one {
 			next = &n.right
 		} else {
 			next = &n.left
@@ -118,9 +123,9 @@ func (n *node[T]) set(l label, value T) {
 		sibling := newNode[T](l.rest(common)).withValue(value)
 
 		// The bit after the common prefix determines which child will handle
-		// which suffix. If n.label has a 0, then left will inherit n.label's
-		// suffix, and right will handle the new suffix.
-		if n.label.getBit(common) {
+		// which suffix.
+		// TODO check ok
+		if one, _ := n.label.getBit(common); one {
 			n.left = sibling
 			n.right = heir
 		} else {
@@ -134,40 +139,80 @@ func (n *node[T]) set(l label, value T) {
 	//n.prettyPrint("", "")
 }
 
-func (n *node[T]) walk(path label, pre label, fn func(label, *node[T]) error) error {
+// walkPath traverses the tree starting at node, following the provided path and
+// calling fn at each visited node.
+//
+// The arguments to fn are (1) a label containing the prefix accumulated during
+// the traversal up until the current node and (2) the current node.
+//
+// The return values of fn are (1) a boolean indicating whether traversal
+// should stop and (2) an error. If fn returns true, traversal stops and
+// walkPath returns nil.
+//
+// If path is the zero label, all descendants of n are visited.
+func (n *node[T]) walk(
+	path label,
+	pre label,
+	fn func(label, *node[T]) (bool, error),
+) error {
+	if n == nil {
+		return nil
+	}
+
+	// Never call fn on root node
 	if !n.isZero() {
-		if err := fn(pre, n); err != nil {
+		stop, err := fn(pre, n)
+		if err != nil {
+			return err
+		}
+		if stop {
+			return nil
+		}
+	}
+
+	nextPath := path.rest(n.label.len)
+	nextPre := pre.concat(n.label)
+	one, ok := path.getBit(n.label.commonPrefixLen(path))
+
+	// Visit the child that matches the next bit in the path. If the path is
+	// exhausted (i.e. !ok), visit both children.
+	var err error
+	if !one || !ok {
+		if err = n.left.walk(nextPath, nextPre, fn); err != nil {
 			return err
 		}
 	}
-	common := n.label.commonPrefixLen(path)
-	var next *node[T]
-	if path.getBit(common) {
-		next = n.right
-	} else {
-		next = n.left
-	}
-	if next != nil {
-		return next.walk(path.rest(n.label.len), pre.concat(n.label), fn)
+	if one || !ok {
+		if err = n.right.walk(nextPath, nextPre, fn); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+// get returns the value associated with the exact label provided, if it exists.
 func (n *node[T]) get(l label) (val T, ok bool) {
-	n.walk(l, label{}, func(pre label, m *node[T]) error {
+	n.walk(l, label{}, func(pre label, m *node[T]) (bool, error) {
+		// If the label matches, stop traversing and return the value
 		if m.hasValue && pre.concat(m.label) == l {
-			val = m.value
-			ok = true
+			val, ok = m.value, true
+			return true, nil
 		}
-		return nil
+		return false, nil
 	})
-	return
+	return val, ok
 }
 
-//func (n *node[T]) getDescendants(l label) (map[label]T, error) {
-//	descendants := make(map[label]T)
-//	n.traverse(l, label{}, func(pre label, node *node[T]) error {
-//	})
-//	return descendants, nil
-//
-//}
+// getDescendants returns a map of all descendants of the provided label and
+// their associated values.
+func (n *node[T]) getDescendants(l label) map[label]T {
+	fmt.Println("getDescendants", l)
+	descendants := make(map[label]T)
+	n.walk(l, label{}, func(pre label, m *node[T]) (bool, error) {
+		if m.hasValue && pre.concat(m.label).isPrefixOf(l) {
+			descendants[pre.concat(m.label)] = m.value
+		}
+		return false, nil
+	})
+	return descendants
+}

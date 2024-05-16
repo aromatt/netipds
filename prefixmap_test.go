@@ -33,3 +33,38 @@ func TestPrefixMapSetGet(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapGetDescendants(t *testing.T) {
+	tests := []struct {
+		setPrefixes []string
+		getPrefix   string
+		want        []string
+	}{
+		//{[]string{}, "0::0/128", []string{}},
+		{[]string{"0::0/128"}, "0::0/128", []string{"0::0/128"}},
+		//{[]string{"0::0/128", "0::1/128"}, "0::0/127", []string{"0::0/128", "0::1/128"}},
+		//{[]string{"0::0/128", "0::1/128"}, "0::1/127", []string{"0::1/128"}},
+		//{[]string{"0::0/128", "0::1/128", "0::2/127", "0::3/127"}, "0::1/127", []string{"0::1/128", "0::2/127", "0::3/127"}},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, pStr := range tt.setPrefixes {
+			p := netip.MustParsePrefix(pStr)
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+
+		pm.root.prettyPrint("", "")
+		p := netip.MustParsePrefix(tt.getPrefix)
+		descendants := pm.GetDescendants(p)
+		got := make([]string, 0, len(descendants))
+		for p := range descendants {
+			got = append(got, p.String())
+		}
+		for i, g := range got {
+			if g != tt.want[i] {
+				t.Errorf("pm.GetDescendants(%s) = %v, want %v", p, got, tt.want)
+			}
+		}
+	}
+}

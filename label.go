@@ -72,7 +72,6 @@ func (l *label) Parse(s string) error {
 	loStart := 0
 	if len(valueStr) > 16 {
 		loStart = len(valueStr) - 16
-		fmt.Println("hi str", valueStr[:loStart])
 		if _, err = fmt.Sscanf(valueStr[:loStart], "%x", &hi); err != nil {
 			return fmt.Errorf("failed to parse label: '%s', %w", s, err)
 		}
@@ -91,12 +90,19 @@ func (l label) truncated(n uint8) label {
 
 // rest returns a copy of l starting at the bit at position i.
 func (l label) rest(i uint8) label {
+	if l.isZero() {
+		return l
+	}
 	return newLabel(l.value.shiftLeft(i), l.len-i)
 }
 
-// getBit returns True if the label's bit at position i is set.
-func (l label) getBit(i uint8) bool {
-	return l.value.isBitSet(i)
+// getBit returns the value of the bit at position i.
+// If i >= l.len, getBit returns false, false.
+func (l label) getBit(i uint8) (bit bool, ok bool) {
+	if i >= l.len {
+		return false, false
+	}
+	return l.value.isBitSet(i), true
 }
 
 // concat returns a new label with the bits of m appended to l.
