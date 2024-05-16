@@ -36,6 +36,18 @@ func (n *node[T]) withValueFrom(m *node[T]) *node[T] {
 	return n
 }
 
+func (n *node[T]) moveValueFrom(m *node[T]) *node[T] {
+	if m == nil {
+		return n
+	}
+	if m.hasValue {
+		var zero T
+		n.value, n.hasValue = m.value, true
+		m.value, m.hasValue = zero, false
+	}
+	return n
+}
+
 // withChildren sets n's children to the provided left and right nodes and
 // returns n.
 func (n *node[T]) withChildren(left *node[T], right *node[T]) *node[T] {
@@ -99,15 +111,15 @@ func (n *node[T]) set(l label, value T) {
 		// n.label is a prefix of the new label, so recurse into the
 		// appropriate child of n (or create it).
 		var next **node[T]
-		one, ok := l.getBit(n.label.len)
+		zero, ok := l.isBitZero(n.label.len)
 		if !ok {
 			// n.label is a prefix of l, so this should never happen
 			panic("unexpected end of label")
 		}
-		if one {
-			next = &n.right
-		} else {
+		if zero {
 			next = &n.left
+		} else {
+			next = &n.right
 		}
 		if *next == nil {
 			*next = newNode[T](l.rest(n.label.len)).withValue(value)
@@ -119,24 +131,23 @@ func (n *node[T]) set(l label, value T) {
 
 		// Split n and create two new children: an "heir" to inherit n's
 		// suffix, and a sibling to handle the new suffix.
-		heir := newNode[T](n.label.rest(common)).withValueFrom(n).moveChildrenFrom(n)
+		heir := newNode[T](n.label.rest(common)).moveValueFrom(n).moveChildrenFrom(n)
 		sibling := newNode[T](l.rest(common)).withValue(value)
 
 		// The bit after the common prefix determines which child will handle
 		// which suffix.
 		// TODO check ok
-		if one, _ := n.label.getBit(common); one {
-			n.left = sibling
-			n.right = heir
-		} else {
+		if zero, _ := n.label.isBitZero(common); zero {
 			n.left = heir
 			n.right = sibling
+		} else {
+			n.left = sibling
+			n.right = heir
 		}
 
 		// n's label needs to be truncated at the split point
 		n.label = n.label.truncated(common)
 	}
-	//n.prettyPrint("", "")
 }
 
 // walkPath traverses the tree starting at node, following the provided path and
@@ -172,17 +183,17 @@ func (n *node[T]) walk(
 
 	nextPath := path.rest(n.label.len)
 	nextPre := pre.concat(n.label)
-	one, ok := path.getBit(n.label.commonPrefixLen(path))
+	zero, ok := path.isBitZero(n.label.commonPrefixLen(path))
 
 	// Visit the child that matches the next bit in the path. If the path is
 	// exhausted (i.e. !ok), visit both children.
 	var err error
-	if !one || !ok {
+	if zero || !ok {
 		if err = n.left.walk(nextPath, nextPre, fn); err != nil {
 			return err
 		}
 	}
-	if one || !ok {
+	if !zero || !ok {
 		if err = n.right.walk(nextPath, nextPre, fn); err != nil {
 			return err
 		}
@@ -206,10 +217,9 @@ func (n *node[T]) get(l label) (val T, ok bool) {
 // getDescendants returns a map of all descendants of the provided label and
 // their associated values.
 func (n *node[T]) getDescendants(l label) map[label]T {
-	fmt.Println("getDescendants", l)
 	descendants := make(map[label]T)
 	n.walk(l, label{}, func(pre label, m *node[T]) (bool, error) {
-		if m.hasValue && pre.concat(m.label).isPrefixOf(l) {
+		if m.hasValue && l.isPrefixOf(pre.concat(m.label)) {
 			descendants[pre.concat(m.label)] = m.value
 		}
 		return false, nil

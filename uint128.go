@@ -115,8 +115,6 @@ func (u uint128) shiftRight(n uint8) uint128 {
 		return u
 	case n < 64:
 		return uint128{u.hi >> n, u.lo>>n | u.hi<<(64-n)}
-	case n == 64:
-		return uint128{0, u.hi}
 	case n < 128:
 		return uint128{0, u.hi >> (n - 64)}
 	default:
@@ -132,8 +130,6 @@ func (u uint128) shiftLeft(n uint8) uint128 {
 		return u
 	case n < 64:
 		return uint128{u.hi<<n | u.lo>>(64-n), u.lo << n}
-	case n == 64:
-		return uint128{u.lo, 0}
 	case n < 128:
 		return uint128{u.lo << (n - 64), 0}
 	default:
@@ -141,11 +137,12 @@ func (u uint128) shiftLeft(n uint8) uint128 {
 	}
 }
 
-// isBitSet returns true if bit at position i is set in u, counting from the
-// most-significant bit toward the least.
-func (u uint128) isBitSet(i uint8) bool {
-	if i < 64 {
-		return u.hi&(uint64(1)<<(63-i)) > 0
+// isBitZero returns true if the bit at the given position is zero.
+// If bit > 127, returns true.
+func (u uint128) isBitZero(bit uint8) bool {
+	if bit < 64 {
+		return u.hi&(uint64(1)<<(63-bit)) == 0
+	} else {
+		return u.lo&(uint64(1)<<(127-bit)) == 0
 	}
-	return u.lo&(uint64(1)<<(127-i)) > 0
 }

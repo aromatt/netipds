@@ -89,25 +89,33 @@ func (l label) truncated(n uint8) label {
 }
 
 // rest returns a copy of l starting at the bit at position i.
+// if i > l.len, returns the zero label.
 func (l label) rest(i uint8) label {
 	if l.isZero() {
 		return l
 	}
+	if i > l.len {
+		i = 0
+	}
 	return newLabel(l.value.shiftLeft(i), l.len-i)
 }
 
-// getBit returns the value of the bit at position i.
-// If i >= l.len, getBit returns false, false.
-func (l label) getBit(i uint8) (bit bool, ok bool) {
+// isBitZero returns the value of the bit at position i.
+// If i >= l.len, isBitZero returns false, false.
+func (l label) isBitZero(i uint8) (isZero bool, ok bool) {
 	if i >= l.len {
 		return false, false
 	}
-	return l.value.isBitSet(i), true
+	return l.value.isBitZero(i), true
 }
 
 // concat returns a new label with the bits of m appended to l.
 func (l label) concat(m label) label {
-	return newLabel(l.value.or(m.value.shiftRight(l.len)), l.len+m.len)
+	newLen := l.len + m.len
+	if newLen > 128 {
+		newLen = 128
+	}
+	return newLabel(l.value.or(m.value.shiftRight(l.len)), newLen)
 }
 
 // commonPrefixLen returns the length of the common prefix between l and
@@ -134,6 +142,11 @@ func (l label) isPrefixOf(m label) bool {
 
 func (l label) isZero() bool {
 	return l == label{}
+}
+
+// TODO remove if not used
+func (l label) isValid() bool {
+	return l.len <= 128
 }
 
 // If the shorter of l and m is a prefix of the longer, return the length of

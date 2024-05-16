@@ -6,29 +6,30 @@ import (
 
 var l = newLabel
 
-func TestGetBit(t *testing.T) {
+func TestLabelIsBitZero(t *testing.T) {
 	tests := []struct {
 		a      label
 		i      uint8
 		want   bool
 		wantOk bool
 	}{
-		{l(uint128{0, 0}, 128), 0, false, true},
-		{l(uint128{0, 1}, 128), 0, false, true},
-		{l(uint128{1 << 63, 0}, 128), 0, true, true},
-		{l(uint128{1 << 62, 0}, 128), 1, true, true},
-		{l(uint128{0, 1 << 63}, 128), 64, true, true},
-		{l(uint128{0, 1}, 128), 127, true, true},
-		{l(uint128{0, 2}, 128), 126, true, true},
-		{l(uint128{^uint64(0), ^uint64(0)}, 128), 0, true, true},
-		{l(uint128{^uint64(0), ^uint64(0)}, 128), 127, true, true},
+		{l(uint128{0, 0}, 128), 0, true, true},
+		{l(uint128{0, 1}, 128), 0, true, true},
+		{l(uint128{1 << 63, 0}, 128), 0, false, true},
+		{l(uint128{1 << 62, 0}, 128), 1, false, true},
+		{l(uint128{0, 1 << 63}, 128), 64, false, true},
+		{l(uint128{0, 1}, 128), 127, false, true},
+		{l(uint128{0, 2}, 128), 126, false, true},
+		{l(uint128{^uint64(0), ^uint64(0)}, 128), 0, false, true},
+		{l(uint128{^uint64(0), ^uint64(0)}, 128), 127, false, true},
 
+		// i > l.len => false, false
 		{l(uint128{1 << 63, 0}, 1), 1, false, false},
 		{l(uint128{0, 0}, 128), 128, false, false},
 	}
 	for _, tt := range tests {
-		if got, ok := tt.a.getBit(tt.i); got != tt.want || ok != tt.wantOk {
-			t.Errorf("%v.getBit(%d) = (%v, %v), want (%v, %v)",
+		if got, ok := tt.a.isBitZero(tt.i); got != tt.want || ok != tt.wantOk {
+			t.Errorf("%v.isBitZero(%d) = (%v, %v), want (%v, %v)",
 				tt.a, tt.i, got, ok, tt.want, tt.wantOk)
 		}
 	}
