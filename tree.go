@@ -20,69 +20,69 @@ func newTree[T any](l label) *tree[T] {
 	return &tree[T]{label: l}
 }
 
-// clearValue removes the value from n.
+// clearValue removes the value from t.
 func (t *tree[T]) clearValue() {
 	var zeroVal T
 	t.value = zeroVal
 	t.hasValue = false
 }
 
-// withValue sets n's value to v and returns n.
+// withValue sets t's value to v and returns t.
 func (t *tree[T]) withValue(v T) *tree[T] {
 	t.value = v
 	t.hasValue = true
 	return t
 }
 
-// withValueFrom sets n's value to m's value and returns n.
-func (t *tree[T]) withValueFrom(m *tree[T]) *tree[T] {
-	if m == nil {
+// withValueFrom sets t's value to m's value and returns t.
+func (t *tree[T]) withValueFrom(b *tree[T]) *tree[T] {
+	if b == nil {
 		return t
 	}
-	if m.hasValue {
-		return t.withValue(m.value)
+	if b.hasValue {
+		return t.withValue(b.value)
 	}
 	return t
 }
 
-// moveValueFrom moves m's value to n (removing it from m) and returns n.
-func (t *tree[T]) moveValueFrom(m *tree[T]) *tree[T] {
-	if m == nil {
+// moveValueFrom moves m's value to t (removing it from m) and returns t.
+func (t *tree[T]) moveValueFrom(b *tree[T]) *tree[T] {
+	if b == nil {
 		return t
 	}
-	if m.hasValue {
-		t.value, t.hasValue = m.value, true
-		m.clearValue()
+	if b.hasValue {
+		t.value, t.hasValue = b.value, true
+		b.clearValue()
 	}
 	return t
 }
 
-// withChildren sets n's children to the provided left and right trees and
-// returns n.
+// withChildren sets t's children to the provided left and right trees and
+// returns t.
 func (t *tree[T]) withChildren(left *tree[T], right *tree[T]) *tree[T] {
 	t.left = left
 	t.right = right
 	return t
 }
 
-// copyChildrenFrom sets n's children to copies of m's children and returns n.
-func (t *tree[T]) copyChildrenFrom(m *tree[T]) *tree[T] {
-	if m == nil {
+// copyChildrenFrom sets t's children to copies of m's children and returns t.
+func (t *tree[T]) copyChildrenFrom(b *tree[T]) *tree[T] {
+	if b == nil {
 		return t
 	}
-	return t.withChildren(m.left.copy(), m.right.copy())
+	return t.withChildren(b.left.copy(), b.right.copy())
 }
 
-// moveChildrenFrom moves m's children to n (removing them from m) and returns n.
-func (t *tree[T]) moveChildrenFrom(m *tree[T]) *tree[T] {
-	if m == nil {
+// moveChildrenFrom moves m's children to t (removing them from m) and returns t.
+func (t *tree[T]) moveChildrenFrom(b *tree[T]) *tree[T] {
+	if b == nil {
 		return t
 	}
-	t, _ = t.withChildren(m.left, m.right), m.withChildren(nil, nil)
+	t, _ = t.withChildren(b.left, b.right), b.withChildren(nil, nil)
 	return t
 }
 
-// copy returns a copy of n, creating copies of all descendants of n in the
+// copy returns a copy of t, creating copies of all descendants of t in the
 // process.
 func (t *tree[T]) copy() *tree[T] {
 	if t == nil {
@@ -136,7 +136,7 @@ func (t *tree[T]) set(l label, value T) {
 	} else {
 		common := t.label.commonPrefixLen(l)
 
-		// Split n and create two new children: an "heir" to inherit n's
+		// Split t and create two new children: an "heir" to inherit t's
 		// suffix, and a sibling to handle the new suffix.
 		heir := newTree[T](t.label.rest(common)).moveValueFrom(t).moveChildrenFrom(t)
 		sibling := newTree[T](l.rest(common)).withValue(value)
@@ -271,6 +271,13 @@ func (t *tree[T]) encompasses(l label, strict bool) (ret bool) {
 	return
 }
 
+// covers returns true if this tree includes a subset of labels that completely
+// cover the provided label.
+func (t *tree[T]) covers(l label, strict bool) (ret bool) {
+	// TODO implement
+	panic("not implemented")
+}
+
 // rootOf returns the shortest-prefix ancestor of the label provided, if any.
 // If strict == true, the label itself is not considered.
 func (t *tree[T]) rootOf(l label, strict bool) (outKey label, val T, ok bool) {
@@ -316,4 +323,21 @@ func (t *tree[T]) walkAncestors(l label, strict bool, fn func(label, *tree[T])) 
 		}
 		return false
 	})
+}
+
+// filter updates t to include only the labels encompassed by b.
+// TODO: I think this can be done more efficiently by walking t and b
+// at the same time.
+func (t *tree[T]) filter(b *tree[T]) {
+	labelsToRemove := make([]label, 0)
+	t.walk(label{}, label{}, func(key label, m *tree[T]) bool {
+		if !b.encompasses(key, false) {
+			labelsToRemove = append(labelsToRemove, key)
+		}
+		return false
+	})
+	for _, l := range labelsToRemove {
+		fmt.Println("removing", l)
+		t.remove(l)
+	}
 }

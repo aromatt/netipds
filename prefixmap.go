@@ -25,12 +25,16 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, value T) error {
 }
 
 func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
-	fmt.Println("Remove")
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	m.tree.remove(labelFromPrefix(p))
 	return nil
+}
+
+// Filter removes all Prefixes from m that are not encompassed by b.
+func (m *PrefixMapBuilder[T]) Filter(b *PrefixMap[T]) {
+	m.tree.filter(&b.tree)
 }
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
@@ -64,7 +68,8 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 }
 
 // EncompassesStrict returns true if this map includes a Prefix which
-// completely encompasses the provided Prefix.
+// completely encompasses the provided Prefix. The provided Prefix itself is
+// not considered.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	return m.tree.encompasses(labelFromPrefix(p), true)
 }
@@ -72,8 +77,14 @@ func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 // Covers returns true if this map includes a subset of Prefixes that
 // completely cover provided Prefix.
 func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
-	// TODO implement
-	return false
+	return m.tree.covers(labelFromPrefix(p), false)
+}
+
+// Covers returns true if this map includes a subset of Prefixes that
+// completely cover provided Prefix. The provided Prefix itself is not
+// considered.
+func (m *PrefixMap[T]) CoversStrict(p netip.Prefix) bool {
+	return m.tree.covers(labelFromPrefix(p), true)
 }
 
 func (m *PrefixMap[T]) rootOf(
