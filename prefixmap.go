@@ -41,9 +41,8 @@ func (m *PrefixMap[T]) Get(prefix netip.Prefix) (T, bool) {
 // prefix, if it has a value) as a map of prefixes to values.
 func (m *PrefixMap[T]) GetDescendants(prefix netip.Prefix) map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.root.walkDescendants(labelFromPrefix(prefix), func(l label, n *node[T]) error {
+	m.root.walkDescendants(labelFromPrefix(prefix), func(l label, n *node[T]) {
 		res[prefixFromLabel(l)] = n.value
-		return nil
 	})
 	return res
 }
@@ -52,9 +51,8 @@ func (m *PrefixMap[T]) GetDescendants(prefix netip.Prefix) map[netip.Prefix]T {
 // prefix, if it has a value) as a map of prefixes to values.
 func (m *PrefixMap[T]) GetAncestors(prefix netip.Prefix) map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.root.walkAncestors(labelFromPrefix(prefix), func(l label, n *node[T]) error {
+	m.root.walkAncestors(labelFromPrefix(prefix), func(l label, n *node[T]) {
 		res[prefixFromLabel(l)] = n.value
-		return nil
 	})
 	return res
 }
