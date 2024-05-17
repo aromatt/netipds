@@ -70,62 +70,6 @@ func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
 	return false
 }
 
-func (m *PrefixMap[T]) descendentsOf(
-	p netip.Prefix,
-	strict bool,
-) map[netip.Prefix]T {
-	res := make(map[netip.Prefix]T)
-	m.tree.walkDescendants(labelFromPrefix(p), strict, func(l label, n *tree[T]) {
-		res[prefixFromLabel(l)] = n.value
-	})
-	return res
-}
-
-func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
-	res := make(map[netip.Prefix]T)
-	m.tree.walkDescendants(label{}, false, func(l label, n *tree[T]) {
-		res[prefixFromLabel(l)] = n.value
-	})
-	return res
-}
-
-// DescendantsOf returns all descendants of the provided Prefix (including the
-// Prefix itself, if it has a value) as a map of Prefixes to values.
-func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) map[netip.Prefix]T {
-	return m.descendentsOf(p, false)
-}
-
-// StrictDescendantsOf returns all descendants of the provided Prefix as a map
-// of Prefixes to values.
-func (m *PrefixMap[T]) StrictDescendantsOf(p netip.Prefix) map[netip.Prefix]T {
-	return m.descendentsOf(p, true)
-}
-
-// AncestorsOf returns all ancestors of the provided Prefix as a map of
-// Prefixes to values.
-func (m *PrefixMap[T]) ancestorsOf(
-	p netip.Prefix,
-	strict bool,
-) map[netip.Prefix]T {
-	res := make(map[netip.Prefix]T)
-	m.tree.walkAncestors(labelFromPrefix(p), false, func(l label, n *tree[T]) {
-		res[prefixFromLabel(l)] = n.value
-	})
-	return res
-}
-
-// AncestorsOf returns all ancestors of the provided Prefix (including the
-// Prefix itself, if it has a value) as a map of Prefixes to values.
-func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) map[netip.Prefix]T {
-	return m.ancestorsOf(p, false)
-}
-
-// StrictAncestorsOf returns all ancestors of the provided Prefix as a map of
-// Prefixes to values.
-func (m *PrefixMap[T]) StrictAncestorsOf(p netip.Prefix) map[netip.Prefix]T {
-	return m.ancestorsOf(p, true)
-}
-
 func (m *PrefixMap[T]) rootOf(
 	p netip.Prefix,
 	strict bool,
@@ -171,4 +115,60 @@ func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 // and false.
 func (m *PrefixMap[T]) StrictParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, true)
+}
+
+func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
+	res := make(map[netip.Prefix]T)
+	m.tree.walkDescendants(label{}, false, func(l label, n *tree[T]) {
+		res[prefixFromLabel(l)] = n.value
+	})
+	return res
+}
+
+func (m *PrefixMap[T]) descendentsOf(
+	p netip.Prefix,
+	strict bool,
+) map[netip.Prefix]T {
+	res := make(map[netip.Prefix]T)
+	m.tree.walkDescendants(labelFromPrefix(p), strict, func(l label, n *tree[T]) {
+		res[prefixFromLabel(l)] = n.value
+	})
+	return res
+}
+
+// DescendantsOf returns all descendants of the provided Prefix (including the
+// Prefix itself, if it has a value) as a map of Prefixes to values.
+func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.descendentsOf(p, false)
+}
+
+// StrictDescendantsOf returns all descendants of the provided Prefix as a map
+// of Prefixes to values.
+func (m *PrefixMap[T]) StrictDescendantsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.descendentsOf(p, true)
+}
+
+// AncestorsOf returns all ancestors of the provided Prefix as a map of
+// Prefixes to values.
+func (m *PrefixMap[T]) ancestorsOf(
+	p netip.Prefix,
+	strict bool,
+) map[netip.Prefix]T {
+	res := make(map[netip.Prefix]T)
+	m.tree.walkAncestors(labelFromPrefix(p), false, func(l label, n *tree[T]) {
+		res[prefixFromLabel(l)] = n.value
+	})
+	return res
+}
+
+// AncestorsOf returns all ancestors of the provided Prefix (including the
+// Prefix itself, if it has a value) as a map of Prefixes to values.
+func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.ancestorsOf(p, false)
+}
+
+// StrictAncestorsOf returns all ancestors of the provided Prefix as a map of
+// Prefixes to values.
+func (m *PrefixMap[T]) StrictAncestorsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.ancestorsOf(p, true)
 }

@@ -73,6 +73,101 @@ func TestPrefixMapSetGet(t *testing.T) {
 	}
 }
 
+func TestPrefixMapContains(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
+		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
+		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
+
+		// Nodes with no values should not report as contained
+		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.Contains(tt.get); got != tt.want {
+			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
+func TestPrefixMapContainsAfterRemove(t *testing.T) {
+	tests := []struct {
+		set    []netip.Prefix
+		remove []netip.Prefix
+		get    netip.Prefix
+		want   bool
+	}{
+		{pfxs("::0/128"), pfxs("::0/128"), pfx("::0/128"), false},
+
+		// Try to remove value-less parent
+		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
+
+		// Remove value-ful parent
+		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
+
+		// Remove child of value-fal parent
+		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/128"), pfx("::0/127"), true},
+	}
+
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		for _, p := range tt.remove {
+			pmb.Remove(p)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.Contains(tt.get); got != tt.want {
+			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
+func TestPrefixMapEncompasses(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::0/127"), false},
+
+		{pfxs("::0/127"), pfx("::0/128"), true},
+		{pfxs("::0/127"), pfx("::1/128"), true},
+
+		{pfxs("::2/127"), pfx("::1/128"), false},
+		{pfxs("::2/127"), pfx("::2/128"), true},
+		{pfxs("::2/127"), pfx("::3/128"), true},
+
+		// A Prefix is not considered encompassed if the map contains all of its
+		// children but not the Prefix itself.
+		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.Encompasses(tt.get); got != tt.want {
+			t.Errorf("pm.Encompasses(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
 func TestPrefixMapToMap(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -160,6 +255,63 @@ func TestPrefixMapRemove(t *testing.T) {
 	}
 }
 
+func TestPrefixMapRootOf(t *testing.T) {
+	tests := []struct {
+		set        []netip.Prefix
+		get        netip.Prefix
+		wantPrefix netip.Prefix
+		wantOK     bool
+	}{
+		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
+		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
+
+		// Make sure value-less nodes are not returned by rootOf
+		{pfxs("::0/127", "::2/127"), pfx("::0/128"), pfx("::0/127"), true},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		gotPrefix, _, gotOK := pm.RootOf(tt.get)
+		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
+			t.Errorf(
+				"pm.RootOf(%s) = (%v, _, %v), want (%v, _, %v)",
+				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
+			)
+		}
+	}
+}
+
+func TestPrefixMapParentOf(t *testing.T) {
+	tests := []struct {
+		set        []netip.Prefix
+		get        netip.Prefix
+		wantPrefix netip.Prefix
+		wantOK     bool
+	}{
+		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
+		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
+		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		gotPrefix, _, gotOK := pm.ParentOf(tt.get)
+		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
+			t.Errorf(
+				"pm.ParentOf(%s) = (%v, _, %v), want (%v, _, %v)",
+				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
+			)
+		}
+	}
+}
 func TestPrefixMapDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -307,126 +459,6 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 				t.Errorf("pm.GetAncestors(%s) = %v, want %v", tt.get, got, tt.want)
 				break
 			}
-		}
-	}
-}
-
-func TestPrefixMapRootOf(t *testing.T) {
-	tests := []struct {
-		set        []netip.Prefix
-		get        netip.Prefix
-		wantPrefix netip.Prefix
-		wantOK     bool
-	}{
-		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
-		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
-		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
-
-		// Make sure value-less nodes are not returned by rootOf
-		{pfxs("::0/127", "::2/127"), pfx("::0/128"), pfx("::0/127"), true},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		pm := pmb.PrefixMap()
-		gotPrefix, _, gotOK := pm.RootOf(tt.get)
-		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
-			t.Errorf(
-				"pm.RootOf(%s) = (%v, _, %v), want (%v, _, %v)",
-				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
-			)
-		}
-	}
-}
-
-func TestPrefixMapParentOf(t *testing.T) {
-	tests := []struct {
-		set        []netip.Prefix
-		get        netip.Prefix
-		wantPrefix netip.Prefix
-		wantOK     bool
-	}{
-		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
-		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
-		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
-		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		pm := pmb.PrefixMap()
-		gotPrefix, _, gotOK := pm.ParentOf(tt.get)
-		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
-			t.Errorf(
-				"pm.ParentOf(%s) = (%v, _, %v), want (%v, _, %v)",
-				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
-			)
-		}
-	}
-}
-
-func TestPrefixMapContains(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want bool
-	}{
-		{pfxs(), pfx("::0/128"), false},
-		{pfxs("::0/128"), pfx("::0/128"), true},
-		{pfxs("::0/128"), pfx("::1/128"), false},
-		{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
-		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
-		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
-
-		// Nodes with no values should not report as contained
-		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		pm := pmb.PrefixMap()
-		if got := pm.Contains(tt.get); got != tt.want {
-			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
-		}
-	}
-}
-
-func TestPrefixMapContainsAfterRemove(t *testing.T) {
-	tests := []struct {
-		set    []netip.Prefix
-		remove []netip.Prefix
-		get    netip.Prefix
-		want   bool
-	}{
-		{pfxs("::0/128"), pfxs("::0/128"), pfx("::0/128"), false},
-
-		// Try to remove value-less parent
-		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
-
-		// Remove value-ful parent
-		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
-
-		// Remove child of value-fal parent
-		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/128"), pfx("::0/127"), true},
-	}
-
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		for _, p := range tt.remove {
-			pmb.Remove(p)
-		}
-		pm := pmb.PrefixMap()
-		if got := pm.Contains(tt.get); got != tt.want {
-			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
 }

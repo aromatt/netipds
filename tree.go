@@ -15,10 +15,12 @@ type tree[T any] struct {
 	hasValue bool
 }
 
+// newTree returns a new tree with the provided label.
 func newTree[T any](l label) *tree[T] {
 	return &tree[T]{label: l}
 }
 
+// clearValue removes the value from n.
 func (t *tree[T]) clearValue() {
 	var zeroVal T
 	t.value = zeroVal
@@ -43,6 +45,7 @@ func (t *tree[T]) withValueFrom(m *tree[T]) *tree[T] {
 	return t
 }
 
+// moveValueFrom moves m's value to n (removing it from m) and returns n.
 func (t *tree[T]) moveValueFrom(m *tree[T]) *tree[T] {
 	if m == nil {
 		return t
@@ -94,6 +97,7 @@ func (t *tree[T]) isZero() bool {
 	return t.label.isZero()
 }
 
+// prettyPrint prints the tree in a human-readable format.
 func (t *tree[T]) prettyPrint(indent string, prefix string) {
 	if t == nil {
 		return
@@ -104,6 +108,7 @@ func (t *tree[T]) prettyPrint(indent string, prefix string) {
 	t.right.prettyPrint(indent+"  ", "R:")
 }
 
+// set inserts the provided label and value into the tree.
 func (t *tree[T]) set(l label, value T) {
 	if t.label == l {
 		t.value = value
@@ -152,6 +157,7 @@ func (t *tree[T]) set(l label, value T) {
 	}
 }
 
+// remove removes the exact label provided from the tree, if it exists.
 func (t *tree[T]) remove(l label) *tree[T] {
 	if t == nil {
 		return nil
@@ -242,6 +248,7 @@ func (t *tree[T]) get(l label) (val T, ok bool) {
 	return
 }
 
+// contains returns true if this tree includes the exact label provided.
 func (t *tree[T]) contains(l label) (ret bool) {
 	t.walk(l, label{}, func(key label, m *tree[T]) bool {
 		if ret = (key == l && m.hasValue); ret {
@@ -252,6 +259,8 @@ func (t *tree[T]) contains(l label) (ret bool) {
 	return
 }
 
+// encompasses returns true if this tree includes a label which completely
+// encompasses the provided label.
 func (t *tree[T]) encompasses(l label, strict bool) (ret bool) {
 	t.walk(l, label{}, func(key label, m *tree[T]) bool {
 		if ret = (key.isPrefixOf(l) && !(strict && key == l) && m.hasValue); ret {
