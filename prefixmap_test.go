@@ -29,6 +29,9 @@ func TestPrefixMapSetGet(t *testing.T) {
 		{prefixes("::/128", "::1/128", "::2/127", "::3/127"), "::1/128", true},
 		{prefixes("::/128"), "::/0", false},
 
+		// Make sure we can't get a prefix that has a node but no value
+		{prefixes("::0/128", "::1/128"), "::0/127", false},
+
 		// TODO: should we allow ::/0 to be used as a key?
 		{prefixes("::/0"), "::/0", false},
 	}
@@ -97,7 +100,7 @@ func TestPrefixMapGetDescendants(t *testing.T) {
 			want: resultMap("::2/128", "::3/128"),
 		},
 
-		// Get a value-less shared prefix that has a value-less child
+		// Get a value-less shared prefix node that has a value-less child
 		{
 			set: prefixes("::4/128", "::6/128", "::7/128"),
 			// This node is in the tree, as is "::6/127", but they are both
@@ -106,21 +109,23 @@ func TestPrefixMapGetDescendants(t *testing.T) {
 			want: resultMap("::4/128", "::6/128", "::7/128"),
 		},
 
-		// Get a value-ful shared prefix that has a value-less child
+		// Get a value-ful shared prefix node that has a value-less child
 		{
 			set: prefixes("::4/126", "::6/128", "::7/128"),
 			get: "::4/126",
-			// The node "::6/127" is in the tree but has no value, so it
+			// The node "::6/127" is a node in the tree but has no value, so it
 			// should not be included in the result.
 			want: resultMap("::4/126", "::6/128", "::7/128"),
 		},
 
-		// Get a shared prefix that also has a value
+		// Get a prefix that has no exact node, but still has descendants
 		{
-			set:  prefixes("::2/127", "::2/128", "::3/128"),
-			get:  "::2/127",
-			want: resultMap("::2/127", "::2/128", "::3/128"),
+			set:  prefixes("::2/128", "::3/128"),
+			get:  "::0/126",
+			want: resultMap("::2/128", "::3/128"),
 		},
+
+		// Get
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
@@ -139,6 +144,79 @@ func TestPrefixMapGetDescendants(t *testing.T) {
 		for k, v := range got {
 			if wantV, ok := tt.want[k]; !ok || v != wantV {
 				t.Errorf("pm.GetDescendants(%s) = %v, want %v", p, got, tt.want)
+				break
+			}
+		}
+	}
+}
+
+func TestPrefixMapGetAncestors(t *testing.T) {
+	resultMap := func(prefixes ...string) map[netip.Prefix]bool {
+		m := make(map[netip.Prefix]bool, len(prefixes))
+		for _, pStr := range prefixes {
+			p := netip.MustParsePrefix(pStr)
+			m[p] = true
+		}
+		return m
+	}
+
+	tests := []struct {
+		set  []netip.Prefix
+		get  string
+		want map[netip.Prefix]bool
+	}{
+		{prefixes(), "::0/128", resultMap()},
+
+		// Single-prefix maps
+		{prefixes("::0/128"), "::1/128", resultMap()},
+		{prefixes("::1/128"), "::0/128", resultMap()},
+		{prefixes("::0/128"), "::0/128", resultMap("::0/128")},
+		{prefixes("::1/128"), "::1/128", resultMap("::1/128")},
+		{prefixes("::2/128"), "::2/128", resultMap("::2/128")},
+		{prefixes("::0/127"), "::0/128", resultMap("::0/127")},
+		{prefixes("::0/127"), "::1/128", resultMap("::0/127")},
+		{prefixes("::2/127"), "::2/127", resultMap("::2/127")},
+
+		{
+			set:  prefixes("::0/127", "::0/128"),
+			get:  "::0/128",
+			want: resultMap("::0/127", "::0/128"),
+		},
+		{
+			set:  prefixes("::0/128", "::1/128"),
+			get:  "::0/128",
+			want: resultMap("::0/128"),
+		},
+		{
+			set:  prefixes("::0/126", "::0/127", "::1/128"),
+			get:  "::0/128",
+			want: resultMap("::0/126", "::0/127"),
+		},
+
+		// Make sure nodes with no values are excluded
+		{
+			set: prefixes("::0/128", "::2/128"),
+			get: "::0/128",
+			// "::2/127" is a node in the tree but has no value, so it should
+			// not be included in the result.
+			want: resultMap("::0/128"),
+		},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		p := netip.MustParsePrefix(tt.get)
+		got := pm.GetAncestors(p)
+		if len(got) != len(tt.want) {
+			t.Errorf("pm.GetAncestors(%s) = %v, want %v", p, got, tt.want)
+			continue
+		}
+		for k, v := range got {
+			if wantV, ok := tt.want[k]; !ok || v != wantV {
+				t.Errorf("pm.GetAncestors(%s) = %v, want %v", p, got, tt.want)
 				break
 			}
 		}

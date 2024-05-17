@@ -154,7 +154,7 @@ func (n *node[T]) set(l label, value T) {
 // calling fn at each visited node.
 //
 // The arguments to fn are (1) a label containing the prefix accumulated during
-// the traversal up until the current node and (2) the current node.
+// the traversal including the current node and (2) the current node.
 //
 // The return values of fn are (1) a boolean indicating whether traversal
 // should stop and (2) an error. If fn returns true, traversal stops and
@@ -172,7 +172,7 @@ func (n *node[T]) walk(
 
 	// Never call fn on root node
 	if !n.isZero() {
-		stop, err := fn(pre, n)
+		stop, err := fn(pre.concat(n.label), n)
 		if err != nil {
 			return err
 		}
@@ -203,9 +203,8 @@ func (n *node[T]) walk(
 
 // get returns the value associated with the exact label provided, if it exists.
 func (n *node[T]) get(l label) (val T, ok bool) {
-	n.walk(l, label{}, func(pre label, m *node[T]) (bool, error) {
-		// If the label matches, stop traversing and return the value
-		if m.hasValue && pre.concat(m.label) == l {
+	n.walk(l, label{}, func(key label, m *node[T]) (bool, error) {
+		if key == l && m.hasValue {
 			val, ok = m.value, true
 			return true, nil
 		}
@@ -214,15 +213,28 @@ func (n *node[T]) get(l label) (val T, ok bool) {
 	return val, ok
 }
 
-// getDescendants returns a map of all descendants of the provided label and
-// their associated values.
-func (n *node[T]) getDescendants(l label) map[label]T {
-	descendants := make(map[label]T)
-	n.walk(l, label{}, func(pre label, m *node[T]) (bool, error) {
-		if m.hasValue && l.isPrefixOf(pre.concat(m.label)) {
-			descendants[pre.concat(m.label)] = m.value
+// walkDescendants calls fn on each descendant of the provided label, including
+// itself.
+func (n *node[T]) walkDescendants(l label, fn func(label, *node[T]) error) (err error) {
+	return n.walk(l, label{}, func(key label, m *node[T]) (bool, error) {
+		if l.isPrefixOf(key) && m.hasValue {
+			if err = fn(key, m); err != nil {
+				return true, err
+			}
 		}
 		return false, nil
 	})
-	return descendants
+}
+
+// walkAncestors calls fn on each ancestor of the provided label, including
+// itself.
+func (n *node[T]) walkAncestors(l label, fn func(label, *node[T]) error) (err error) {
+	return n.walk(l, label{}, func(key label, m *node[T]) (bool, error) {
+		if key.isPrefixOf(l) && m.hasValue {
+			if err = fn(key, m); err != nil {
+				return true, err
+			}
+		}
+		return false, nil
+	})
 }
