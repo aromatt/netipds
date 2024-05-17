@@ -462,3 +462,21 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
+	pmb := &PrefixMapBuilder[int]{}
+
+	// Create initial map
+	pmb.Set(pfx("::0/128"), 1)
+	pmb.Set(pfx("::1/128"), 1)
+	pm1 := pmb.PrefixMap()
+
+	// Make modifications with the sam PrefixMapBuilder and create a new map
+	pmb.Remove(pfx("::0/128"))
+	pmb.Set(pfx("::1/128"), 2)
+	pmb.Set(pfx("::2/128"), 2)
+	pm2 := pmb.PrefixMap()
+
+	checkMap(t, wantMap(1, "::0/128", "::1/128"), pm1.ToMap())
+	checkMap(t, wantMap(2, "::1/128", "::2/128"), pm2.ToMap())
+}

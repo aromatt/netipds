@@ -33,10 +33,16 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	return nil
 }
 
+// PrefixMap returns an immutable PrefixMap representing the current state of m.
+//
+// The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	return &PrefixMap[T]{tree: *m.tree.copy()}
 }
 
+// PrefixMap is a map of netip.Prefix to T.
+//
+// Use PrefixMapBuilder to construct PrefixMaps.
 type PrefixMap[T any] struct {
 	tree tree[T]
 }
