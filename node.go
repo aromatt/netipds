@@ -200,14 +200,39 @@ func (n *node[T]) get(l label) (val T, ok bool) {
 		}
 		return false
 	})
-	return val, ok
+	return
+}
+
+// rootOf returns the shortest-prefix ancestor of the label provided, if any.
+// If strict == true, the label itself is not considered.
+func (n *node[T]) rootOf(l label, strict bool) (outKey label, val T, ok bool) {
+	n.walk(l, label{}, func(key label, m *node[T]) bool {
+		if key.isPrefixOf(l) && !(strict && key == l) && m.hasValue {
+			outKey, val, ok = key, m.value, true
+			return true
+		}
+		return false
+	})
+	return
+}
+
+// parentOf returns the longest-prefix ancestor of the label provided, if any.
+// If strict is true, the label itself is not considered.
+func (n *node[T]) parentOf(l label, strict bool) (outKey label, val T, ok bool) {
+	n.walk(l, label{}, func(key label, m *node[T]) bool {
+		if key.isPrefixOf(l) && !(strict && key == l) && m.hasValue {
+			outKey, val, ok = key, m.value, true
+		}
+		return false
+	})
+	return
 }
 
 // walkDescendants calls fn on each descendant of the provided label, including
-// itself.
-func (n *node[T]) walkDescendants(l label, fn func(label, *node[T])) {
+// itself unless strict.
+func (n *node[T]) walkDescendants(l label, strict bool, fn func(label, *node[T])) {
 	n.walk(l, label{}, func(key label, m *node[T]) bool {
-		if l.isPrefixOf(key) && m.hasValue {
+		if l.isPrefixOf(key) && !(strict && key == l) && m.hasValue {
 			fn(key, m)
 		}
 		return false
@@ -215,10 +240,10 @@ func (n *node[T]) walkDescendants(l label, fn func(label, *node[T])) {
 }
 
 // walkAncestors calls fn on each ancestor of the provided label, including
-// itself.
-func (n *node[T]) walkAncestors(l label, fn func(label, *node[T])) {
+// itself unless strict.
+func (n *node[T]) walkAncestors(l label, strict bool, fn func(label, *node[T])) {
 	n.walk(l, label{}, func(key label, m *node[T]) bool {
-		if key.isPrefixOf(l) && m.hasValue {
+		if key.isPrefixOf(l) && !(strict && key == l) && m.hasValue {
 			fn(key, m)
 		}
 		return false
