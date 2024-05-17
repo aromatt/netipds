@@ -66,6 +66,7 @@ func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 // Covers returns true if this map includes a subset of Prefixes that
 // completely cover provided Prefix.
 func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
+	// TODO implement
 	return false
 }
 

@@ -368,3 +368,65 @@ func TestPrefixMapParentOf(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapContains(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
+		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
+		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
+
+		// Nodes with no values should not report as contained
+		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.Contains(tt.get); got != tt.want {
+			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
+func TestPrefixMapContainsAfterRemove(t *testing.T) {
+	tests := []struct {
+		set    []netip.Prefix
+		remove []netip.Prefix
+		get    netip.Prefix
+		want   bool
+	}{
+		{pfxs("::0/128"), pfxs("::0/128"), pfx("::0/128"), false},
+
+		// Try to remove value-less parent
+		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
+
+		// Remove value-ful parent
+		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
+
+		// Remove child of value-fal parent
+		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/128"), pfx("::0/127"), true},
+	}
+
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		for _, p := range tt.remove {
+			pmb.Remove(p)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.Contains(tt.get); got != tt.want {
+			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
