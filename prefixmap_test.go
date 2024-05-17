@@ -17,6 +17,28 @@ func pfxs(strings ...string) []netip.Prefix {
 	return ps
 }
 
+func wantMap[T comparable](val T, prefixes ...string) map[netip.Prefix]T {
+	m := make(map[netip.Prefix]T, len(prefixes))
+	for _, pStr := range prefixes {
+		p := netip.MustParsePrefix(pStr)
+		m[p] = val
+	}
+	return m
+}
+
+func checkMap[T comparable](t *testing.T, want, got map[netip.Prefix]T) {
+	if len(got) != len(want) {
+		t.Errorf("pm.ToMap() = %v, want %v", got, want)
+		return
+	}
+	for k, v := range got {
+		if wantV, ok := want[k]; !ok || v != wantV {
+			t.Errorf("pm.ToMap() = %v, want %v", got, want)
+			return
+		}
+	}
+}
+
 func TestPrefixMapSetGet(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -51,56 +73,134 @@ func TestPrefixMapSetGet(t *testing.T) {
 	}
 }
 
-func TestPrefixMapDescendantsOf(t *testing.T) {
-	resultMap := func(prefixes ...string) map[netip.Prefix]bool {
-		m := make(map[netip.Prefix]bool, len(prefixes))
-		for _, pStr := range prefixes {
-			p := netip.MustParsePrefix(pStr)
-			m[p] = true
-		}
-		return m
-	}
+func TestPrefixMapToMap(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		want map[netip.Prefix]bool
+	}{
+		{pfxs(), wantMap(true)},
+		{pfxs("::0/128"), wantMap(true, "::0/128")},
+		{pfxs("::1/128"), wantMap(true, "::1/128")},
+		{pfxs("::2/128"), wantMap(true, "::2/128")},
+		{pfxs("::2/127"), wantMap(true, "::2/127")},
+		{pfxs("::0/128", "::1/128"), wantMap(true, "::0/128", "::1/128")},
 
+		// Parent and children are both included if they have values
+		{pfxs("::0/127", "::0/128"), wantMap(true, "::0/127", "::0/128")},
+		{pfxs("::0/127", "::0/128", "::1/128"), wantMap(true, "::0/127", "::0/128", "::1/128")},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
+	}
+}
+
+func TestPrefixMapRemove(t *testing.T) {
+	tests := []struct {
+		set    []netip.Prefix
+		remove []netip.Prefix
+		want   map[netip.Prefix]bool
+	}{
+		{pfxs("::0/128"), pfxs("::0/128"), wantMap(true)},
+
+		// Try to remove a node with two children and no value
+		{
+			set:    pfxs("::1/128", "::0/128"),
+			remove: pfxs("::0/127"),
+			want:   wantMap(true, "::0/128", "::1/128"),
+		},
+
+		// Remove a node wth two children and a value
+		{
+			set:    pfxs("::0/127", "::1/128", "::0/128"),
+			remove: pfxs("::0/127"),
+			want:   wantMap(true, "::0/128", "::1/128"),
+		},
+
+		// Remove a node with one child and a value
+		{
+			set:    pfxs("::0/126", "::0/127", "::1/128"),
+			remove: pfxs("::0/126"),
+			want:   wantMap(true, "::0/127", "::1/128"),
+		},
+
+		// Remove leaf node
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			remove: pfxs("::1/128"),
+			want:   wantMap(true, "::0/128"),
+		},
+
+		// Remove two siblings with a common value-ful parent
+		{
+			set:    pfxs("::0/127", "::0/128", "::1/128"),
+			remove: pfxs("::0/128", "::1/128"),
+			want:   wantMap(true, "::0/127"),
+		},
+
+		// Remove two siblings with a common value-less parent
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			remove: pfxs("::0/128", "::1/128"),
+			want:   wantMap(true),
+		},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		for _, p := range tt.remove {
+			pmb.Remove(p)
+		}
+		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
+	}
+}
+
+func TestPrefixMapDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
 		want map[netip.Prefix]bool
 	}{
-		{pfxs(), pfx("::0/128"), resultMap()},
+		{pfxs(), pfx("::0/128"), wantMap(true)},
 
 		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), resultMap()},
-		{pfxs("::1/128"), pfx("::0/128"), resultMap()},
-		{pfxs("::0/128"), pfx("::0/128"), resultMap("::0/128")},
-		{pfxs("::1/128"), pfx("::1/128"), resultMap("::1/128")},
-		{pfxs("::2/128"), pfx("::2/128"), resultMap("::2/128")},
-		{pfxs("::0/128"), pfx("::1/127"), resultMap("::0/128")},
-		{pfxs("::1/128"), pfx("::0/127"), resultMap("::1/128")},
-		{pfxs("::2/127"), pfx("::2/127"), resultMap("::2/127")},
+		{pfxs("::0/128"), pfx("::1/128"), wantMap(true)},
+		{pfxs("::1/128"), pfx("::0/128"), wantMap(true)},
+		{pfxs("::0/128"), pfx("::0/128"), wantMap(true, "::0/128")},
+		{pfxs("::1/128"), pfx("::1/128"), wantMap(true, "::1/128")},
+		{pfxs("::2/128"), pfx("::2/128"), wantMap(true, "::2/128")},
+		{pfxs("::0/128"), pfx("::1/127"), wantMap(true, "::0/128")},
+		{pfxs("::1/128"), pfx("::0/127"), wantMap(true, "::1/128")},
+		{pfxs("::2/127"), pfx("::2/127"), wantMap(true, "::2/127")},
 
 		// Using "::/0" as a lookup key
-		{pfxs("::0/128"), pfx("::/0"), resultMap("::0/128")},
+		{pfxs("::0/128"), pfx("::/0"), wantMap(true, "::0/128")},
 
 		// Get a prefix that has no value but has children.
 		{
 			set:  pfxs("::0/128", "::1/128"),
 			get:  pfx("::0/127"),
-			want: resultMap("::0/128", "::1/128"),
+			want: wantMap(true, "::0/128", "::1/128"),
 		},
 		{
 			set:  pfxs("::0/128", "::1/128", "::2/128"),
 			get:  pfx("::2/127"),
-			want: resultMap("::2/128"),
+			want: wantMap(true, "::2/128"),
 		},
 		{
 			set:  pfxs("::0/128", "::1/128"),
 			get:  pfx("::0/127"),
-			want: resultMap("::0/128", "::1/128"),
+			want: wantMap(true, "::0/128", "::1/128"),
 		},
 		{
 			set:  pfxs("::2/128", "::3/128"),
 			get:  pfx("::2/127"),
-			want: resultMap("::2/128", "::3/128"),
+			want: wantMap(true, "::2/128", "::3/128"),
 		},
 
 		// Get a value-less shared prefix node that has a value-less child
@@ -109,7 +209,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 			// This node is in the tree, as is "::6/127", but they are both
 			// value-less shared prefixes.
 			get:  pfx("::4/126"),
-			want: resultMap("::4/128", "::6/128", "::7/128"),
+			want: wantMap(true, "::4/128", "::6/128", "::7/128"),
 		},
 
 		// Get a value-ful shared prefix node that has a value-less child
@@ -118,14 +218,14 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 			get: pfx("::4/126"),
 			// The node "::6/127" is a node in the tree but has no value, so it
 			// should not be included in the result.
-			want: resultMap("::4/126", "::6/128", "::7/128"),
+			want: wantMap(true, "::4/126", "::6/128", "::7/128"),
 		},
 
 		// Get a prefix that has no exact node, but still has descendants
 		{
 			set:  pfxs("::2/128", "::3/128"),
 			get:  pfx("::0/126"),
-			want: resultMap("::2/128", "::3/128"),
+			want: wantMap(true, "::2/128", "::3/128"),
 		},
 
 		// Get
@@ -135,20 +235,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
-		pm := pmb.PrefixMap()
-
-		pm.tree.prettyPrint("", "")
-		got := pm.DescendantsOf(tt.get)
-		if len(got) != len(tt.want) {
-			t.Errorf("pm.GetDescendants(%s) = %v, want %v", tt.get, got, tt.want)
-			continue
-		}
-		for k, v := range got {
-			if wantV, ok := tt.want[k]; !ok || v != wantV {
-				t.Errorf("pm.GetDescendants(%s) = %v, want %v", tt.get, got, tt.want)
-				break
-			}
-		}
+		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get))
 	}
 }
 

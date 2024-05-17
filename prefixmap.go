@@ -6,7 +6,7 @@ import (
 )
 
 type PrefixMapBuilder[T any] struct {
-	tree node[T]
+	tree tree[T]
 }
 
 func prefixFromLabel(l label) netip.Prefix {
@@ -16,115 +16,158 @@ func prefixFromLabel(l label) netip.Prefix {
 	return netip.PrefixFrom(netip.AddrFrom16(a16), int(l.len))
 }
 
-func (m *PrefixMapBuilder[T]) Set(prefix netip.Prefix, value T) error {
-	if !prefix.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", prefix)
+func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, value T) error {
+	if !p.IsValid() {
+		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	m.tree.set(labelFromPrefix(prefix), value)
+	m.tree.set(labelFromPrefix(p), value)
 	return nil
 }
 
-type PrefixMap[T any] struct {
-	tree node[T]
+func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
+	fmt.Println("Remove")
+	if !p.IsValid() {
+		return fmt.Errorf("Prefix is not valid: %v", p)
+	}
+	m.tree.remove(labelFromPrefix(p))
+	return nil
 }
 
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	return &PrefixMap[T]{tree: *m.tree.copy()}
 }
 
-// Get returns the value associated with the exact prefix provided, if any.
-func (m *PrefixMap[T]) Get(prefix netip.Prefix) (T, bool) {
-	return m.tree.get(labelFromPrefix(prefix))
+type PrefixMap[T any] struct {
+	tree tree[T]
+}
+
+// Get returns the value associated with the exact Prefix provided, if any.
+func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
+	return m.tree.get(labelFromPrefix(p))
+}
+
+// Contains returns true if this map includes the exact Prefix provided.
+func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
+	return m.tree.contains(labelFromPrefix(p))
+}
+
+// Encompasses returns true if this map includes a Prefix which completely
+// encompasses the provided Prefix.
+func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
+	return m.tree.encompasses(labelFromPrefix(p), false)
+}
+
+// EncompassesStrict returns true if this map includes a Prefix which
+// completely encompasses the provided Prefix.
+func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
+	return m.tree.encompasses(labelFromPrefix(p), true)
+}
+
+// Covers returns true if this map includes a subset of Prefixes that
+// completely cover provided Prefix.
+func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
+	return false
 }
 
 func (m *PrefixMap[T]) descendentsOf(
-	prefix netip.Prefix,
+	p netip.Prefix,
 	strict bool,
 ) map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walkDescendants(labelFromPrefix(prefix), strict, func(l label, n *node[T]) {
+	m.tree.walkDescendants(labelFromPrefix(p), strict, func(l label, n *tree[T]) {
 		res[prefixFromLabel(l)] = n.value
 	})
 	return res
 }
 
-// DescendantsOf returns all descendants of prefix (including prefix itself,
-// if it has a value) as a map of prefixes to values.
-func (m *PrefixMap[T]) DescendantsOf(prefix netip.Prefix) map[netip.Prefix]T {
-	return m.descendentsOf(prefix, false)
+func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
+	res := make(map[netip.Prefix]T)
+	m.tree.walkDescendants(label{}, false, func(l label, n *tree[T]) {
+		res[prefixFromLabel(l)] = n.value
+	})
+	return res
 }
 
-// StrictDescendantsOf returns all descendants of prefix as a map of prefixes to
-// values.
-func (m *PrefixMap[T]) StrictDescendantsOf(prefix netip.Prefix) map[netip.Prefix]T {
-	return m.descendentsOf(prefix, true)
+// DescendantsOf returns all descendants of the provided Prefix (including the
+// Prefix itself, if it has a value) as a map of Prefixes to values.
+func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.descendentsOf(p, false)
 }
 
-// AncestorsOf returns all ancestors of prefix as a map of prefixes to values.
+// StrictDescendantsOf returns all descendants of the provided Prefix as a map
+// of Prefixes to values.
+func (m *PrefixMap[T]) StrictDescendantsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.descendentsOf(p, true)
+}
+
+// AncestorsOf returns all ancestors of the provided Prefix as a map of
+// Prefixes to values.
 func (m *PrefixMap[T]) ancestorsOf(
-	prefix netip.Prefix,
+	p netip.Prefix,
 	strict bool,
 ) map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walkAncestors(labelFromPrefix(prefix), false, func(l label, n *node[T]) {
+	m.tree.walkAncestors(labelFromPrefix(p), false, func(l label, n *tree[T]) {
 		res[prefixFromLabel(l)] = n.value
 	})
 	return res
 }
 
-// AncestorsOf returns all ancestors of prefix (including prefix itself, if it
-// has a value) as a map of prefixes to values.
-func (m *PrefixMap[T]) AncestorsOf(prefix netip.Prefix) map[netip.Prefix]T {
-	return m.ancestorsOf(prefix, false)
+// AncestorsOf returns all ancestors of the provided Prefix (including the
+// Prefix itself, if it has a value) as a map of Prefixes to values.
+func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.ancestorsOf(p, false)
 }
 
-// StrictAncestorsOf returns all ancestors of prefix as a map of prefixes to values.
-func (m *PrefixMap[T]) StrictAncestorsOf(prefix netip.Prefix) map[netip.Prefix]T {
-	return m.ancestorsOf(prefix, true)
+// StrictAncestorsOf returns all ancestors of the provided Prefix as a map of
+// Prefixes to values.
+func (m *PrefixMap[T]) StrictAncestorsOf(p netip.Prefix) map[netip.Prefix]T {
+	return m.ancestorsOf(p, true)
 }
 
 func (m *PrefixMap[T]) rootOf(
-	prefix netip.Prefix,
+	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	label, val, ok := m.tree.rootOf(labelFromPrefix(prefix), strict)
+	label, val, ok := m.tree.rootOf(labelFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
 	return prefixFromLabel(label), val, true
 }
 
-// RootOf returns the shortest-prefix ancestor of the prefix provided, if any.
-// The prefix itself is returned if it has no ancestors and has a value.
+// RootOf returns the shortest-prefix ancestor of the Prefix provided, if any.
+// The Prefix itself is returned if it has no ancestors and has a value.
 func (m *PrefixMap[T]) RootOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.rootOf(p, false)
 }
 
-// RootOf returns the shortest-prefix ancestor of the prefix provided, if any.
-// If the prefix has no ancestors, RootOf returns zero values and false.
+// RootOf returns the shortest-prefix ancestor of the Prefix provided, if any.
+// If the Prefix has no ancestors, RootOf returns zero values and false.
 func (m *PrefixMap[T]) StrictRootOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.rootOf(p, true)
 }
 
 func (m *PrefixMap[T]) parentOf(
-	prefix netip.Prefix,
+	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	label, val, ok := m.tree.parentOf(labelFromPrefix(prefix), strict)
+	label, val, ok := m.tree.parentOf(labelFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
 	return prefixFromLabel(label), val, true
 }
 
-// ParentOf returns the longest-prefix ancestor of the prefix provided, if any.
-// If the prefix has no ancestors, ParentOf returns zero values and false.
+// ParentOf returns the longest-prefix ancestor of the Prefix provided, if any.
+// If the Prefix has no ancestors, ParentOf returns zero values and false.
 func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, false)
 }
 
-// StrictParentOf returns the longest-prefix ancestor of the prefix provided, if any.
-// If the prefix has no ancestors, StrictParentOf returns zero values and false.
+// StrictParentOf returns the longest-prefix ancestor of the Prefix provided,
+// if any. If the Prefix has no ancestors, StrictParentOf returns zero values
+// and false.
 func (m *PrefixMap[T]) StrictParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, true)
 }
