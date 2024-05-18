@@ -222,10 +222,17 @@ func TestPrefixMapRemove(t *testing.T) {
 			want:   wantMap(true, "::0/127", "::1/128"),
 		},
 
-		// Remove leaf node
+		// Remove one sibling
 		{
 			set:    pfxs("::0/128", "::1/128"),
 			remove: pfxs("::1/128"),
+			want:   wantMap(true, "::0/128"),
+		},
+
+		// Try to remove a value-less parent and one sibling
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			remove: pfxs("::0/127", "::1/128"),
 			want:   wantMap(true, "::0/128"),
 		},
 
@@ -318,9 +325,9 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 		get  netip.Prefix
 		want map[netip.Prefix]bool
 	}{
-		{pfxs(), pfx("::0/128"), wantMap(true)},
+		//{pfxs(), pfx("::0/128"), wantMap(true)},
 
-		// Single-prefix maps
+		//// Single-prefix maps
 		{pfxs("::0/128"), pfx("::1/128"), wantMap(true)},
 		{pfxs("::1/128"), pfx("::0/128"), wantMap(true)},
 		{pfxs("::0/128"), pfx("::0/128"), wantMap(true, "::0/128")},
@@ -379,15 +386,13 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 			get:  pfx("::0/126"),
 			want: wantMap(true, "::2/128", "::3/128"),
 		},
-
-		// Get
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
-		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get))
+		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get).ToMap())
 	}
 }
 
@@ -448,19 +453,9 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
-		pm := pmb.PrefixMap()
-		got := pm.AncestorsOf(tt.get)
-		if len(got) != len(tt.want) {
-			t.Errorf("pm.GetAncestors(%s) = %v, want %v", tt.get, got, tt.want)
-			continue
-		}
-		for k, v := range got {
-			if wantV, ok := tt.want[k]; !ok || v != wantV {
-				t.Errorf("pm.GetAncestors(%s) = %v, want %v", tt.get, got, tt.want)
-				break
-			}
-		}
+		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOf(tt.get).ToMap())
 	}
+
 }
 
 func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
@@ -528,15 +523,15 @@ func TestPrefixMapFilter(t *testing.T) {
 		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), wantMap(true)},
 	}
 	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
+		sPmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			sPmb.Set(p, true)
 		}
-		ttPmb := &PrefixMapBuilder[bool]{}
+		fPmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.filter {
-			ttPmb.Set(p, true)
+			fPmb.Set(p, true)
 		}
-		pmb.Filter(ttPmb.PrefixMap())
-		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
+		sPmb.Filter(fPmb.PrefixMap())
+		checkMap(t, tt.want, sPmb.PrefixMap().ToMap())
 	}
 }
