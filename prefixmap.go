@@ -80,7 +80,7 @@ func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
 	return m.tree.covers(labelFromPrefix(p), false)
 }
 
-// Covers returns true if this map includes a subset of Prefixes that
+// CoversStrict returns true if this map includes a subset of Prefixes that
 // completely cover provided Prefix. The provided Prefix itself is not
 // considered.
 func (m *PrefixMap[T]) CoversStrict(p netip.Prefix) bool {
@@ -106,7 +106,7 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (netip.Prefix, T, bool) {
 
 // RootOf returns the shortest-prefix ancestor of the Prefix provided, if any.
 // If the Prefix has no ancestors, RootOf returns zero values and false.
-func (m *PrefixMap[T]) StrictRootOf(p netip.Prefix) (netip.Prefix, T, bool) {
+func (m *PrefixMap[T]) RootOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.rootOf(p, true)
 }
 
@@ -127,10 +127,10 @@ func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, false)
 }
 
-// StrictParentOf returns the longest-prefix ancestor of the Prefix provided,
-// if any. If the Prefix has no ancestors, StrictParentOf returns zero values
+// ParentOfStrict returns the longest-prefix ancestor of the Prefix provided,
+// if any. If the Prefix has no ancestors, ParentOfStrict returns zero values
 // and false.
-func (m *PrefixMap[T]) StrictParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
+func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, true)
 }
 
@@ -159,9 +159,9 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) map[netip.Prefix]T {
 	return m.descendentsOf(p, false)
 }
 
-// StrictDescendantsOf returns all descendants of the provided Prefix as a map
+// DescendantsOfStrict returns all descendants of the provided Prefix as a map
 // of Prefixes to values.
-func (m *PrefixMap[T]) StrictDescendantsOf(p netip.Prefix) map[netip.Prefix]T {
+func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) map[netip.Prefix]T {
 	return m.descendentsOf(p, true)
 }
 
@@ -184,8 +184,8 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) map[netip.Prefix]T {
 	return m.ancestorsOf(p, false)
 }
 
-// StrictAncestorsOf returns all ancestors of the provided Prefix as a map of
+// AncestorsOfStrict returns all ancestors of the provided Prefix as a map of
 // Prefixes to values.
-func (m *PrefixMap[T]) StrictAncestorsOf(p netip.Prefix) map[netip.Prefix]T {
+func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) map[netip.Prefix]T {
 	return m.ancestorsOf(p, true)
 }
