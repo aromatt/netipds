@@ -197,8 +197,8 @@ func (t *tree[T]) remove(k key) *tree[T] {
 		}
 	}
 
-	// t.key is a prefix of the new key, so recurse into the
-	// appropriate child of t.
+	// t.key is a prefix of the key to remove, so recurse into the appropriate
+	// child of t.
 	if t.key.isPrefixOf(k) {
 		if zero, _ := k.isBitZero(t.key.len); zero {
 			if t.left != nil {
@@ -212,6 +212,11 @@ func (t *tree[T]) remove(k key) *tree[T] {
 	}
 
 	return t
+}
+
+// This is not just finding nodes to delete; nodes might need to be split.
+func (t *tree[T]) removeDescendants(k key, strict bool) {
+
 }
 
 // walkPath traverses the tree starting at this tree's root, following the
@@ -351,18 +356,6 @@ func (t *tree[T]) filter(o tree[T]) {
 	for _, k := range remove {
 		t.remove(k)
 	}
-}
-
-func (t *tree[T]) removeDescendants(k key, strict bool) {
-	t.walk(k, func(n *tree[T]) bool {
-		if k.isPrefixOf(n.key) && !(strict && k == n.key) {
-			n.clearValue()
-			n.left = nil
-			n.right = nil
-			return false
-		}
-		return true
-	})
 }
 
 func (t *tree[T]) overlapsKey(k key) bool {

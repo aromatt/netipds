@@ -536,6 +536,28 @@ func TestPrefixMapFilter(t *testing.T) {
 	}
 }
 
+func TestPrefixMapRemoveDescendants(t *testing.T) {
+	tests := []struct {
+		set    []netip.Prefix
+		remove netip.Prefix
+		want   map[netip.Prefix]bool
+	}{
+		{pfxs(), pfx("::0/128"), wantMap(true)},
+		{pfxs("::0/128"), pfx("::0/128"), wantMap(true)},
+		{pfxs("::0/128"), pfx("::1/128"), wantMap(true, "::0/128")},
+		{pfxs("::0/128"), pfx("::0/127"), wantMap(true)},
+		{pfxs("::0/127"), pfx("::0/128"), wantMap(true, "::1/128")},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pmb.RemoveDescendants(tt.remove)
+		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
+	}
+}
+
 func TestOverlapsPrefix(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
