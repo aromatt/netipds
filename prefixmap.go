@@ -32,6 +32,26 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	return nil
 }
 
+// RemoveDescendants removes all Prefixes from m that are encompassed by the
+// provided Prefix, including the Prefix itself.
+func (m *PrefixMapBuilder[T]) RemoveDescendants(p netip.Prefix) error {
+	if !p.IsValid() {
+		return fmt.Errorf("Prefix is not valid: %v", p)
+	}
+	m.tree.removeDescendants(keyFromPrefix(p), false)
+	return nil
+}
+
+// RemoveDescendantsStrict removes all Prefixes from m that are encompassed by
+// the provided Prefix. The provided Prefix itself is not removed.
+func (m *PrefixMapBuilder[T]) RemoveDescendantsStrict(p netip.Prefix) error {
+	if !p.IsValid() {
+		return fmt.Errorf("Prefix is not valid: %v", p)
+	}
+	m.tree.removeDescendants(keyFromPrefix(p), true)
+	return nil
+}
+
 // Filter removes all Prefixes from m that are not encompassed by pm.
 func (m *PrefixMapBuilder[T]) Filter(pm *PrefixMap[T]) {
 	m.tree.filter(pm.tree)

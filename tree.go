@@ -347,3 +347,15 @@ func (t *tree[T]) filter(o tree[T]) {
 		t.remove(k)
 	}
 }
+
+func (t *tree[T]) removeDescendants(k key, strict bool) {
+	t.walk(k, func(n *tree[T]) bool {
+		if k.isPrefixOf(n.key) && !(strict && k == n.key) {
+			n.clearValue()
+			n.left = nil
+			n.right = nil
+			return false
+		}
+		return true
+	})
+}
