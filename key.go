@@ -113,7 +113,7 @@ func (k key) truncated(n uint8) key {
 	return newKey(k.content, k.offset, n)
 }
 
-// rest returns a copy of b starting at position i. if i > k.len, returns the
+// rest returns a copy of b starting at position i. If i > k.len, returns the
 // zero key.
 func (k key) rest(i uint8) key {
 	if k.isZero() {
