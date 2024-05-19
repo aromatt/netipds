@@ -41,6 +41,14 @@ func (m *PrefixSet) Contains(p netip.Prefix) bool {
 	return m.tree.contains(keyFromPrefix(p))
 }
 
+func (m *PrefixSet) Encompasses(p netip.Prefix) bool {
+	return m.tree.encompasses(keyFromPrefix(p), false)
+}
+
+func (m *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
+	return m.tree.encompasses(keyFromPrefix(p), true)
+}
+
 func (m *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, 0)
 	m.tree.walk(key{}, func(n *tree[bool]) bool {
