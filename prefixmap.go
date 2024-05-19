@@ -5,6 +5,11 @@ import (
 	"net/netip"
 )
 
+// PrefixMapBuilder builds an immutable PrefixMap.
+//
+// The zero value is a valid value representing an empty PrefixMap.
+//
+// Call PrefixMap to obtain an immutable PrefixMap from a PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
 	tree tree[T]
 }
@@ -67,19 +72,6 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 // not considered.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	return m.tree.encompasses(keyFromPrefix(p), true)
-}
-
-// Covers returns true if this map includes a subset of Prefixes that
-// completely cover provided Prefix.
-func (m *PrefixMap[T]) Covers(p netip.Prefix) bool {
-	return m.tree.covers(keyFromPrefix(p), false)
-}
-
-// CoversStrict returns true if this map includes a subset of Prefixes that
-// completely cover provided Prefix. The provided Prefix itself is not
-// considered.
-func (m *PrefixMap[T]) CoversStrict(p netip.Prefix) bool {
-	return m.tree.covers(keyFromPrefix(p), true)
 }
 
 func prefixFromKey(b key) netip.Prefix {

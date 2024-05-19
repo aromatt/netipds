@@ -273,13 +273,6 @@ func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 	return
 }
 
-// covers returns true if this tree includes a subset of keys that completely
-// cover the provided key.
-func (t *tree[T]) covers(k key, strict bool) (ret bool) {
-	// TODO implement
-	panic("not implemented")
-}
-
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) rootOf(k key, strict bool) (outPath key, val T, ok bool) {
