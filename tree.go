@@ -111,14 +111,19 @@ func (t *tree[T]) isZero() bool {
 }
 
 // prettyPrint prints the tree in a human-readable format.
-func (t *tree[T]) prettyPrint(indent string, prefix string) {
-	fmt.Printf("%s%s%s: %v\n", indent, prefix, t.key, t.value)
+func (t *tree[T]) stringHelper(indent string, prefix string, hideValue bool) string {
+	ret := fmt.Sprintf("%s%s%s: %v\n", indent, prefix, t.key, t.value)
 	if t.left != nil {
-		t.left.prettyPrint(indent+"  ", "L:")
+		ret += t.left.stringHelper(indent+"  ", "L:", hideValue)
 	}
 	if t.right != nil {
-		t.right.prettyPrint(indent+"  ", "R:")
+		ret += t.right.stringHelper(indent+"  ", "R:", hideValue)
 	}
+	return ret
+}
+
+func (t *tree[T]) String() string {
+	return t.stringHelper("", "", false)
 }
 
 // set inserts the provided key and value into the tree.

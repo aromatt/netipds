@@ -189,3 +189,7 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*m.tree.ancestorsOf(keyFromPrefix(p), true)}
 }
+
+func (m *PrefixMap[T]) String() string {
+	return m.tree.stringHelper("", "", false)
+}
