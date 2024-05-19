@@ -53,6 +53,10 @@ func (s *PrefixSetBuilder) RemoveDescendantsStrict(p netip.Prefix) error {
 	return nil
 }
 
+func (s *PrefixSetBuilder) String() string {
+	return s.tree.stringHelper("", "", true)
+}
+
 type PrefixSet struct {
 	tree tree[bool]
 }

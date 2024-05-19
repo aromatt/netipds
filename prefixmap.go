@@ -64,6 +64,10 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	return &PrefixMap[T]{*m.tree.copy()}
 }
 
+func (s *PrefixMapBuilder[T]) String() string {
+	return s.tree.stringHelper("", "", false)
+}
+
 // PrefixMap is a map of netip.Prefix to T.
 //
 // Use PrefixMapBuilder to construct PrefixMaps.
