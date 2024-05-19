@@ -535,3 +535,28 @@ func TestPrefixMapFilter(t *testing.T) {
 		checkMap(t, tt.want, sPmb.PrefixMap().ToMap())
 	}
 }
+
+func TestOverlapsPrefix(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/127"), pfx("::0/128"), true},
+		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.OverlapsPrefix(tt.get); got != tt.want {
+			t.Errorf("pm.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}

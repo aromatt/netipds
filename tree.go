@@ -275,10 +275,10 @@ func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t *tree[T]) rootOf(k key, strict bool) (outPath key, val T, ok bool) {
+func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
 		if n.key.isPrefixOf(k) && !(strict && n.key == k) && n.hasValue {
-			outPath, val, ok = n.key, n.value, true
+			outKey, val, ok = n.key, n.value, true
 			return true
 		}
 		return false
@@ -288,10 +288,10 @@ func (t *tree[T]) rootOf(k key, strict bool) (outPath key, val T, ok bool) {
 
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // If strict is true, the key itself is not considered.
-func (t *tree[T]) parentOf(k key, strict bool) (outPath key, val T, ok bool) {
+func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
 		if n.key.isPrefixOf(k) && !(strict && n.key == k) && n.hasValue {
-			outPath, val, ok = n.key, n.value, true
+			outKey, val, ok = n.key, n.value, true
 		}
 		return false
 	})
@@ -358,4 +358,16 @@ func (t *tree[T]) removeDescendants(k key, strict bool) {
 		}
 		return true
 	})
+}
+
+func (t *tree[T]) overlapsKey(k key) bool {
+	var ret bool
+	t.walk(k, func(n *tree[T]) bool {
+		if n.key.isPrefixOf(k) || k.isPrefixOf(n.key) {
+			ret = true
+			return true
+		}
+		return false
+	})
+	return ret
 }

@@ -59,3 +59,7 @@ func (m *PrefixSet) Prefixes() []netip.Prefix {
 	})
 	return res
 }
+
+func (m *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
+	return m.tree.overlapsKey(keyFromPrefix(p))
+}

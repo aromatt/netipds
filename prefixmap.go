@@ -94,6 +94,12 @@ func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	return m.tree.encompasses(keyFromPrefix(p), true)
 }
 
+// OverlapsPrefix returns true if this map includes a Prefix which overlaps the
+// provided Prefix.
+func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
+	return m.tree.overlapsKey(keyFromPrefix(p))
+}
+
 func prefixFromKey(b key) netip.Prefix {
 	var a16 [16]byte
 	bePutUint64(a16[:8], b.content.hi)
