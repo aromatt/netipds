@@ -32,8 +32,15 @@ func (k key) rooted() key {
 	return key{k.content, 0, k.len}
 }
 
+// keyFromPrefix returns the key that represents the provided Prefix.
 func keyFromPrefix(p netip.Prefix) key {
-	return newKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
+	addr := p.Addr()
+	// TODO bits could be -1
+	bits := uint8(p.Bits())
+	if addr.Is4() {
+		bits = bits + 96
+	}
+	return newKey(u128From16(addr.As16()), 0, bits)
 }
 
 // Prints the portion of k.content from offset to len, as hex, followed by

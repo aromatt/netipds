@@ -104,11 +104,17 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 	return m.tree.overlapsKey(keyFromPrefix(p))
 }
 
+// prefixFromKey returns the Prefix represented by the provided key.
 func prefixFromKey(b key) netip.Prefix {
 	var a16 [16]byte
 	bePutUint64(a16[:8], b.content.hi)
 	bePutUint64(a16[8:], b.content.lo)
-	return netip.PrefixFrom(netip.AddrFrom16(a16), int(b.len))
+	addr := netip.AddrFrom16(a16)
+	bits := int(b.len)
+	if addr.Is4In6() {
+		bits -= 96
+	}
+	return netip.PrefixFrom(addr.Unmap(), bits)
 }
 
 func (m *PrefixMap[T]) rootOf(
