@@ -28,12 +28,12 @@ func wantMap[T comparable](val T, prefixes ...string) map[netip.Prefix]T {
 
 func checkMap[T comparable](t *testing.T, want, got map[netip.Prefix]T) {
 	if len(got) != len(want) {
-		t.Errorf("pm.ToMap() = %v, want %v", got, want)
+		t.Errorf("got %v, want %v", got, want)
 		return
 	}
 	for k, v := range got {
 		if wantV, ok := want[k]; !ok || v != wantV {
-			t.Errorf("pm.ToMap() = %v, want %v", got, want)
+			t.Errorf("got %v, want %v", got, want)
 			return
 		}
 	}
@@ -57,6 +57,11 @@ func TestPrefixMapSetGet(t *testing.T) {
 
 		// Make sure we can't get a prefix that has a node but no value
 		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
+
+		// Make sure parent/child insert order doesn't matter
+		{pfxs("::0/127", "::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/128", "::0/127"), pfx("::0/127"), true},
+		{pfxs("::0/128", "::0/127", "::1/128"), pfx("::0/127"), true},
 
 		// TODO: should we allow ::/0 to be used as a key?
 		{pfxs("::/0"), pfx("::/0"), false},
@@ -404,7 +409,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 }
 
 func TestPrefixMapAncestorsOf(t *testing.T) {
-	resultMap := func(prefixes ...string) map[netip.Prefix]bool {
+	result := func(prefixes ...string) map[netip.Prefix]bool {
 		m := make(map[netip.Prefix]bool, len(prefixes))
 		for _, pStr := range prefixes {
 			p := netip.MustParsePrefix(pStr)
@@ -418,32 +423,33 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 		get  netip.Prefix
 		want map[netip.Prefix]bool
 	}{
-		{pfxs(), pfx("::0/128"), resultMap()},
+		{pfxs(), pfx("::0/128"), result()},
 
 		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), resultMap()},
-		{pfxs("::1/128"), pfx("::0/128"), resultMap()},
-		{pfxs("::0/128"), pfx("::0/128"), resultMap("::0/128")},
-		{pfxs("::1/128"), pfx("::1/128"), resultMap("::1/128")},
-		{pfxs("::2/128"), pfx("::2/128"), resultMap("::2/128")},
-		{pfxs("::0/127"), pfx("::0/128"), resultMap("::0/127")},
-		{pfxs("::0/127"), pfx("::1/128"), resultMap("::0/127")},
-		{pfxs("::2/127"), pfx("::2/127"), resultMap("::2/127")},
+		{pfxs("::0/128"), pfx("::1/128"), result()},
+		{pfxs("::1/128"), pfx("::0/128"), result()},
+		{pfxs("::0/128"), pfx("::0/128"), result("::0/128")},
+		{pfxs("::1/128"), pfx("::1/128"), result("::1/128")},
+		{pfxs("::2/128"), pfx("::2/128"), result("::2/128")},
+		{pfxs("::0/127"), pfx("::0/128"), result("::0/127")},
+		{pfxs("::0/127"), pfx("::1/128"), result("::0/127")},
+		{pfxs("::2/127"), pfx("::2/127"), result("::2/127")},
 
+		// Multi-prefix maps
 		{
 			set:  pfxs("::0/127", "::0/128"),
 			get:  pfx("::0/128"),
-			want: resultMap("::0/127", "::0/128"),
+			want: result("::0/127", "::0/128"),
 		},
 		{
 			set:  pfxs("::0/128", "::1/128"),
 			get:  pfx("::0/128"),
-			want: resultMap("::0/128"),
+			want: result("::0/128"),
 		},
 		{
 			set:  pfxs("::0/126", "::0/127", "::1/128"),
 			get:  pfx("::0/128"),
-			want: resultMap("::0/126", "::0/127"),
+			want: result("::0/126", "::0/127"),
 		},
 
 		// Make sure nodes with no values are excluded
@@ -452,15 +458,50 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 			get: pfx("::0/128"),
 			// "::2/127" is a node in the tree but has no value, so it should
 			// not be included in the result.
-			want: resultMap("::0/128"),
+			want: result("::0/128"),
 		},
+
+		// Make sure parent/child insertion order doesn't matter
+		{
+			set:  pfxs("::0/126", "::0/127"),
+			get:  pfx("::0/128"),
+			want: result("::0/127", "::0/126"),
+		},
+		{
+			set:  pfxs("::0/127", "::0/126"),
+			get:  pfx("::0/128"),
+			want: result("::0/127", "::0/126"),
+		},
+
+		// IPv4
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.1/32"), result()},
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), result("1.2.3.0/32")},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/32"), result("1.2.3.0/24")},
+		// Insert shortest prefix first
+		{
+			set:  pfxs("1.2.0.0/16", "1.2.3.0/24"),
+			get:  pfx("1.2.3.0/32"),
+			want: result("1.2.3.0/24", "1.2.0.0/16"),
+		},
+		// Insert longest prefix first
+		//{
+		//	set:  pfxs("1.2.3.0/24", "1.2.0.0/16"),
+		//	get:  pfx("1.2.3.0/32"),
+		//	want: result("1.2.3.0/24", "1.2.0.0/16"),
+		//},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
-		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOf(tt.get).ToMap())
+		pm := pmb.PrefixMap()
+		//fmt.Println("ancestorsOf")
+		//fmt.Println(pm)
+		//fmt.Println(pm.ToMap())
+		anc := pm.AncestorsOf(tt.get)
+		//fmt.Println("got ancestors:", anc)
+		checkMap(t, tt.want, anc.ToMap())
 	}
 
 }
