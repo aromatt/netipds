@@ -251,8 +251,12 @@ func (t *tree[T]) walk(k key, fn func(*tree[T]) bool) {
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		if n.key.equalFromRoot(k) && n.hasValue {
-			val, ok = n.value, true
+		if n.key.len >= k.len {
+			if n.key.equalFromRoot(k) && n.hasValue {
+				//fmt.Printf("  %s found\n", n.key)
+				val, ok = n.value, true
+			}
+			// Always stop traversal if we've reached the end of the path.
 			return true
 		}
 		return false
