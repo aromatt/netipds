@@ -88,6 +88,9 @@ func TestPrefixMapContains(t *testing.T) {
 
 		// Nodes with no values should not report as contained
 		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
+
+		// IPv4 prefixes are appropriately wrapped
+		{pfxs("1.2.3.0/24"), pfx("::/24"), false},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
@@ -183,6 +186,10 @@ func TestPrefixMapToMap(t *testing.T) {
 		// Parent and children are both included if they have values
 		{pfxs("::0/127", "::0/128"), wantMap(true, "::0/127", "::0/128")},
 		{pfxs("::0/127", "::0/128", "::1/128"), wantMap(true, "::0/127", "::0/128", "::1/128")},
+
+		// IPv4
+		{pfxs("10.0.0.0/32"), wantMap(true, "10.0.0.0/32")},
+		{pfxs("10.0.0.1/32"), wantMap(true, "10.0.0.1/32")},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
