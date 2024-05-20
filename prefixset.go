@@ -13,7 +13,7 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.set(keyFromPrefix(p), true)
+	s.tree = *s.tree.insert(keyFromPrefix(p), true)
 	return nil
 }
 
@@ -96,11 +96,9 @@ func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 	ret.Add(p)
 	pk := keyFromPrefix(p)
 	s.tree.walk(pk, func(n *tree[bool]) bool {
-		fmt.Println("removing", n.key)
 		ret.RemoveDescendants(prefixFromKey(n.key))
 		return false
 	})
-	fmt.Println("ret")
 	return ret.PrefixSet()
 }
 

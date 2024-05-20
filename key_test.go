@@ -25,11 +25,10 @@ func TestKeyString(t *testing.T) {
 		{k(uint128{1, 1}, 0, 128), "10000000000000001/128"},
 		{k(uint128{1, 256}, 0, 120), "100000000000001/120"},
 
-		// Test masking off of the first b.offset bits
 		{k(uint128{1<<63 + 1, 0}, 0, 64), "8000000000000001/64"},
-		{k(uint128{1<<63 + 1, 0}, 1, 64), "1/64"},
+		{k(uint128{1<<63 + 1, 0}, 1, 64), "8000000000000001/64"},
 		{k(uint128{1, 256}, 63, 120), "100000000000001/120"},
-		{k(uint128{1, 256}, 64, 120), "1/120"},
+		{k(uint128{1, 256}, 64, 120), "100000000000001/120"},
 	}
 	for _, tt := range tests {
 		if got := tt.k.String(); got != tt.want {
@@ -72,7 +71,7 @@ func TestKeyParse(t *testing.T) {
 	}
 }
 
-func TestKeyIsBitZero(t *testing.T) {
+func TestKeyHasBitZeroAt(t *testing.T) {
 	tests := []struct {
 		k      key
 		i      uint8
@@ -94,8 +93,8 @@ func TestKeyIsBitZero(t *testing.T) {
 		{k(uint128{0, 0}, 0, 128), 128, false, false},
 	}
 	for _, tt := range tests {
-		if got, ok := tt.k.isBitZero(tt.i); got != tt.want || ok != tt.wantOk {
-			t.Errorf("%v.isBitZero(%d) = (%v, %v), want (%v, %v)",
+		if got, ok := tt.k.hasBitZeroAt(tt.i); got != tt.want || ok != tt.wantOk {
+			t.Errorf("%v.hasBitZeroAt(%d) = (%v, %v), want (%v, %v)",
 				tt.k, tt.i, got, ok, tt.want, tt.wantOk)
 		}
 	}

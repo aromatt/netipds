@@ -112,7 +112,7 @@ func (t *tree[T]) isZero() bool {
 
 // prettyPrint prints the tree in a human-readable format.
 func (t *tree[T]) stringHelper(indent string, prefix string, hideValue bool) string {
-	ret := fmt.Sprintf("%s%s%s: %v\n", indent, prefix, t.key, t.value)
+	ret := fmt.Sprintf("%s%s%s: %v\n", indent, prefix, t.key.StringRelative(), t.value)
 	if t.left != nil {
 		ret += t.left.stringHelper(indent+"  ", "L:", hideValue)
 	}
@@ -126,52 +126,67 @@ func (t *tree[T]) String() string {
 	return t.stringHelper("", "", false)
 }
 
-// set inserts the provided key and value into the tree.
-// TODO revisit this
-func (t *tree[T]) set(k key, value T) {
-	if t.key == k {
-		t.value = value
-		t.hasValue = true
-		return
+func (t *tree[T]) insert(k key, v T) *tree[T] {
+	common := t.key.commonPrefixLen(k)
+	switch {
+	case t.key == k:
+		return t.insertHere(k, v)
+	case common == t.key.len:
+		return t.insertChild(k, v)
+	case common == k.len:
+		return t.insertParent(k, v)
+	case common < t.key.len:
+		return t.insertFork(k, v, common)
+	default:
+		// TODO
+		panic("unreachable")
 	}
+}
 
-	if t.key.isPrefixOf(k) {
-		// t.key is a prefix of the new key, so recurse into the
-		// appropriate child of n (or create it).
-		var next **tree[T]
-		// t.key.len < l.len because t.key is strictly a prefix of l
-		if zero, _ := k.isBitZero(t.key.len); zero {
-			next = &t.left
-		} else {
-			next = &t.right
-		}
-		if *next == nil {
-			*next = newTree[T](k.rest(t.key.len)).setValue(value)
-		} else {
-			(*next).set(k.rest(t.key.len), value)
-		}
+func (t *tree[T]) insertHere(k key, v T) *tree[T] {
+	t.value = v
+	t.hasValue = true
+	return t
+}
+
+func (t *tree[T]) insertChild(k key, v T) *tree[T] {
+	var next **tree[T]
+	if zero, _ := k.hasBitZeroAt(t.key.len); zero {
+		next = &t.left
 	} else {
-		common := t.key.commonPrefixLen(k)
-
-		// Split t and create two new children: an "heir" to inherit t's
-		// suffix, and a sibling to handle the new suffix.
-		heir := newTree[T](t.key.rest(common)).moveValueFrom(t).moveChildrenFrom(t)
-		sibling := newTree[T](k.rest(common)).setValue(value)
-
-		// The bit after the common prefix determines which child will handle
-		// which suffix.
-		// TODO check ok
-		if zero, _ := t.key.isBitZero(common); zero {
-			t.left = heir
-			t.right = sibling
-		} else {
-			t.left = sibling
-			t.right = heir
-		}
-
-		// t's key needs to be truncated at the split point
-		t.key = t.key.truncated(common)
+		next = &t.right
 	}
+	if *next == nil {
+		*next = newTree[T](k.rest(t.key.len)).setValue(v)
+	} else {
+		*next = (*next).insert(k, v)
+	}
+	return t
+}
+
+func (t *tree[T]) insertParent(k key, v T) *tree[T] {
+	newNode := newTree[T](k).setValue(v)
+	if zero, _ := t.key.hasBitZeroAt(k.len); zero {
+		newNode.left = t
+	} else {
+		newNode.right = t
+	}
+	t.key.offset = newNode.key.len
+	return newNode
+}
+
+func (t *tree[T]) insertFork(k key, v T, common uint8) *tree[T] {
+	parent := newTree[T](t.key.truncated(common))
+	t.key.offset = common
+	sibling := newTree[T](k.rest(common)).setValue(v)
+	if zero, _ := k.hasBitZeroAt(common); zero {
+		parent.left = sibling
+		parent.right = t
+	} else {
+		parent.left = t
+		parent.right = sibling
+	}
+	return parent
 }
 
 // remove removes the exact key provided from the tree, if it exists.
@@ -200,7 +215,7 @@ func (t *tree[T]) remove(k key) *tree[T] {
 	// t.key is a prefix of the key to remove, so recurse into the appropriate
 	// child of t.
 	if t.key.isPrefixOf(k) {
-		if zero, _ := k.isBitZero(t.key.len); zero {
+		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
 			if t.left != nil {
 				t.left = t.left.remove(k.rest(t.key.len))
 			}
@@ -226,7 +241,7 @@ func (t *tree[T]) removeDescendants(k key, strict bool) {
 // stop.
 //
 // If path is the zero key, all descendants of this tree are visited.
-func (t *tree[T]) walk(k key, fn func(*tree[T]) bool) {
+func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	// Never call fn on root node
 	if !t.isZero() {
 		if fn(t) {
@@ -234,18 +249,38 @@ func (t *tree[T]) walk(k key, fn func(*tree[T]) bool) {
 		}
 	}
 
-	nextPath := k.rest(t.key.len)
-	zero, pathExhausted := k.isBitZero(t.key.commonPrefixLen(k))
+	nextPath := path.rest(t.key.len)
+	//fmt.Printf("  common with %s: %d\n", path, t.key.commonPrefixLen(path))
+	zero, ok := path.hasBitZeroAt(t.key.commonPrefixLen(path))
+	//fmt.Printf("  in walk, path: %s, t.key: %s, nextPath: %s, zero: %v, ok: %v\n",
+	//path, t.key, nextPath, zero, ok)
 
-	// Visit the child that matches the next bit in the path. If the path is
-	// exhausted, visit both children.
-	if (zero || !pathExhausted) && t.left != nil {
-		t.left.walk(nextPath, fn)
+	// !ok means we've navigated to the end of the path constraint. Visit all
+	// children from here on.
+	if !ok {
+		//fmt.Println("  visiting both")
+		if t.left != nil {
+			t.left.walk(nextPath, fn)
+		}
+		if t.right != nil {
+			t.right.walk(nextPath, fn)
+		}
+		return
 	}
-	if (!zero || !pathExhausted) && t.right != nil {
-		t.right.walk(nextPath, fn)
+
+	// Visit the child that matches the next bit in the path.
+	switch zero {
+	case true:
+		if t.left != nil {
+			//fmt.Println("  visiting left")
+			t.left.walk(nextPath, fn)
+		}
+	case false:
+		if t.right != nil {
+			//fmt.Println("  visiting right")
+			t.right.walk(nextPath, fn)
+		}
 	}
-	return
 }
 
 // get returns the value associated with the exact key provided, if it exists.
@@ -336,10 +371,14 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
 	t.walk(k, func(n *tree[T]) bool {
 		if !n.key.isPrefixOf(k) {
+			//fmt.Println("--", n.key, "is not a prefix of", k)
 			return true
 		}
 		if n.hasValue {
-			ret.set(n.key, n.value)
+			//fmt.Println("--", "setting", n.key, "to", n.value)
+			ret.insert(n.key, n.value)
+		} else {
+			//fmt.Println("--", n.key, "has no value")
 		}
 		return false
 	})
