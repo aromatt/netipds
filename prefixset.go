@@ -74,12 +74,14 @@ func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 }
 
 func (s *PrefixSet) Prefixes() []netip.Prefix {
-	res := make([]netip.Prefix, 0)
+	res := make([]netip.Prefix, s.tree.size())
+	i := 0
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
 		if n.hasValue {
-			res = append(res, prefixFromKey(n.key))
+			res[i] = prefixFromKey(n.key)
+			i++
 		}
-		return false
+		return i >= len(res)
 	})
 	return res
 }

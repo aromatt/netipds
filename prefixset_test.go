@@ -1,6 +1,7 @@
 package netipmap
 
 import (
+	"fmt"
 	"net/netip"
 	"testing"
 )
@@ -89,10 +90,11 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 
 func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 	if len(got) != len(want) {
-		t.Errorf("got %v, want %v", got, want)
+		t.Errorf("got %v (len %d), want %v (len %d)", got, len(got), want, len(want))
 		return
 	}
 	for i, p := range got {
+		fmt.Println(p, p.IsValid())
 		if p != want[i] {
 			t.Errorf("got %v, want %v", got, want)
 			return
@@ -122,5 +124,31 @@ func TestPrefixSetSubtractFromPrefix(t *testing.T) {
 		ps := psb.PrefixSet()
 		got := ps.SubtractFromPrefix(tt.get)
 		checkPrefixSlice(t, got.Prefixes(), tt.want)
+	}
+}
+
+func TestPrefixSetPrefixes(t *testing.T) {
+	tests := []struct {
+		add    []netip.Prefix
+		remove []netip.Prefix
+		want   []netip.Prefix
+	}{
+		{pfxs(), pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs(), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			psb.Add(p)
+		}
+		for _, p := range tt.remove {
+			psb.Remove(p)
+		}
+		ps := psb.PrefixSet()
+		fmt.Println(ps.String())
+		checkPrefixSlice(t, ps.Prefixes(), tt.want)
 	}
 }

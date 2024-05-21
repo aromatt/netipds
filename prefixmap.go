@@ -7,6 +7,9 @@ import (
 
 // PrefixMapBuilder builds an immutable PrefixMap.
 //
+// The zero value is a valid PrefixMapBuilder representing a builder with zero
+// Prefixes.
+//
 // Call PrefixMap to obtain an immutable PrefixMap from a PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
 	tree tree[T]
@@ -14,11 +17,10 @@ type PrefixMapBuilder[T any] struct {
 
 // Set associates the provided value with the provided Prefix.
 func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, value T) error {
-	fmt.Println("Set", p, value)
-	fmt.Printf("Before Set() tree:\n%s\n", m.tree.String())
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
+	// TODO so should m.tree just be a *tree[T]?
 	m.tree = *(m.tree.insert(keyFromPrefix(p), value))
 	return nil
 }

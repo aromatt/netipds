@@ -143,6 +143,20 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	}
 }
 
+func (t *tree[T]) size() int {
+	size := 0
+	if t.hasValue {
+		size = 1
+	}
+	if t.left != nil {
+		size += t.left.size()
+	}
+	if t.right != nil {
+		size += t.right.size()
+	}
+	return size
+}
+
 func (t *tree[T]) insertHere(k key, v T) *tree[T] {
 	t.value = v
 	t.hasValue = true
@@ -250,15 +264,11 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	}
 
 	nextPath := path.rest(t.key.len)
-	//fmt.Printf("  common with %s: %d\n", path, t.key.commonPrefixLen(path))
 	zero, ok := path.hasBitZeroAt(t.key.commonPrefixLen(path))
-	//fmt.Printf("  in walk, path: %s, t.key: %s, nextPath: %s, zero: %v, ok: %v\n",
-	//path, t.key, nextPath, zero, ok)
 
 	// !ok means we've navigated to the end of the path constraint. Visit all
 	// children from here on.
 	if !ok {
-		//fmt.Println("  visiting both")
 		if t.left != nil {
 			t.left.walk(nextPath, fn)
 		}
@@ -272,12 +282,10 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	switch zero {
 	case true:
 		if t.left != nil {
-			//fmt.Println("  visiting left")
 			t.left.walk(nextPath, fn)
 		}
 	case false:
 		if t.right != nil {
-			//fmt.Println("  visiting right")
 			t.right.walk(nextPath, fn)
 		}
 	}
@@ -288,7 +296,6 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
 		if n.key.len >= k.len {
 			if n.key.equalFromRoot(k) && n.hasValue {
-				//fmt.Printf("  %s found\n", n.key)
 				val, ok = n.value, true
 			}
 			// Always stop traversal if we've reached the end of the path.
@@ -371,14 +378,11 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
 	t.walk(k, func(n *tree[T]) bool {
 		if !n.key.isPrefixOf(k) {
-			//fmt.Println("--", n.key, "is not a prefix of", k)
 			return true
 		}
 		if n.hasValue {
-			//fmt.Println("--", "setting", n.key, "to", n.value)
 			ret.insert(n.key, n.value)
 		} else {
-			//fmt.Println("--", n.key, "has no value")
 		}
 		return false
 	})
