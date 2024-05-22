@@ -175,13 +175,13 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 
 // DescendantsOf returns all descendants of the provided Prefix (including the
 // Prefix itself, if it has a value) as a map of Prefixes to values.
-func (m PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
+func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*m.tree.descendantsOf(keyFromPrefix(p), false)}
 }
 
 // DescendantsOfStrict returns all descendants of the provided Prefix as a map
 // of Prefixes to values.
-func (m PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
+func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*m.tree.descendantsOf(keyFromPrefix(p), true)}
 }
 
