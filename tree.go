@@ -244,7 +244,6 @@ func (t *tree[T]) remove(k key) *tree[T] {
 // subtract removes the key and all of its descendants from the tree, leaving
 // the remaining key space behind. New nodes may be created in the process.
 func (t *tree[T]) subtract(k key) *tree[T] {
-	fmt.Println("subtract", k, "from", t.key)
 	common := t.key.commonPrefixLen(k)
 	switch {
 	case t.key.equalFromRoot(k):

@@ -1,7 +1,6 @@
 package netipmap
 
 import (
-	"fmt"
 	"net/netip"
 	"testing"
 )
@@ -151,9 +150,7 @@ func TestPrefixSetSubtractFromPrefix(t *testing.T) {
 		for _, p := range tt.subtract {
 			psb.Add(p)
 		}
-		ps := psb.PrefixSet()
-		fmt.Println(ps)
-		got := ps.SubtractFromPrefix(tt.from)
+		got := psb.PrefixSet().SubtractFromPrefix(tt.from)
 		checkPrefixSlice(t, got.Prefixes(), tt.want)
 	}
 }
