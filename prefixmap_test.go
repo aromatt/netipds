@@ -682,6 +682,10 @@ func TestOverlapsPrefix(t *testing.T) {
 		{pfxs("::0/127"), pfx("::0/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
 
+		// Make sure value-less nodes don't count. This map contains
+		// the shared prefix ::0/126.
+		{pfxs("::0/128", "::2/128"), pfx("::3/128"), false},
+
 		// IPv4
 		{pfxs(), pfx("1.2.3.0/32"), false},
 	}

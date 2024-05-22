@@ -432,7 +432,6 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 		}
 		if n.hasValue {
 			ret.insert(n.key, n.value)
-		} else {
 		}
 		return false
 	})
@@ -458,6 +457,9 @@ func (t *tree[T]) filter(o tree[T]) {
 func (t *tree[T]) overlapsKey(k key) bool {
 	var ret bool
 	t.walk(k, func(n *tree[T]) bool {
+		if !n.hasValue {
+			return false
+		}
 		if n.key.isPrefixOf(k) || k.isPrefixOf(n.key) {
 			ret = true
 			return true

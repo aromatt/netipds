@@ -74,6 +74,10 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.0.0/16"), true},
+
+		// Make sure value-less nodes don't count. This map contains
+		// the shared prefix ::0/126.
+		{pfxs("::0/128", "::2/128"), pfx("::3/128"), false},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
