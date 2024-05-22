@@ -120,3 +120,23 @@ func TestKeyIsPrefixOf(t *testing.T) {
 		}
 	}
 }
+
+func TestKeyLeftRight(t *testing.T) {
+	tests := []struct {
+		k         key
+		wantLeft  key
+		wantRight key
+	}{
+		{k(uint128{0, 0}, 0, 0), k(uint128{0, 0}, 0, 1), k(uint128{1 << 63, 0}, 0, 1)},
+		{k(uint128{0, 0}, 0, 1), k(uint128{0, 0}, 1, 2), k(uint128{1 << 62, 0}, 1, 2)},
+		{k(uint128{0, 2}, 0, 127), k(uint128{0, 2}, 127, 128), k(uint128{0, 3}, 127, 128)},
+	}
+	for _, tt := range tests {
+		if got := tt.k.left(); got != tt.wantLeft {
+			t.Errorf("%v.left() = %v, want %v", tt.k, got, tt.wantLeft)
+		}
+		if got := tt.k.right(); got != tt.wantRight {
+			t.Errorf("%v.right() = %v, want %v", tt.k, got, tt.wantRight)
+		}
+	}
+}

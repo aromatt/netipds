@@ -199,3 +199,18 @@ func (k key) isZero() bool {
 func (k key) isValid() bool {
 	return k.offset < 128 && k.len <= 128
 }
+
+func (k key) left() key {
+	return key{
+		content: k.content,
+		offset:  k.len,
+		len:     k.len + 1,
+	}
+}
+func (k key) right() key {
+	return key{
+		content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
+		offset:  k.len,
+		len:     k.len + 1,
+	}
+}

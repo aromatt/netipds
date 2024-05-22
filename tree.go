@@ -126,23 +126,6 @@ func (t *tree[T]) String() string {
 	return t.stringHelper("", "", false)
 }
 
-func (t *tree[T]) insert(k key, v T) *tree[T] {
-	common := t.key.commonPrefixLen(k)
-	switch {
-	case t.key == k:
-		return t.insertHere(k, v)
-	case common == t.key.len:
-		return t.insertChild(k, v)
-	case common == k.len:
-		return t.insertParent(k, v)
-	case common < t.key.len:
-		return t.insertFork(k, v, common)
-	default:
-		// TODO
-		panic("unreachable")
-	}
-}
-
 func (t *tree[T]) size() int {
 	size := 0
 	if t.hasValue {
@@ -157,12 +140,24 @@ func (t *tree[T]) size() int {
 	return size
 }
 
-func (t *tree[T]) insertHere(k key, v T) *tree[T] {
-	t.value = v
-	t.hasValue = true
-	return t
+func (t *tree[T]) insert(k key, v T) *tree[T] {
+	common := t.key.commonPrefixLen(k)
+	switch {
+	case t.key == k:
+		return t.setValue(v)
+	case common == t.key.len:
+		return t.insertChild(k, v)
+	case common == k.len:
+		return t.insertParent(k, v)
+	case common < t.key.len:
+		return t.insertFork(k, v, common)
+	default:
+		// TODO
+		panic("unreachable")
+	}
 }
 
+// insertChild inserts or updates the appropriate child of t for key k.
 func (t *tree[T]) insertChild(k key, v T) *tree[T] {
 	var next **tree[T]
 	if zero, _ := k.hasBitZeroAt(t.key.len); zero {
@@ -178,6 +173,7 @@ func (t *tree[T]) insertChild(k key, v T) *tree[T] {
 	return t
 }
 
+// insertParent inserts and returns a new node with t as its sole child.
 func (t *tree[T]) insertParent(k key, v T) *tree[T] {
 	newNode := newTree[T](k).setValue(v)
 	if zero, _ := t.key.hasBitZeroAt(k.len); zero {
@@ -189,6 +185,8 @@ func (t *tree[T]) insertParent(k key, v T) *tree[T] {
 	return newNode
 }
 
+// insertFork inserts a new node at the common prefix of t.key and k
+// with value v and t.key and k as children, and returns the new node.
 func (t *tree[T]) insertFork(k key, v T, common uint8) *tree[T] {
 	parent := newTree[T](t.key.truncated(common))
 	t.key.offset = common
@@ -243,12 +241,65 @@ func (t *tree[T]) remove(k key) *tree[T] {
 	return t
 }
 
-// This is not just finding nodes to delete; nodes might need to be split.
-func (t *tree[T]) removeDescendants(k key, strict bool) {
-
+// subtract removes the key and all of its descendants from the tree, leaving
+// the remaining key space behind. New nodes may be created in the process.
+func (t *tree[T]) subtract(k key) *tree[T] {
+	fmt.Println("subtract", k, "from", t.key)
+	common := t.key.commonPrefixLen(k)
+	switch {
+	case t.key.equalFromRoot(k):
+		return nil
+	case common == 0:
+		return t.subtractChild(k)
+	case common == t.key.len:
+		return t.insertHole(k, t.value)
+	case common == k.len:
+		return nil
+	case common < t.key.len:
+		return t
+	default:
+		// TODO
+		panic("unreachable")
+	}
 }
 
-// walkPath traverses the tree starting at this tree's root, following the
+func (t *tree[T]) subtractChild(k key) *tree[T] {
+	if zero, _ := k.hasBitZeroAt(t.key.len); zero {
+		if t.left != nil {
+			t.left = t.left.subtract(k.rest(t.key.len))
+		}
+	} else {
+		if t.right != nil {
+			t.right = t.right.subtract(k.rest(t.key.len))
+		}
+	}
+	return t
+}
+
+func (t *tree[T]) insertHole(k key, v T) *tree[T] {
+	switch {
+	case t.key.equalFromRoot(k):
+		return nil
+	case t.key.isPrefixOf(k):
+		t.clearValue()
+		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
+			if t.right == nil {
+				t.right = newTree[T](t.key.right()).setValue(v)
+			}
+			t.left = newTree[T](t.key.left()).insertHole(k, v)
+		} else {
+			if t.left == nil {
+				t.left = newTree[T](t.key.left()).setValue(v)
+			}
+			t.right = newTree[T](t.key.right()).insertHole(k, v)
+		}
+		return t
+	default:
+		return t
+	}
+}
+
+// walk traverses the tree starting at this tree's root, following the
 // provided path and calling fn(node) at each visited node.
 //
 // The return value of fn is a boolean indicating whether traversal should

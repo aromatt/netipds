@@ -25,32 +25,31 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	return nil
 }
 
+// Filter removes all Prefixes from s that are not encompassed by pm.
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(o.tree)
 }
 
+// Subtract modifies the map such that the provided Prefix and all of its
+// descendants are removed from the set, leaving behind any remaining parts
+// of affected elements. This may add elements to the set to fill in gaps
+// around the subtracted Prefix.
+//
+// For example, if s is {::0/126}, and we subtract ::0/128, then s will become
+// {::1/128, ::2/127}.
+func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
+	if !p.IsValid() {
+		return fmt.Errorf("Prefix is not valid: %v", p)
+	}
+	s.tree.subtract(keyFromPrefix(p))
+	return nil
+}
+
+// PrefixSet returns an immutable PrefixSet representing the current state of s.
+//
+// The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	return &PrefixSet{*s.tree.copy()}
-}
-
-// RemoveDescendants removes all Prefixes from s that are encompassed by the
-// provided Prefix, including the Prefix itself.
-func (s *PrefixSetBuilder) RemoveDescendants(p netip.Prefix) error {
-	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
-	}
-	s.tree.removeDescendants(keyFromPrefix(p), false)
-	return nil
-}
-
-// RemoveDescendantsStrict removes all Prefixes from m that are encompassed by
-// the provided Prefix. The provided Prefix itself is not removed.
-func (s *PrefixSetBuilder) RemoveDescendantsStrict(p netip.Prefix) error {
-	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
-	}
-	s.tree.removeDescendants(keyFromPrefix(p), true)
-	return nil
 }
 
 func (s *PrefixSetBuilder) String() string {
@@ -90,15 +89,13 @@ func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))
 }
 
-// SubtractFromPrefix returns a new PrefixSet that is the result of removing all
-// Prefixes in s that are encompassed by the provided Prefix. The provided
-// Prefix itself is not removed.
+// SubtractFromPrefix returns a new PrefixSet that is the result of removing
+// all Prefixes in s that are encompassed by p, including p itself.
 func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 	ret := &PrefixSetBuilder{}
 	ret.Add(p)
-	pk := keyFromPrefix(p)
-	s.tree.walk(pk, func(n *tree[bool]) bool {
-		ret.RemoveDescendants(prefixFromKey(n.key))
+	s.tree.walk(keyFromPrefix(p), func(n *tree[bool]) bool {
+		ret.Subtract(prefixFromKey(n.key))
 		return false
 	})
 	return ret.PrefixSet()

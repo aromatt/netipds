@@ -94,7 +94,6 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 		return
 	}
 	for i, p := range got {
-		fmt.Println(p, p.IsValid())
 		if p != want[i] {
 			t.Errorf("got %v, want %v", got, want)
 			return
@@ -103,26 +102,58 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 
 }
 
+func TestPrefixSetSubtract(t *testing.T) {
+	tests := []struct {
+		set      []netip.Prefix
+		subtract netip.Prefix
+		want     []netip.Prefix
+	}{
+		{pfxs(), netip.Prefix{}, pfxs()},
+		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
+		{pfxs("::0/128"), pfx("::0/127"), pfxs()},
+		{pfxs("::0/128"), pfx("::1/128"), pfxs("::0/128")},
+		{pfxs("::0/127"), pfx("::0/128"), pfxs("::1/128")},
+		{pfxs("::2/127"), pfx("::3/128"), pfxs("::2/128")},
+		{pfxs("::0/126"), pfx("::0/128"), pfxs("::1/128", "::2/127")},
+		{pfxs("::0/126"), pfx("::3/128"), pfxs("::0/127", "::2/128")},
+		// IPv4
+		{
+			set:      pfxs("1.2.3.0/30"),
+			subtract: pfx("1.2.3.0/32"),
+			want:     pfxs("1.2.3.1/32", "1.2.3.2/31"),
+		},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixSetBuilder{}
+		for _, p := range tt.set {
+			pmb.Add(p)
+		}
+		pmb.Subtract(tt.subtract)
+		checkPrefixSlice(t, pmb.PrefixSet().Prefixes(), tt.want)
+	}
+}
+
 func TestPrefixSetSubtractFromPrefix(t *testing.T) {
 	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want []netip.Prefix
+		subtract []netip.Prefix
+		from     netip.Prefix
+		want     []netip.Prefix
 	}{
-		//{pfxs(), pfx("::0/128"), pfxs("::0/128")},
-		//{pfxs("::0/128"), pfx("::0/128"), pfxs()},
-		//{pfxs("::0/128"), pfx("::1/128"), pfxs("::1/128")},
-		//{pfxs("::0/128"), pfx("::0/127"), pfxs("::1/128")},
-		//{pfxs("::0/127"), pfx("::0/128"), pfxs()},
-		//{pfxs("::0/128", "::1/128"), pfx("::2/128"), pfxs("::2/128")},
+		{pfxs(), pfx("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
+		{pfxs("::0/128"), pfx("::1/128"), pfxs("::1/128")},
+		{pfxs("::0/128"), pfx("::0/127"), pfxs("::1/128")},
+		{pfxs("::0/127"), pfx("::0/128"), pfxs()},
+		{pfxs("::0/128", "::1/128"), pfx("::2/128"), pfxs("::2/128")},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
+		for _, p := range tt.subtract {
 			psb.Add(p)
 		}
 		ps := psb.PrefixSet()
-		got := ps.SubtractFromPrefix(tt.get)
+		fmt.Println(ps)
+		got := ps.SubtractFromPrefix(tt.from)
 		checkPrefixSlice(t, got.Prefixes(), tt.want)
 	}
 }
@@ -148,7 +179,6 @@ func TestPrefixSetPrefixes(t *testing.T) {
 			psb.Remove(p)
 		}
 		ps := psb.PrefixSet()
-		fmt.Println(ps.String())
 		checkPrefixSlice(t, ps.Prefixes(), tt.want)
 	}
 }
