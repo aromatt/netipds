@@ -609,6 +609,66 @@ func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	checkMap(t, wantMap(2, "::1/128", "::2/128"), pm2.ToMap())
 }
 
+func TestPrefixMapBuilderFilter(t *testing.T) {
+	tests := []struct {
+		set    []netip.Prefix
+		filter []netip.Prefix
+		want   map[netip.Prefix]bool
+	}{
+		{pfxs(), pfxs(), wantMap(true)},
+		{pfxs(), pfxs("::0/128"), wantMap(true)},
+		{pfxs("::0/128"), pfxs(), wantMap(true)},
+
+		{pfxs("::0/128"), pfxs("::0/128"), wantMap(true, "::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), wantMap(true, "::0/128")},
+		{pfxs("::1/128"), pfxs("::0/127"), wantMap(true, "::1/128")},
+
+		// Filter by one of the entries in the map
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			filter: pfxs("::0/128"),
+			want:   wantMap(true, "::0/128"),
+		},
+
+		// Filter by a parent of all entries in the map
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			filter: pfxs("::0/127"),
+			want:   wantMap(true, "::0/128", "::1/128"),
+		},
+
+		// Filter by a parent of some entries in the map
+		{
+			set:    pfxs("::0/128", "::1/128", "::2/128"),
+			filter: pfxs("::0/127"),
+			want:   wantMap(true, "::0/128", "::1/128"),
+		},
+
+		// Filter by all entries in the map
+		{
+			set:    pfxs("::0/128", "::1/128"),
+			filter: pfxs("::0/128", "::1/128"),
+			want:   wantMap(true, "::0/128", "::1/128"),
+		},
+
+		// Filtering uses encompassment; the filter covers "::0/127" but does
+		// not encompass it.
+		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), wantMap(true)},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		filter := &PrefixSetBuilder{}
+		for _, p := range tt.filter {
+			filter.Add(p)
+		}
+		pmb.Filter(filter.PrefixSet())
+		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
+	}
+}
+
 func TestPrefixMapFilter(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
@@ -656,16 +716,17 @@ func TestPrefixMapFilter(t *testing.T) {
 		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), wantMap(true)},
 	}
 	for _, tt := range tests {
-		sPmb := &PrefixMapBuilder[bool]{}
+		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			sPmb.Set(p, true)
+			pmb.Set(p, true)
 		}
-		fPsb := &PrefixSetBuilder{}
+		filter := &PrefixSetBuilder{}
 		for _, p := range tt.filter {
-			fPsb.Add(p)
+			filter.Add(p)
 		}
-		sPmb.Filter(fPsb.PrefixSet())
-		checkMap(t, tt.want, sPmb.PrefixMap().ToMap())
+		pm := pmb.PrefixMap()
+		filtered := pm.Filter(filter.PrefixSet())
+		checkMap(t, tt.want, filtered.ToMap())
 	}
 }
 

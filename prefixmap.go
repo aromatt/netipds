@@ -203,6 +203,12 @@ func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*m.tree.ancestorsOf(keyFromPrefix(p), true)}
 }
 
+// Filter removes all Prefixes from m that are not encompassed by the provided
+// PrefixSet.
+func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
+	return &PrefixMap[T]{*m.tree.filterCopy(s.tree)}
+}
+
 func (m *PrefixMap[T]) String() string {
 	return m.tree.stringHelper("", "", false)
 }

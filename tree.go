@@ -438,8 +438,8 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 	return
 }
 
-// filter updates t to include only the keys encompassed by b.
-// TODO: I think this can be done more efficiently by walking t and b
+// filter updates t to include only the keys encompassed by o.
+// TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 func (t *tree[T]) filter(o tree[bool]) {
 	remove := make([]key, 0)
@@ -452,6 +452,21 @@ func (t *tree[T]) filter(o tree[bool]) {
 	for _, k := range remove {
 		t.remove(k)
 	}
+}
+
+// filterCopy returns a new tree containing all entries of t that are
+// encompassed by o.
+// TODO: I think this can be done more efficiently by walking t and o
+// at the same time.
+func (t *tree[T]) filterCopy(o tree[bool]) *tree[T] {
+	ret := &tree[T]{}
+	t.walk(key{}, func(n *tree[T]) bool {
+		if n.hasValue && o.encompasses(n.key, false) {
+			ret = ret.insert(n.key, n.value)
+		}
+		return false
+	})
+	return ret
 }
 
 func (t *tree[T]) overlapsKey(k key) bool {
