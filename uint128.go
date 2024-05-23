@@ -1,10 +1,10 @@
-// Copied with additions into netipmap from net/netip
+// Copied with additions into netipds from net/netip
 
 // Copyright 2020 The Inet.Af AUTHORS. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package netipmap
+package netipds
 
 import (
 	"encoding/binary"

@@ -1,4 +1,4 @@
-package netipmap
+package netipds
 
 import (
 	"testing"

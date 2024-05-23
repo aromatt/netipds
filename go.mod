@@ -1,3 +1,3 @@
-module github.com/aromatt/netipmap
+module github.com/aromatt/netipds
 
 go 1.21.5

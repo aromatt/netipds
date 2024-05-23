@@ -1,4 +1,7 @@
-# netipmap
+# netipds
+Additional collection types for netip.
+
+# What
 This project builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
 family, adding two new collection types:
@@ -6,8 +9,7 @@ family, adding two new collection types:
 * PrefixSet, an immutable set type for netip.Prefixes (offering better performance
   and a more comprehensive API than netipx.IPSet)
 
-Both accept [netip](https://pkg.go.dev/net/netip) Prefixes for keys. PrefixMap uses
-generics for values.
+Both accept netip.Prefixes for keys. PrefixMap uses generics for values.
 
 Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree)
 with path compression.
@@ -27,6 +29,6 @@ respective builder type.
 ## https://github.com/kentik/patricia
 
 This package uses a similar underlying data structure, but its goal is to provide
-mutability while minimizing garbage collection cost. By contrast, netipmap aims to
+mutability while minimizing garbage collection cost. By contrast, netipds aims to
 provide immutable (and thus GC-friendly) collection types that integrate well with
 the netip family and offer a comprehensive API.
