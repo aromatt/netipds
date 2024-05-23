@@ -441,7 +441,7 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 // filter updates t to include only the keys encompassed by b.
 // TODO: I think this can be done more efficiently by walking t and b
 // at the same time.
-func (t *tree[T]) filter(o tree[T]) {
+func (t *tree[T]) filter(o tree[bool]) {
 	remove := make([]key, 0)
 	t.walk(key{}, func(n *tree[T]) bool {
 		if !o.encompasses(n.key, false) {

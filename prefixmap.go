@@ -54,9 +54,10 @@ func (m *PrefixMapBuilder[T]) Subtract(p netip.Prefix) error {
 	return nil
 }
 
-// Filter removes all Prefixes from m that are not encompassed by pm.
-func (m *PrefixMapBuilder[T]) Filter(pm *PrefixMap[T]) {
-	m.tree.filter(pm.tree)
+// Filter removes all Prefixes from m that are not encompassed by the provided
+// PrefixSet.
+func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
+	m.tree.filter(s.tree)
 }
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.

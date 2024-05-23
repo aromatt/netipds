@@ -660,11 +660,11 @@ func TestPrefixMapFilter(t *testing.T) {
 		for _, p := range tt.set {
 			sPmb.Set(p, true)
 		}
-		fPmb := &PrefixMapBuilder[bool]{}
+		fPsb := &PrefixSetBuilder{}
 		for _, p := range tt.filter {
-			fPmb.Set(p, true)
+			fPsb.Add(p)
 		}
-		sPmb.Filter(fPmb.PrefixMap())
+		sPmb.Filter(fPsb.PrefixSet())
 		checkMap(t, tt.want, sPmb.PrefixMap().ToMap())
 	}
 }
