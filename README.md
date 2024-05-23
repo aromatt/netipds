@@ -1,7 +1,7 @@
 # netipds
 Additional collection types for netip.
 
-# What
+## What
 This project builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
 family, adding two new collection types:
@@ -24,9 +24,9 @@ with path compression.
 Usage is similar to that of IPSet: to construct a PrefixMap or PrefixSet, use the
 respective builder type.
 
-# Related packages
+## Related packages
 
-## https://github.com/kentik/patricia
+### https://github.com/kentik/patricia
 
 This package uses a similar underlying data structure, but its goal is to provide
 mutability while minimizing garbage collection cost. By contrast, netipds aims to
