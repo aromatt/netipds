@@ -6,17 +6,17 @@ import (
 	"strings"
 )
 
-// key stores the bits which represent the full path to a node in a
-// prefix tree. The content of the key is stored in the most-significant
-// bits of the content field.
+// key stores the bits which represent the full path to a node in a prefix
+// tree. The maximum size of a key is 128 bits. The key is stored in the
+// most-significant bits of the content field.
 //
-// offset defines the starting position of the sukrefix owned by the node.
+// offset defines the starting position of the key segment owned by the node.
 //
 // len measures the full length of the prefix from the root to the end of the
-// node's bits (the node owns (len - offset) bits).
+// node's segment.
 //
-// The content field should not have any bits set beyond len (using newkey()
-// enforces this).
+// The content field should not have any bits set beyond len. newKey enforces
+// this.
 type key struct {
 	content uint128
 	offset  uint8
