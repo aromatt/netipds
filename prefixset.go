@@ -58,7 +58,7 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	if s.Lazy && t != nil {
 		t = t.compress()
 	}
-	return &PrefixSet{*t}
+	return &PrefixSet{*t, t.size()}
 }
 
 func (s *PrefixSetBuilder) String() string {
@@ -67,6 +67,7 @@ func (s *PrefixSetBuilder) String() string {
 
 type PrefixSet struct {
 	tree tree[bool]
+	size int
 }
 
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
@@ -113,4 +114,8 @@ func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 // PrettyPrint prints the PrefixSet in a human-readable format.
 func (s *PrefixSet) String() string {
 	return s.tree.stringHelper("", "", true)
+}
+
+func (s *PrefixSet) Size() int {
+	return s.size
 }

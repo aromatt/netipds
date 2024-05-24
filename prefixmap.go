@@ -73,7 +73,7 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	if m.Lazy && t != nil {
 		t = t.compress()
 	}
-	return &PrefixMap[T]{*t}
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
@@ -85,6 +85,7 @@ func (s *PrefixMapBuilder[T]) String() string {
 // Use PrefixMapBuilder to construct PrefixMaps.
 type PrefixMap[T any] struct {
 	tree tree[T]
+	size int
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
@@ -191,33 +192,42 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 // DescendantsOf returns all descendants of the provided Prefix (including the
 // Prefix itself, if it has a value) as a map of Prefixes to values.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.descendantsOf(keyFromPrefix(p), false)}
+	t := m.tree.descendantsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // DescendantsOfStrict returns all descendants of the provided Prefix as a map
 // of Prefixes to values.
 func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.descendantsOf(keyFromPrefix(p), true)}
+	t := m.tree.descendantsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // AncestorsOf returns all ancestors of the provided Prefix (including the
 // Prefix itself, if it has a value) as a map of Prefixes to values.
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.ancestorsOf(keyFromPrefix(p), false)}
+	t := m.tree.ancestorsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // AncestorsOfStrict returns all ancestors of the provided Prefix as a map of
 // Prefixes to values.
 func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.ancestorsOf(keyFromPrefix(p), true)}
+	t := m.tree.ancestorsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // Filter removes all Prefixes from m that are not encompassed by the provided
 // PrefixSet.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.filterCopy(s.tree)}
+	t := m.tree.filterCopy(s.tree)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 func (m *PrefixMap[T]) String() string {
 	return m.tree.stringHelper("", "", false)
+}
+
+func (m *PrefixMap[T]) Size() int {
+	return m.size
 }
