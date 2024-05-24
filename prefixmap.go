@@ -12,6 +12,7 @@ import (
 //
 // Call PrefixMap to obtain an immutable PrefixMap from a PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
+	Lazy bool
 	tree tree[T]
 }
 
@@ -26,7 +27,11 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, value T) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	// TODO so should m.tree just be a *tree[T]?
-	m.tree = *(m.tree.insert(keyFromPrefix(p), value))
+	if m.Lazy {
+		m.tree = *(m.tree.insertLazy(keyFromPrefix(p), value))
+	} else {
+		m.tree = *(m.tree.insert(keyFromPrefix(p), value))
+	}
 	return nil
 }
 
@@ -64,7 +69,11 @@ func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
-	return &PrefixMap[T]{*m.tree.copy()}
+	t := m.tree.copy()
+	if m.Lazy && t != nil {
+		t = t.compress()
+	}
+	return &PrefixMap[T]{*t}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {

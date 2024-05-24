@@ -82,7 +82,14 @@ func (t *tree[T]) copyChildrenFrom(o *tree[T]) *tree[T] {
 	if o == nil {
 		return t
 	}
-	return t.setChildren(o.left.copy(), o.right.copy())
+	var left, right *tree[T]
+	if o.left != nil {
+		left = o.left.copy()
+	}
+	if o.right != nil {
+		right = o.right.copy()
+	}
+	return t.setChildren(left, right)
 }
 
 // moveChildrenFrom moves m's children to t (removing them from m) and returns t.
@@ -96,11 +103,8 @@ func (t *tree[T]) moveChildrenFrom(o *tree[T]) *tree[T] {
 }
 
 // copy returns a copy of t, creating copies of all descendants of t in the
-// process. If t is nil, copy returns nil.
+// process.
 func (t *tree[T]) copy() *tree[T] {
-	if t == nil {
-		return nil
-	}
 	return newTree[T](t.key).copyChildrenFrom(t).setValueFrom(t)
 }
 
@@ -143,7 +147,7 @@ func (t *tree[T]) size() int {
 func (t *tree[T]) insert(k key, v T) *tree[T] {
 	common := t.key.commonPrefixLen(k)
 	switch {
-	case t.key == k:
+	case t.key.equalFromRoot(k):
 		return t.setValue(v)
 	case common == t.key.len:
 		return t.insertChild(k, v)
@@ -154,6 +158,50 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	default:
 		// TODO
 		panic("unreachable")
+	}
+}
+
+// insert without path compression
+func (t *tree[T]) insertLazy(k key, v T) *tree[T] {
+	common := t.key.commonPrefixLen(k)
+	switch {
+	case t.key.equalFromRoot(k):
+		return t.setValue(v)
+	case common == t.key.len:
+		return t.insertLazyChild(k, v)
+	default:
+		panic("unreachable")
+	}
+}
+
+func (t *tree[T]) insertLazyChild(k key, v T) *tree[T] {
+	if zero, _ := k.hasBitZeroAt(t.key.len); zero {
+		if t.left == nil {
+			t.left = newTree[T](t.key.left())
+		}
+		t.left = t.left.insertLazy(k, v)
+	} else {
+		if t.right == nil {
+			t.right = newTree[T](t.key.right())
+		}
+		t.right = t.right.insertLazy(k, v)
+	}
+	return t
+}
+
+// if t has only one child, merge it with t and return the merged node.
+func (t *tree[T]) compress() *tree[T] {
+	switch {
+	case t.left == nil && t.right == nil:
+		return t
+	case t.left == nil:
+		t.right.key.offset = t.key.offset
+		return t.right
+	case t.right == nil:
+		t.left.key.offset = t.key.offset
+		return t.left
+	default:
+		return t
 	}
 }
 
