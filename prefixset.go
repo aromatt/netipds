@@ -6,6 +6,7 @@ import (
 )
 
 type PrefixSetBuilder struct {
+	Lazy bool
 	tree tree[bool]
 }
 
@@ -13,7 +14,11 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree = *s.tree.insert(keyFromPrefix(p), true)
+	if s.Lazy {
+		s.tree = *(s.tree.insertLazy(keyFromPrefix(p), true))
+	} else {
+		s.tree = *(s.tree.insert(keyFromPrefix(p), true))
+	}
 	return nil
 }
 
@@ -49,7 +54,11 @@ func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
 //
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
-	return &PrefixSet{*s.tree.copy()}
+	t := s.tree.copy()
+	if s.Lazy && t != nil {
+		t = t.compress()
+	}
+	return &PrefixSet{*t}
 }
 
 func (s *PrefixSetBuilder) String() string {
