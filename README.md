@@ -1,5 +1,8 @@
 # netipds
-Additional collection types for netip.
+[![Go Reference](https://pkg.go.dev/badge/github.com/aromatt/netipds)](https://pkg.go.dev/github.com/aromatt/netipds)
+[![Go Report Card](https://goreportcard.com/badge/github.com/aromatt/netipds)](https://goreportcard.com/report/github.com/aromatt/netipds)
+
+Additional collections for [netip](https://pkg.go.dev/net/netip) types.
 
 ## What
 This project builds on the
