@@ -5,10 +5,17 @@ import (
 	"net/netip"
 )
 
+// PrefixSetBuilder builds an immutable PrefixSet.
+//
+// The zero value is a valid PrefixSetBuilder representing a builder with zero
+// Prefixes.
+//
+// Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
 	tree tree[bool]
 }
 
+// Add adds p to s.
 func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
@@ -17,6 +24,10 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	return nil
 }
 
+// Remove removes p from s. Only the exact Prefix provided is removed;
+// descendants are not.
+//
+// See RemoveDescendants and Subtract for descendant-removal.
 func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
@@ -25,15 +36,14 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	return nil
 }
 
-// Filter removes all Prefixes from s that are not encompassed by pm.
+// Filter removes all Prefixes that are not encompassed by o.
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(o.tree)
 }
 
-// Subtract modifies the map such that the provided Prefix and all of its
-// descendants are removed from the set, leaving behind any remaining parts
-// of affected elements. This may add elements to the set to fill in gaps
-// around the subtracted Prefix.
+// Subtract modifies s so that p and all of its descendants are removed,
+// leaving behind any remaining portions of affected Prefixes. This may add
+// elements to fill in gaps around the subtracted Prefix.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
@@ -52,10 +62,15 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	return &PrefixSet{*s.tree.copy()}
 }
 
+// String returns a human-readable representation of s's tree structure.
 func (s *PrefixSetBuilder) String() string {
 	return s.tree.stringHelper("", "", true)
 }
 
+// PrefixSet is a set of netip.Prefixes. It is implemented as a binary radix
+// tree with path compression.
+//
+// Use PrefixSetBuilder to construct PrefixSets.
 type PrefixSet struct {
 	tree tree[bool]
 }
