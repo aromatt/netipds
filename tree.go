@@ -40,7 +40,7 @@ func (t *tree[T]) setValue(v T) *tree[T] {
 	return t
 }
 
-// setValueFrom sets t's value to m's value and returns t.
+// setValueFrom sets t's value to o's value and returns t.
 func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 	if o != nil && o.hasValue {
 		return t.setValue(o.value)
@@ -48,7 +48,7 @@ func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 	return t
 }
 
-// moveValueFrom moves m's value to t (removing it from m) and returns t.
+// moveValueFrom moves o's value to t (removing it from o) and returns t.
 func (t *tree[T]) moveValueFrom(o *tree[T]) *tree[T] {
 	if o == nil {
 		return t
@@ -77,7 +77,7 @@ func (t *tree[T]) setChildrenFrom(o *tree[T]) *tree[T] {
 	return t
 }
 
-// copyChildrenFrom sets t's children to copies of m's children and returns t.
+// copyChildrenFrom sets t's children to copies of o's children and returns t.
 func (t *tree[T]) copyChildrenFrom(o *tree[T]) *tree[T] {
 	if o == nil {
 		return t
@@ -92,7 +92,7 @@ func (t *tree[T]) copyChildrenFrom(o *tree[T]) *tree[T] {
 	return t.setChildren(left, right)
 }
 
-// moveChildrenFrom moves m's children to t (removing them from m) and returns t.
+// moveChildrenFrom moves o's children to t (removing them from o) and returns t.
 func (t *tree[T]) moveChildrenFrom(o *tree[T]) *tree[T] {
 	if o == nil {
 		return t
