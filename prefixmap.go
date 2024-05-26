@@ -11,6 +11,10 @@ import (
 // Prefixes.
 //
 // Call PrefixMap to obtain an immutable PrefixMap from a PrefixMapBuilder.
+//
+// If Lazy == true, then path compression is delayed until a PrefixMap is
+// created. The builder itself remains uncompressed. Lazy mode can dramatically
+// improve performance when building large PrefixMaps.
 type PrefixMapBuilder[T any] struct {
 	Lazy bool
 	tree tree[T]
@@ -225,6 +229,7 @@ func (m *PrefixMap[T]) String() string {
 	return m.tree.stringImpl("", "", false)
 }
 
+// Size returns the number of entries in m.
 func (m *PrefixMap[T]) Size() int {
 	return m.size
 }

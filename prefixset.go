@@ -11,6 +11,10 @@ import (
 // Prefixes.
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
+//
+// If Lazy == true, then path compression is delayed until a PrefixSet is
+// created. The builder itself remains uncompressed. Lazy mode can dramatically
+// improve performance when building large PrefixSets.
 type PrefixSetBuilder struct {
 	Lazy bool
 	tree tree[bool]
@@ -85,18 +89,25 @@ type PrefixSet struct {
 	size int
 }
 
+// Contains returns true if this set includes the exact Prefix provided.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	return s.tree.contains(keyFromPrefix(p))
 }
 
+// Encompasses returns true if this set includes a Prefix which completely
+// encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	return s.tree.encompasses(keyFromPrefix(p), false)
 }
 
+// EncompassesStrict returns true if this set includes a Prefix which
+// completely encompasses p. The encompassing Prefix must be an ancestor of p,
+// not p itself.
 func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	return s.tree.encompasses(keyFromPrefix(p), true)
 }
 
+// Prefixes returns a slice of all Prefixes stored in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.tree.size())
 	i := 0
@@ -110,6 +121,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 	return res
 }
 
+// OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))
 }
@@ -126,11 +138,12 @@ func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 	return ret.PrefixSet()
 }
 
-// PrettyPrint prints the PrefixSet in a human-readable format.
+// String returns a human-readable representation of the s's tree structure.
 func (s *PrefixSet) String() string {
 	return s.tree.stringImpl("", "", true)
 }
 
+// Size returns the number of elements in s.
 func (s *PrefixSet) Size() int {
 	return s.size
 }
