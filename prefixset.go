@@ -73,7 +73,7 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSetBuilder) String() string {
-	return s.tree.stringHelper("", "", true)
+	return s.tree.stringImpl("", "", true)
 }
 
 // PrefixSet is a set of netip.Prefixes. It is implemented as a binary radix
@@ -128,7 +128,7 @@ func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 
 // PrettyPrint prints the PrefixSet in a human-readable format.
 func (s *PrefixSet) String() string {
-	return s.tree.stringHelper("", "", true)
+	return s.tree.stringImpl("", "", true)
 }
 
 func (s *PrefixSet) Size() int {

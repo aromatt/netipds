@@ -43,9 +43,9 @@ func keyFromPrefix(p netip.Prefix) key {
 	return newKey(u128From16(addr.As16()), 0, bits)
 }
 
-// String prints the key's content in hex, followed by "/" + k.len.
-// The least significant bit in the output is the bit at position (k.len - 1).
-// Leading zeros are omitted.
+// String prints the key's content in hex, followed by "/" + k.len. The least
+// significant bit in the output is the bit at position (k.len - 1). Leading
+// zeros are omitted.
 func (k key) String() string {
 	var ret string
 	just := k.content.shiftRight(128 - k.len)
@@ -99,9 +99,9 @@ func (k *key) Parse(s string) error {
 	return nil
 }
 
-// Prints the portion of k.content from offset to len, as hex, followed by
-// "/" + (len-offset). The least significant bit in the output is the bit at position
-// (k.len - 1). Leading zeros are omitted.
+// StringRel prints the portion of k.content from offset to len, as hex,
+// followed by "/" + (len-offset). The least significant bit in the output is
+// the bit at position (k.len - 1). Leading zeros are omitted.
 //
 // This representation is lossy in that it hides the first k.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.
@@ -113,7 +113,7 @@ func (k *key) Parse(s string) error {
 //   - key{uint128{1, 0}, 63, 64}  => "1/64"
 //   - key{uint128{256, 0}, 56} => "1/56"
 //   - key{uint128{256, 0}, 64} => "100/64"
-func (k key) StringRelative() string {
+func (k key) StringRel() string {
 	var ret string
 	just := k.content.shiftLeft(k.offset).shiftRight(128 - k.len + k.offset)
 	if just.isZero() {

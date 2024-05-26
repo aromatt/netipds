@@ -75,7 +75,7 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
-	return s.tree.stringHelper("", "", false)
+	return s.tree.stringImpl("", "", false)
 }
 
 // PrefixMap is a map of netip.Prefix to T. It is implemented as a binary radix
@@ -222,7 +222,7 @@ func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 
 // String returns a human-readable representation of m's tree structure.
 func (m *PrefixMap[T]) String() string {
-	return m.tree.stringHelper("", "", false)
+	return m.tree.stringImpl("", "", false)
 }
 
 func (m *PrefixMap[T]) Size() int {
