@@ -299,13 +299,15 @@ func TestPrefixMapRemove(t *testing.T) {
 	}
 }
 
-func TestPrefixMapSubtract(t *testing.T) {
+func TestPrefixMapBuilderSubtract(t *testing.T) {
 	tests := []struct {
 		set      []netip.Prefix
 		subtract netip.Prefix
 		want     map[netip.Prefix]bool
 	}{
 		{pfxs(), netip.Prefix{}, wantMap(true)},
+		{pfxs("::0/1"), pfx("::0/1"), wantMap(true)},
+		{pfxs("::0/2"), pfx("::0/2"), wantMap(true)},
 		{pfxs("::0/128"), pfx("::0/128"), wantMap(true)},
 		{pfxs("::0/128"), pfx("::0/127"), wantMap(true)},
 		{pfxs("::0/128"), pfx("::1/128"), wantMap(true, "::0/128")},
@@ -332,7 +334,7 @@ func TestPrefixMapSubtract(t *testing.T) {
 
 // Make sure Subtract does not overwrite child values as it creates nodes to fill
 // in gaps.
-func TestPrefixMapSubtractNoOverwrite(t *testing.T) {
+func TestPrefixMapBuilderSubtractNoOverwrite(t *testing.T) {
 	pmb := &PrefixMapBuilder[string]{}
 	pmb.Set(pfx("::0/127"), "parent")
 	pmb.Set(pfx("::1/128"), "child")

@@ -112,6 +112,8 @@ func TestPrefixSetSubtract(t *testing.T) {
 		want     []netip.Prefix
 	}{
 		{pfxs(), netip.Prefix{}, pfxs()},
+		{pfxs("::0/1"), pfx("::0/1"), pfxs()},
+		{pfxs("::0/2"), pfx("::0/2"), pfxs()},
 		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
 		{pfxs("::0/128"), pfx("::0/127"), pfxs()},
 		{pfxs("::0/128"), pfx("::1/128"), pfxs("::0/128")},

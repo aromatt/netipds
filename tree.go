@@ -104,6 +104,47 @@ func (t *tree[T]) moveChildrenFrom(o *tree[T]) *tree[T] {
 	return t
 }
 
+// childPtr returns a pointer to the child corresponding to the bit at offset
+// in k (left if 0, right if 1).
+func (t *tree[T]) childPtr(k key, offset uint8) **tree[T] {
+	if zero, _ := k.hasBitZeroAt(offset); zero {
+		return &t.left
+	}
+	return &t.right
+}
+
+// childPtrs returns pointers to the (a) child corresponding to the bit at
+// offset in k and (b) its sibling
+func (t *tree[T]) childPtrs(k key, offset uint8) (a **tree[T], b **tree[T]) {
+	if zero, _ := k.hasBitZeroAt(offset); zero {
+		return &t.left, &t.right
+	}
+	return &t.right, &t.left
+}
+
+// setChildFromBit sets t's child to the provided node based on the bit at
+// offset i in k, if it isn't already set. A provided nil is ignored.
+func (t *tree[T]) setChildFromBit(k key, i uint8, n *tree[T]) *tree[T] {
+	childPtr := t.childPtr(k, i)
+	if *childPtr == nil && n != nil {
+		*childPtr = n
+	}
+	return t
+}
+
+// setChildrenFromBit sets t's children to the provided nodes based on the bit
+// at offset i in k, if they aren't already set. Provided nils are ignored.
+func (t *tree[T]) setChildrenFromBit(k key, i uint8, a, b *tree[T]) *tree[T] {
+	aPtr, bPtr := t.childPtrs(k, i)
+	if *aPtr == nil && a != nil {
+		*aPtr = a
+	}
+	if *bPtr == nil && b != nil {
+		*bPtr = b
+	}
+	return t
+}
+
 // copy returns a copy of t, creating copies of all descendants of t in the
 // process.
 func (t *tree[T]) copy() *tree[T] {
@@ -153,42 +194,25 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 		return t.setValue(v)
 	case common == t.key.len:
 		// Delegate or create new child
-		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
-			if t.left == nil {
-				t.left = newTree[T](k.rest(t.key.len)).setValue(v)
-			}
-			t.left = t.left.insert(k, v)
-		} else {
-			if t.right == nil {
-				t.right = newTree[T](k.rest(t.key.len)).setValue(v)
-			}
-			t.right = t.right.insert(k, v)
+		childPtr := t.childPtr(k, t.key.len)
+		if *childPtr == nil {
+			*childPtr = newTree[T](k.rest(t.key.len)).setValue(v)
 		}
+		*childPtr = (*childPtr).insert(k, v)
 		return t
 	case common == k.len:
 		// Create and return a new node with t as its sole child
-		newNode := newTree[T](k).setValue(v)
-		if zero, _ := t.key.hasBitZeroAt(k.len); zero {
-			newNode.left = t
-		} else {
-			newNode.right = t
-		}
+		newNode := newTree[T](k).setValue(v).setChildFromBit(t.key, k.len, t)
 		t.key.offset = newNode.key.len
 		return newNode
 	case common < t.key.len:
 		// Create and return a new node at the common prefix of t.key and k,
 		// assigning it value v and children with keys t.key and k
-		parent := newTree[T](t.key.truncated(common))
+		newParent := newTree[T](t.key.truncated(common))
+		kChild := newTree[T](k.rest(common)).setValue(v)
+		newParent.setChildrenFromBit(t.key, common, t, kChild)
 		t.key.offset = common
-		sibling := newTree[T](k.rest(common)).setValue(v)
-		if zero, _ := k.hasBitZeroAt(common); zero {
-			parent.left = sibling
-			parent.right = t
-		} else {
-			parent.left = t
-			parent.right = sibling
-		}
-		return parent
+		return newParent
 	default:
 		// TODO
 		panic("unreachable")
@@ -262,41 +286,33 @@ func (t *tree[T]) remove(k key) *tree[T] {
 	// t.key is a prefix of the key to remove, so recurse into the appropriate
 	// child of t.
 	if t.key.isPrefixOf(k) {
-		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
-			if t.left != nil {
-				t.left = t.left.remove(k.rest(t.key.len))
-			}
-		} else {
-			if t.right != nil {
-				t.right = t.right.remove(k.rest(t.key.len))
-			}
+		childPtr := t.childPtr(k, t.key.len)
+		if *childPtr != nil {
+			*childPtr = (*childPtr).remove(k)
 		}
 	}
-
 	return t
 }
 
 // subtract removes k and all of its descendants from the tree, leaving the
-// remaining key space behind. New nodes may be created in order to fill in
-// gaps around the deleted key.
+// remaining key space behind. New nodes may be created to fill gaps around the
+// deleted key.
 func (t *tree[T]) subtract(k key) *tree[T] {
 	common := t.key.commonPrefixLen(k)
 	switch {
 	case t.key.equalFromRoot(k):
 		return nil
-	case common == 0:
-		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
-			if t.left != nil {
-				t.left = t.left.subtract(k.rest(t.key.len))
-			}
+	case common == t.key.len:
+		childPtr := t.childPtr(k, t.key.len)
+		if *childPtr != nil {
+			*childPtr = (*childPtr).subtract(k.rest(t.key.len))
 		} else {
-			if t.right != nil {
-				t.right = t.right.subtract(k.rest(t.key.len))
-			}
+			t.insertHole(k, t.value)
+		}
+		if t.right == nil && t.left == nil && !t.hasValue {
+			return nil
 		}
 		return t
-	case common == t.key.len:
-		return t.insertHole(k, t.value)
 	case common == k.len:
 		return nil
 	case common < t.key.len:
@@ -307,6 +323,7 @@ func (t *tree[T]) subtract(k key) *tree[T] {
 	}
 }
 
+// insertHole removes k and sets t and all of its descendants to v.
 func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 	switch {
 	case t.key.equalFromRoot(k):
@@ -345,31 +362,13 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 		}
 	}
 
-	nextPath := path.rest(t.key.len)
-	zero, ok := path.hasBitZeroAt(t.key.commonPrefixLen(path))
+	zero, anyPathLeft := path.hasBitZeroAt(t.key.commonPrefixLen(path))
 
-	// !ok means we've navigated to the end of the path constraint. Visit all
-	// children from here on.
-	if !ok {
-		if t.left != nil {
-			t.left.walk(nextPath, fn)
-		}
-		if t.right != nil {
-			t.right.walk(nextPath, fn)
-		}
-		return
+	if (zero || !anyPathLeft) && t.left != nil {
+		t.left.walk(path.rest(t.key.len), fn)
 	}
-
-	// Visit the child that matches the next bit in the path.
-	switch zero {
-	case true:
-		if t.left != nil {
-			t.left.walk(nextPath, fn)
-		}
-	case false:
-		if t.right != nil {
-			t.right.walk(nextPath, fn)
-		}
+	if (!zero || !anyPathLeft) && t.right != nil {
+		t.right.walk(path.rest(t.key.len), fn)
 	}
 }
 
@@ -380,7 +379,6 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 			if n.key.equalFromRoot(k) && n.hasValue {
 				val, ok = n.value, true
 			}
-			// Always stop traversal if we've reached the end of the path.
 			return true
 		}
 		return false
