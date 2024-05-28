@@ -2,30 +2,25 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/aromatt/netipds)](https://pkg.go.dev/github.com/aromatt/netipds)
 [![Go Report Card](https://goreportcard.com/badge/github.com/aromatt/netipds)](https://goreportcard.com/report/github.com/aromatt/netipds)
 
-Additional collections for [netip](https://pkg.go.dev/net/netip) types.
-
-## What
-This project builds on the
+This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
 family, adding two new collection types:
-* PrefixMap, an immutable map for netip.Prefixes
-* PrefixSet, an immutable set type for netip.Prefixes (offering better performance
-  and a more comprehensive API than netipx.IPSet)
-
-Both accept netip.Prefixes for keys. PrefixMap uses generics for values.
+* `PrefixMap[T]`, an immutable, tree-based map with `netip.Prefix` keys
+* `PrefixSet`, an immutable set type for `netip.Prefix`, offering better performance
+  and a more comprehensive API than
+  [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet)
 
 Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree)
 with path compression.
 
 ## Project Goals
-* Provide efficient, thread-safe, immutable collection types for Prefixes
-* Integrate well with the netip and netipx packages
-* Support use cases that are difficult or impossible with other popular trie
-  libraries
+* Provide efficient, thread-safe, immutable collection types for IP networks
+* Integrate well with the `netip` and `netipx` packages
+* Support some use cases that are unsupported by other libraries
 
 ## Usage
-Usage is similar to that of IPSet: to construct a PrefixMap or PrefixSet, use the
-respective builder type.
+Usage is similar to that of `IPSet`: to construct a `PrefixMap` or `PrefixSet`, use
+the respective builder type.
 
 ## Related packages
 
