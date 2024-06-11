@@ -133,7 +133,7 @@ func TestPrefixSetSubtract(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Add(p)
 		}
-		pmb.Subtract(tt.subtract)
+		pmb.SubtractPrefix(tt.subtract)
 		checkPrefixSlice(t, pmb.PrefixSet().Prefixes(), tt.want)
 	}
 }

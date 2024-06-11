@@ -50,13 +50,13 @@ func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(o.tree)
 }
 
-// Subtract modifies s so that p and all of its descendants are removed,
+// SubtractPrefix modifies s so that p and all of its descendants are removed,
 // leaving behind any remaining portions of affected Prefixes. This may add
 // elements to fill in gaps around the subtracted Prefix.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
-func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
+func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
@@ -132,7 +132,7 @@ func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
 	ret := &PrefixSetBuilder{}
 	ret.Add(p)
 	s.tree.walk(keyFromPrefix(p), func(n *tree[bool]) bool {
-		ret.Subtract(prefixFromKey(n.key))
+		ret.SubtractPrefix(prefixFromKey(n.key))
 		return false
 	})
 	return ret.PrefixSet()
