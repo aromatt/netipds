@@ -85,7 +85,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 			psb.Add(p)
 		}
 		ps := psb.PrefixSet()
-		if got := ps.OverlapsPrefix(tt.get); got != tt.want {
+		if got := ps.Overlaps(tt.get); got != tt.want {
 			t.Errorf("pm.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
@@ -133,31 +133,44 @@ func TestPrefixSetSubtract(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Add(p)
 		}
-		pmb.SubtractPrefix(tt.subtract)
+		pmb.Subtract(tt.subtract)
 		checkPrefixSlice(t, pmb.PrefixSet().Prefixes(), tt.want)
 	}
 }
 
-func TestPrefixSetSubtractFromPrefix(t *testing.T) {
+func TestPrefixSetSubtractSet(t *testing.T) {
 	tests := []struct {
+		set      []netip.Prefix
 		subtract []netip.Prefix
-		from     netip.Prefix
 		want     []netip.Prefix
 	}{
-		{pfxs(), pfx("::0/128"), pfxs("::0/128")},
-		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
-		{pfxs("::0/128"), pfx("::1/128"), pfxs("::1/128")},
-		{pfxs("::0/128"), pfx("::0/127"), pfxs("::1/128")},
-		{pfxs("::0/127"), pfx("::0/128"), pfxs()},
-		{pfxs("::0/128", "::1/128"), pfx("::2/128"), pfxs("::2/128")},
+		{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
+		{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
+		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+		{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
+		{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
+		{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
+		{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
+		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
+		{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
+		{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
+		{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
-		for _, p := range tt.subtract {
+		for _, p := range tt.set {
 			psb.Add(p)
 		}
-		got := psb.PrefixSet().SubtractFromPrefix(tt.from)
-		checkPrefixSlice(t, got.Prefixes(), tt.want)
+		subPsb := &PrefixSetBuilder{}
+		for _, p := range tt.subtract {
+			subPsb.Add(p)
+		}
+		psb.SubtractSet(subPsb.PrefixSet())
+		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
 

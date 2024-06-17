@@ -11,7 +11,7 @@ type tree[T any] struct {
 	left  *tree[T]
 	right *tree[T]
 
-	// Not every node has a value. A node may be just a shared prefix.
+	// Not every node stores a value; some nodes are just shared prefixes
 	hasValue bool
 }
 
@@ -172,6 +172,7 @@ func (t *tree[T]) String() string {
 }
 
 // size returns the number of nodes within t that have values.
+// TODO: keep track of this instead of calculating it lazily
 func (t *tree[T]) size() int {
 	size := 0
 	if t.hasValue {
@@ -188,44 +189,49 @@ func (t *tree[T]) size() int {
 
 // insert inserts value v at key k with path compression.
 func (t *tree[T]) insert(k key, v T) *tree[T] {
+	// inserting at t itself
+	if t.key.equalFromRoot(k) {
+		return t.setValue(v)
+	}
+
 	common := t.key.commonPrefixLen(k)
 	switch {
-	case t.key.equalFromRoot(k):
-		return t.setValue(v)
+	// inserting at a descendant; recurse into the appropriate child
 	case common == t.key.len:
-		// Delegate or create new child
 		childPtr := t.childPtr(k, t.key.len)
 		if *childPtr == nil {
 			*childPtr = newTree[T](k.rest(t.key.len)).setValue(v)
 		}
 		*childPtr = (*childPtr).insert(k, v)
 		return t
+	// inserting at a prefix of t.key; create a new node at k with t as its
+	// sole child
 	case common == k.len:
-		// Create and return a new node with t as its sole child
 		newNode := newTree[T](k).setValue(v).setChildFromBit(t.key, k.len, t)
 		t.key.offset = newNode.key.len
 		return newNode
+	// k diverges in the middle of t.key; create a new parent at their common
+	// prefix with children k and t
 	case common < t.key.len:
-		// Create and return a new node at the common prefix of t.key and k,
-		// assigning it value v and children with keys t.key and k
 		newParent := newTree[T](t.key.truncated(common))
 		kChild := newTree[T](k.rest(common)).setValue(v)
 		newParent.setChildrenFromBit(t.key, common, t, kChild)
 		t.key.offset = common
 		return newParent
+	// nothing to do
 	default:
-		// TODO
-		panic("unreachable")
+		return t
 	}
 }
 
 // insertLazy inserts value v at key k without path compression.
 func (t *tree[T]) insertLazy(k key, v T) *tree[T] {
-	common := t.key.commonPrefixLen(k)
 	switch {
+	// inserting at t itself
 	case t.key.equalFromRoot(k):
 		return t.setValue(v)
-	case common == t.key.len:
+	// inserting at a descendant
+	case t.key.commonPrefixLen(k) == t.key.len:
 		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
 			if t.left == nil {
 				t.left = newTree[T](t.key.left())
@@ -238,9 +244,9 @@ func (t *tree[T]) insertLazy(k key, v T) *tree[T] {
 			t.right = t.right.insertLazy(k, v)
 		}
 		return t
+	// nothing to do
 	default:
-		// TODO
-		panic("unreachable")
+		return t
 	}
 }
 
@@ -260,76 +266,107 @@ func (t *tree[T]) compress() *tree[T] {
 	}
 }
 
-// remove removes the exact provided key from the tree, if it exists.
+// remove removes the exact provided key from the tree, if it exists, and
+// performs path compression.
 func (t *tree[T]) remove(k key) *tree[T] {
-	if k.equalFromRoot(t.key) {
+	switch {
+	// removing t itself
+	case k.equalFromRoot(t.key):
 		if t.hasValue {
 			t.clearValue()
 		}
 		switch {
-		// Deleting a leaf node; no children to worry about
+		// no children (deleting a leaf node)
 		case t.left == nil && t.right == nil:
 			return nil
-		// If there is only one child, merge with it.
+		// only one child; merge with it
 		case t.left == nil:
 			t.right.key.offset = t.key.offset
 			return t.right
 		case t.right == nil:
 			t.left.key.offset = t.key.offset
 			return t.left
-		// This is a shared prefix node, so it needs to persist.
+		// t is a shared prefix node, so it needs to persist
 		default:
 			return t
 		}
-	}
-
-	// t.key is a prefix of the key to remove, so recurse into the appropriate
-	// child of t.
-	if t.key.isPrefixOf(k) {
+	// removing a descendant of t; recurse into the appropriate child
+	case t.key.isPrefixOf(k):
 		childPtr := t.childPtr(k, t.key.len)
 		if *childPtr != nil {
 			*childPtr = (*childPtr).remove(k)
 		}
+		return t
+	// nothing to do
+	default:
+		return t
 	}
-	return t
 }
 
-// subtract removes k and all of its descendants from the tree, leaving the
-// remaining key space behind. New nodes may be created to fill gaps around the
-// deleted key.
-func (t *tree[T]) subtract(k key) *tree[T] {
-	common := t.key.commonPrefixLen(k)
-	switch {
-	case t.key.equalFromRoot(k):
+// subtractKey removes k and all of its descendants from the tree, leaving the
+// remaining key space behind. If k is a descendant of t, then new nodes may be
+// created to inherit t's value, filling in the gaps around k.
+func (t *tree[T]) subtractKey(k key) *tree[T] {
+	// this whole branch is being subtracted; no need to traverse further
+	if t.key.equalFromRoot(k) || k.isPrefixOf(t.key) {
 		return nil
-	case common == t.key.len:
+	}
+	// a child of t is being subtracted
+	if t.key.isPrefixOf(k) {
 		childPtr := t.childPtr(k, t.key.len)
 		if *childPtr != nil {
-			*childPtr = (*childPtr).subtract(k.rest(t.key.len))
+			*childPtr = (*childPtr).subtractKey(k.rest(t.key.len))
 		} else {
 			t.insertHole(k, t.value)
 		}
 		if t.right == nil && t.left == nil && !t.hasValue {
 			return nil
 		}
-		return t
-	case common == k.len:
-		return nil
-	case common < t.key.len:
-		return t
-	default:
-		// TODO
-		panic("unreachable")
 	}
+	return t
 }
 
-// insertHole removes k and sets t and all of its descendants to v.
+// subtractTree removes all value-bearing nodes from t that are also
+// value-bearing nodes found in o.
+func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
+	if o.hasValue {
+		// this whole branch is being subtracted; no need to traverse further
+		if t.key.equalFromRoot(o.key) || o.key.isPrefixOf(t.key) {
+			return nil
+		}
+		// a child of t is being subtracted
+		if t.key.isPrefixOf(o.key) {
+			t.insertHole(o.key, t.value)
+		}
+	}
+	// traverse children of both t and o as able
+	if o.left != nil {
+		if t.left != nil {
+			t.left = t.left.subtractTree(*o.left)
+		} else {
+			t = t.subtractTree(*o.left)
+		}
+	}
+	if o.right != nil {
+		if t.right != nil {
+			t.right = t.right.subtractTree(*o.right)
+		} else {
+			t = t.subtractTree(*o.right)
+		}
+	}
+	return t
+}
+
+// insertHole removes k and sets t, and all of its descendants, to v.
 func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 	switch {
+	// removing t itself (no descendants will receive v)
 	case t.key.equalFromRoot(k):
 		return nil
+	// k is a descendant of t; start digging a hole to k
 	case t.key.isPrefixOf(k):
 		t.clearValue()
+		// recurse to appropriate child and create a sibling to receive v
 		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
 			if t.right == nil {
 				t.right = newTree[T](t.key.right()).setValue(v)
@@ -342,6 +379,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 			t.right = newTree[T](t.key.right()).insertHole(k, v)
 		}
 		return t
+	// nothing to do
 	default:
 		return t
 	}
@@ -470,6 +508,7 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 }
 
 // filter updates t to include only the keys encompassed by o.
+//
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 func (t *tree[T]) filter(o tree[bool]) {

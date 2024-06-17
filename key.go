@@ -6,14 +6,13 @@ import (
 	"strings"
 )
 
-// key stores the bits which represent the full path to a node in a prefix
-// tree. The maximum size of a key is 128 bits. The key is stored in the
+// key stores the string of bits which represent the full path to a node in a
+// prefix tree. The maximum length is 128 bits. The key is stored in the
 // most-significant bits of the content field.
 //
-// offset defines the starting position of the key segment owned by the node.
+// offset stores the starting position of the key segment owned by the node.
 //
-// len measures the full length of the prefix from the root to the end of the
-// node's segment.
+// len measures the full length of the key starting from bit 0.
 //
 // The content field should not have any bits set beyond len. newKey enforces
 // this.
@@ -159,7 +158,8 @@ func (k key) hasBitZeroAt(i uint8) (isZero bool, ok bool) {
 	return k.content.isBitZero(i), true
 }
 
-// equalFromRoot reports whether k and o have the same content and len.
+// equalFromRoot reports whether k and o have the same content and len (offsets
+// are ignored)
 func (k key) equalFromRoot(o key) bool {
 	return k.len == o.len && k.content == o.content
 }

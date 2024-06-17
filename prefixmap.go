@@ -58,7 +58,7 @@ func (m *PrefixMapBuilder[T]) Subtract(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	m.tree.subtract(keyFromPrefix(p))
+	m.tree.subtractKey(keyFromPrefix(p))
 	return nil
 }
 

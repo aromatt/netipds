@@ -50,18 +50,29 @@ func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(o.tree)
 }
 
-// SubtractPrefix modifies s so that p and all of its descendants are removed,
+// Subtract modifies s so that p and all of its descendants are removed,
 // leaving behind any remaining portions of affected Prefixes. This may add
 // elements to fill in gaps around the subtracted Prefix.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
-func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
+func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.subtract(keyFromPrefix(p))
+	s.tree.subtractKey(keyFromPrefix(p))
 	return nil
+}
+
+// SubtractSet modifies s so that the Prefixes in o, and all of their
+// descendants, are removed, leaving behind any remaining portions of affected
+// Prefixes. This may add elements to fill in gaps around the subtracted
+// Prefixes.
+//
+// For example, if s is {::0/126}, and we subtract ::0/128, then s will become
+// {::1/128, ::2/127}.
+func (s *PrefixSetBuilder) SubtractSet(o *PrefixSet) {
+	s.tree = *s.tree.subtractTree(o.tree)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
@@ -107,6 +118,11 @@ func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	return s.tree.encompasses(keyFromPrefix(p), true)
 }
 
+// Overlaps returns true if this set includes a Prefix which overlaps p.
+func (s *PrefixSet) Overlaps(p netip.Prefix) bool {
+	return s.tree.overlapsKey(keyFromPrefix(p))
+}
+
 // Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.tree.size())
@@ -136,23 +152,6 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 		return false
 	})
 	return res
-}
-
-// OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
-func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
-	return s.tree.overlapsKey(keyFromPrefix(p))
-}
-
-// SubtractFromPrefix returns a new PrefixSet that is the result of removing
-// all Prefixes in s that are encompassed by p, including p itself.
-func (s *PrefixSet) SubtractFromPrefix(p netip.Prefix) *PrefixSet {
-	ret := &PrefixSetBuilder{}
-	ret.Add(p)
-	s.tree.walk(keyFromPrefix(p), func(n *tree[bool]) bool {
-		ret.SubtractPrefix(prefixFromKey(n.key))
-		return false
-	})
-	return ret.PrefixSet()
 }
 
 // String returns a human-readable representation of the s's tree structure.
