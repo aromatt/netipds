@@ -353,7 +353,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 // When the provided path is exhausted, walk continues by visiting all
 // children.
 //
-// fn may terminate the walk by returning true.
+// If fn returns true, then walk stops traversing any deeper.
 func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	// Never call fn on root node
 	if !t.key.isZero() {

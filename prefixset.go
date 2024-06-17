@@ -121,6 +121,23 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 	return res
 }
 
+// PrefixesCompact returns a slice of all Prefixes stored in s, omitting those
+// that are children of other Prefixes in s.
+//
+// Note: PrefixCompact does not merge siblings; the result may still contain
+// full sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32
+func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
+	res := make([]netip.Prefix, 0, s.tree.size())
+	s.tree.walk(key{}, func(n *tree[bool]) bool {
+		if n.hasValue {
+			res = append(res, prefixFromKey(n.key))
+			return true
+		}
+		return false
+	})
+	return res
+}
+
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))

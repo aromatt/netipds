@@ -185,3 +185,28 @@ func TestPrefixSetPrefixes(t *testing.T) {
 		checkPrefixSlice(t, ps.Prefixes(), tt.want)
 	}
 }
+
+func TestPrefixSetPrefixesCompact(t *testing.T) {
+	tests := []struct {
+		add  []netip.Prefix
+		want []netip.Prefix
+	}{
+		{pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/127", "::0/128"), pfxs("::0/127")},
+		{pfxs("::0/126", "::0/127"), pfxs("::0/126")},
+		{pfxs("::0/1", "::0/128"), pfxs("::0/1")},
+		{pfxs("0::0/127", "::0/128", "::1/128"), pfxs("::0/127")},
+		{pfxs("0::0/127", "::0/128", "::2/128"), pfxs("::0/127", "::2/128")},
+		{pfxs("1.2.3.0/24", "1.2.3.4/32"), pfxs("1.2.3.0/24")},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			psb.Add(p)
+		}
+		ps := psb.PrefixSet()
+		checkPrefixSlice(t, ps.PrefixesCompact(), tt.want)
+	}
+}
