@@ -107,7 +107,7 @@ func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	return s.tree.encompasses(keyFromPrefix(p), true)
 }
 
-// Prefixes returns a slice of all Prefixes stored in s.
+// Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.tree.size())
 	i := 0
@@ -121,11 +121,11 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 	return res
 }
 
-// PrefixesCompact returns a slice of all Prefixes stored in s, omitting those
-// that are children of other Prefixes in s.
+// PrefixesCompact returns a slice of the Prefixes in s that are not
+// children of other Prefixes in s.
 //
-// Note: PrefixCompact does not merge siblings; the result may still contain
-// full sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32
+// Note: PrefixCompact does not merge siblings, so the result may contain
+// complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.tree.size())
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
