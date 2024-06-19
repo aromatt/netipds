@@ -16,6 +16,8 @@ func TestPrefixSetAddContains(t *testing.T) {
 		{pfxs("::0/128"), pfx("::1/128"), false},
 		{pfxs("::0/128"), pfx("::0/127"), false},
 		{pfxs("::0/127"), pfx("::0/128"), false},
+		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 	}
@@ -171,6 +173,97 @@ func TestPrefixSetSubtractSet(t *testing.T) {
 		}
 		psb.SubtractSet(subPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+	}
+}
+
+func TestPrefixSetIntersectSet(t *testing.T) {
+	tests := []struct {
+		a    []netip.Prefix
+		b    []netip.Prefix
+		want []netip.Prefix
+	}{
+		// Note: since intersect is commutative, all test cases are performed
+		// twice (a & b) and (b & a)
+		{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
+		{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/126"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs(), pfxs()},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/126"), pfxs("::0/128", "::1/128")},
+		{pfxs("::2/127"), pfxs("::0/126", "::2/128"), pfxs("::2/127", "::2/128")},
+	}
+	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
+		psb := &PrefixSetBuilder{}
+		for _, p := range x {
+			psb.Add(p)
+		}
+		intersectPsb := &PrefixSetBuilder{}
+		for _, p := range y {
+			intersectPsb.Add(p)
+		}
+		psb.IntersectSet(intersectPsb.PrefixSet())
+		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
+	}
+
+	for _, tt := range tests {
+		performTest(tt.a, tt.b, tt.want)
+		performTest(tt.b, tt.a, tt.want)
+	}
+}
+
+func TestPrefixSetUnionSet(t *testing.T) {
+	tests := []struct {
+		a    []netip.Prefix
+		b    []netip.Prefix
+		want []netip.Prefix
+	}{
+		// Note: since union is commutative, all test cases are performed twice
+		// (a | b) and (b | a)
+		{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
+		{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/127", "::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs(), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128", "0::1/128")},
+		{
+			pfxs("::0/127"),
+			pfxs("::0/128", "::1/128"),
+			pfxs("::0/127", "::0/128", "::1/128"),
+		},
+		{
+			pfxs("::2/127"),
+			pfxs("::0/126", "::2/128"),
+			pfxs("::0/126", "::2/127", "::2/128"),
+		},
+		{
+			pfxs("::0/128", "::1/128"),
+			pfxs("::0/126", "::0/127"),
+			pfxs("::0/126", "::0/127", "::0/128", "::1/128"),
+		},
+		{
+			pfxs("::0/128", "::1/128"),
+			pfxs("::0/126", "::0/127", "::2/127"),
+			pfxs("::0/126", "::0/127", "::0/128", "::1/128", "::2/127"),
+		},
+	}
+	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
+		psb := &PrefixSetBuilder{}
+		for _, p := range x {
+			psb.Add(p)
+		}
+		unionPsb := &PrefixSetBuilder{}
+		for _, p := range y {
+			unionPsb.Add(p)
+		}
+		psb.UnionSet(unionPsb.PrefixSet())
+		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
+	}
+	for _, tt := range tests {
+		performTest(tt.a, tt.b, tt.want)
+		performTest(tt.b, tt.a, tt.want)
 	}
 }
 

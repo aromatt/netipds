@@ -65,14 +65,26 @@ func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
 }
 
 // SubtractSet modifies s so that the Prefixes in o, and all of their
-// descendants, are removed, leaving behind any remaining portions of affected
-// Prefixes. This may add elements to fill in gaps around the subtracted
-// Prefixes.
+// descendants, are removed from s, leaving behind any remaining portions of
+// affected Prefixes. This may add elements to fill in gaps around the
+// subtracted Prefixes.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) SubtractSet(o *PrefixSet) {
 	s.tree = *s.tree.subtractTree(o.tree)
+}
+
+// IntersectSet modifies s so that it contains the intersection of the entries
+// in s and o: each Prefix must either (a) exist in both sets or (b) exist in
+// one set and have an ancestor in the other.
+func (s *PrefixSetBuilder) IntersectSet(o *PrefixSet) {
+	s.tree = *s.tree.intersectTree(o.tree)
+}
+
+// UnionSet modifies s so that it contains the union of the entries in s and o.
+func (s *PrefixSetBuilder) UnionSet(o *PrefixSet) {
+	s.tree = *s.tree.unionTree(o.tree)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
@@ -128,7 +140,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.tree.size())
 	i := 0
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
-		if n.hasValue {
+		if n.hasEntry {
 			res[i] = prefixFromKey(n.key)
 			i++
 		}
@@ -145,7 +157,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.tree.size())
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
-		if n.hasValue {
+		if n.hasEntry {
 			res = append(res, prefixFromKey(n.key))
 			return true
 		}

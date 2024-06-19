@@ -18,8 +18,9 @@ import (
 // this.
 type key struct {
 	content uint128
-	offset  uint8
-	len     uint8
+	// TODO: I don't think we truly need offset for anything. Remove?
+	offset uint8
+	len    uint8
 }
 
 func newKey(content uint128, offset uint8, len uint8) key {
@@ -42,7 +43,7 @@ func keyFromPrefix(p netip.Prefix) key {
 	return newKey(u128From16(addr.As16()), 0, bits)
 }
 
-// String prints the key's content in hex, followed by "/" + k.len. The least
+// String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading
 // zeros are omitted.
 func (k key) String() string {
@@ -62,7 +63,7 @@ func (k key) String() string {
 			}
 		}
 	}
-	return fmt.Sprintf("%s/%d", ret, k.len)
+	return fmt.Sprintf("%s,%d", ret, k.len)
 }
 
 // Parse parses the output of String.
@@ -71,7 +72,7 @@ func (k *key) Parse(s string) error {
 	var err error
 
 	// Isolate content and len
-	parts := strings.Split(s, "/")
+	parts := strings.Split(s, ",")
 	if len(parts) != 2 {
 		return fmt.Errorf("failed to parse key '%s': invalid format", s)
 	}
@@ -99,20 +100,21 @@ func (k *key) Parse(s string) error {
 }
 
 // StringRel prints the portion of k.content from offset to len, as hex,
-// followed by "/" + (len-offset). The least significant bit in the output is
+// followed by "," + (len-offset). The least significant bit in the output is
 // the bit at position (k.len - 1). Leading zeros are omitted.
 //
 // This representation is lossy in that it hides the first k.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.
 //
-//   - key{uint128{0, 1}, 127, 128} => "1/128"
-//   - key{uint128{0, 2}, 126, 128} => "2/128"
-//   - key{uint128{0, 2}, 126, 127} => "1/127"
-//   - key{uint128{1, 1}, 63, 128} => "10000000000000001/128"
-//   - key{uint128{1, 0}, 63, 64}  => "1/64"
-//   - key{uint128{256, 0}, 56} => "1/56"
-//   - key{uint128{256, 0}, 64} => "100/64"
+//   - key{uint128{0, 1}, 127, 128} => "1,128"
+//   - key{uint128{0, 2}, 126, 128} => "2,128"
+//   - key{uint128{0, 2}, 126, 127} => "1,127"
+//   - key{uint128{1, 1}, 63, 128} => "10000000000000001,128"
+//   - key{uint128{1, 0}, 63, 64}  => "1,64"
+//   - key{uint128{256, 0}, 56} => "1,56"
+//   - key{uint128{256, 0}, 64} => "100,64"
 func (k key) StringRel() string {
+	//go:coverage ignore
 	var ret string
 	just := k.content.shiftLeft(k.offset).shiftRight(128 - k.len + k.offset)
 	if just.isZero() {
@@ -129,7 +131,7 @@ func (k key) StringRel() string {
 			}
 		}
 	}
-	return fmt.Sprintf("%s/%d", ret, k.len-k.offset)
+	return fmt.Sprintf("%s,%d", ret, k.len-k.offset)
 }
 
 // truncated returns a copy of key truncated to n bits.
@@ -200,6 +202,7 @@ func (k key) isValid() bool {
 	return k.offset < 128 && k.len <= 128
 }
 
+// left returns a one-bit key just beyond k, set to 0.
 func (k key) left() key {
 	return key{
 		content: k.content,
@@ -207,6 +210,8 @@ func (k key) left() key {
 		len:     k.len + 1,
 	}
 }
+
+// right returns a one-bit key just beyond k, set to 1.
 func (k key) right() key {
 	return key{
 		content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),

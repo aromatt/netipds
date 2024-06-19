@@ -183,7 +183,7 @@ func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
 	m.tree.walk(key{}, func(n *tree[T]) bool {
-		if n.hasValue {
+		if n.hasEntry {
 			res[prefixFromKey(n.key)] = n.value
 		}
 		return false
