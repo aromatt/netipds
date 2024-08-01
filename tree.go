@@ -2,7 +2,6 @@ package netipds
 
 import (
 	"fmt"
-	"strings"
 )
 
 // tree is a binary radix tree with path compression.
@@ -49,18 +48,6 @@ func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 	return t
 }
 
-// moveValueFrom moves o's value to t (removing it from o) and returns t.
-func (t *tree[T]) moveValueFrom(o *tree[T]) *tree[T] {
-	if o == nil {
-		return t
-	}
-	if o.hasEntry {
-		t.value, t.hasEntry = o.value, true
-		o.clearValue()
-	}
-	return t
-}
-
 // setChildren sets t's children to the provided left and right trees and
 // returns t.
 func (t *tree[T]) setChildren(left *tree[T], right *tree[T]) *tree[T] {
@@ -92,17 +79,6 @@ func (t *tree[T]) copyChildrenFrom(o *tree[T]) *tree[T] {
 		right = o.right.copy()
 	}
 	return t.setChildren(left, right)
-}
-
-// moveChildrenFrom moves o's children to t (removing them from o) and returns
-// t.
-func (t *tree[T]) moveChildrenFrom(o *tree[T]) *tree[T] {
-	if o == nil {
-		return t
-	}
-	t.setChildrenFrom(o)
-	o.setChildren(nil, nil)
-	return t
 }
 
 // child returns a pointer to the specified child of t.
@@ -161,7 +137,6 @@ func (t *tree[T]) copy() *tree[T] {
 }
 
 func (t *tree[T]) stringImpl(indent string, pre string, hideVal bool) string {
-	//go:coverage ignore
 	var ret string
 	if hideVal {
 		ret = fmt.Sprintf("%s%s%s\n", indent, pre, t.key.StringRel())
@@ -178,7 +153,6 @@ func (t *tree[T]) stringImpl(indent string, pre string, hideVal bool) string {
 }
 
 func (t *tree[T]) String() string {
-	//go:coverage ignore
 	return t.stringImpl("", "", false)
 }
 
@@ -302,7 +276,7 @@ func (t *tree[T]) remove(k key) *tree[T] {
 			return t
 		}
 	// removing a descendant of t; recurse into the appropriate child
-	case t.key.isPrefixOf(k):
+	case t.key.isPrefixOf(k, false):
 		childPtr := t.childPtr(k, t.key.len)
 		if *childPtr != nil {
 			*childPtr = (*childPtr).remove(k)
@@ -319,11 +293,11 @@ func (t *tree[T]) remove(k key) *tree[T] {
 // created to fill in the gaps around k.
 func (t *tree[T]) subtractKey(k key) *tree[T] {
 	// this whole branch is being subtracted; no need to traverse further
-	if t.key.equalFromRoot(k) || k.isPrefixOf(t.key) {
+	if t.key.equalFromRoot(k) || k.isPrefixOf(t.key, false) {
 		return nil
 	}
 	// a child of t is being subtracted
-	if t.key.isPrefixOf(k) {
+	if t.key.isPrefixOf(k, false) {
 		childPtr := t.childPtr(k, t.key.len)
 		if *childPtr != nil {
 			*childPtr = (*childPtr).subtractKey(k.rest(t.key.len))
@@ -348,11 +322,12 @@ func (t *tree[T]) subtractKey(k key) *tree[T] {
 func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 	if o.hasEntry {
 		// this whole branch is being subtracted; no need to traverse further
-		if t.key.equalFromRoot(o.key) || o.key.isPrefixOf(t.key) {
+		// TODO can this just be `if o.key.isPrefixOf(t.key, false)`
+		if t.key.equalFromRoot(o.key) || o.key.isPrefixOf(t.key, false) {
 			return nil
 		}
 		// a child of t is being subtracted
-		if t.key.isPrefixOf(o.key) {
+		if t.key.isPrefixOf(o.key, false) {
 			t.insertHole(o.key, t.value)
 		}
 	}
@@ -376,15 +351,6 @@ func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 
 func (t *tree[T]) isEmpty() bool {
 	return t.key.isZero() && t.left == nil && t.right == nil
-}
-
-// Helpful for debugging
-var debugDepth = 0
-
-func debugf(s0 string, rest ...any) {
-	//go:coverage ignore
-	indentStr := strings.Repeat("  ", debugDepth)
-	fmt.Printf(indentStr+s0, rest...)
 }
 
 // union modifies t so that it is the union of the entries of t and o.
@@ -558,7 +524,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 	case t.key.equalFromRoot(k):
 		return nil
 	// k is a descendant of t; start digging a hole to k
-	case t.key.isPrefixOf(k):
+	case t.key.isPrefixOf(k, false):
 		t.clearValue()
 		// recurse to appropriate child and create a sibling to receive v
 		if zero, _ := k.hasBitZeroAt(t.key.len); zero {
@@ -633,7 +599,7 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		ret = n.key.isPrefixOf(k) && !(strict && n.key == k) && n.hasEntry
+		ret = n.key.isPrefixOf(k, strict) && n.hasEntry
 		if ret {
 			return true
 		}
@@ -646,7 +612,7 @@ func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		if n.key.isPrefixOf(k) && !(strict && n.key == k) && n.hasEntry {
+		if n.key.isPrefixOf(k, strict) && n.hasEntry {
 			outKey, val, ok = n.key, n.value, true
 			return true
 		}
@@ -659,7 +625,7 @@ func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		if n.key.isPrefixOf(k) && !(strict && n.key == k) && n.hasEntry {
+		if n.key.isPrefixOf(k, strict) && n.hasEntry {
 			outKey, val, ok = n.key, n.value, true
 		}
 		return false
@@ -674,8 +640,11 @@ func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
 func (t *tree[T]) descendantsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
 	t.walk(k, func(n *tree[T]) bool {
-		if k.isPrefixOf(n.key) {
-			ret = ret.setKey(n.key.rooted()).setValueFrom(n).setChildrenFrom(n)
+		if k.isPrefixOf(n.key, false) {
+			ret.setKey(n.key.rooted()).setChildrenFrom(n)
+			if !(strict && n.key.equalFromRoot(k)) {
+				ret.setValueFrom(n)
+			}
 			return true
 		}
 		return false
@@ -690,10 +659,10 @@ func (t *tree[T]) descendantsOf(k key, strict bool) (ret *tree[T]) {
 func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
 	t.walk(k, func(n *tree[T]) bool {
-		if !n.key.isPrefixOf(k) {
+		if !n.key.isPrefixOf(k, false) {
 			return true
 		}
-		if n.hasEntry {
+		if n.hasEntry && !(strict && n.key.equalFromRoot(k)) {
 			ret.insert(n.key, n.value)
 		}
 		return false
@@ -722,7 +691,6 @@ func (t *tree[T]) filter(o tree[bool]) {
 // encompassed by o.
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
-// TODO: is the returned tree fully compressed?
 func (t *tree[T]) filterCopy(o tree[bool]) *tree[T] {
 	ret := &tree[T]{}
 	t.walk(key{}, func(n *tree[T]) bool {
@@ -741,7 +709,7 @@ func (t *tree[T]) overlapsKey(k key) bool {
 		if !n.hasEntry {
 			return false
 		}
-		if n.key.isPrefixOf(k) || k.isPrefixOf(n.key) {
+		if n.key.isPrefixOf(k, false) || k.isPrefixOf(n.key, false) {
 			ret = true
 			return true
 		}

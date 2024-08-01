@@ -55,7 +55,7 @@ func TestPrefixMapSetGet(t *testing.T) {
 		{pfxs("::/128", "::1/128", "::2/127", "::3/127"), pfx("::1/128"), true},
 		{pfxs("::/128"), pfx("::/0"), false},
 
-		// Make sure we can't get a prefix that has a node but no value
+		// Make sure we can't get a prefix that has a node but no entry
 		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
 
 		// Make sure parent/child insert order doesn't matter
@@ -75,6 +75,11 @@ func TestPrefixMapSetGet(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
+		// Test PrefixMapBuilder.Get()
+		if _, ok := pmb.Get(tt.get); ok != tt.want {
+			t.Errorf("pmb.Get(%s) = %v, want %v", tt.get, ok, tt.want)
+		}
+		// Test PrefixMap.Get()
 		pm := pmb.PrefixMap()
 		if _, ok := pm.Get(tt.get); ok != tt.want {
 			t.Errorf("pm.Get(%s) = %v, want %v", tt.get, ok, tt.want)
@@ -95,7 +100,7 @@ func TestPrefixMapContains(t *testing.T) {
 		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
 
-		// Nodes with no values should not report as contained
+		// Nodes without entries should not report as contained
 		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
 
 		// IPv4
@@ -126,13 +131,13 @@ func TestPrefixMapContainsAfterRemove(t *testing.T) {
 	}{
 		{pfxs("::0/128"), pfxs("::0/128"), pfx("::0/128"), false},
 
-		// Try to remove value-less parent
+		// Try to remove entry-less parent
 		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
 
-		// Remove value-ful parent
+		// Remove a entry's parent entry
 		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/127"), pfx("::0/128"), true},
 
-		// Remove child of value-fal parent
+		// Remove child of an entry
 		{pfxs("::0/127", "::0/128", "::1/128"), pfxs("::0/128"), pfx("::0/127"), true},
 
 		// IPv4
@@ -198,6 +203,58 @@ func TestPrefixMapEncompasses(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapEncompassesStrict(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+
+		{pfxs("::0/128"), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/127"), false},
+
+		{pfxs("::0/127"), pfx("::0/128"), true},
+		{pfxs("::0/127"), pfx("::1/128"), true},
+
+		{pfxs("::2/127"), pfx("::1/128"), false},
+		{pfxs("::2/127"), pfx("::2/128"), true},
+		{pfxs("::2/127"), pfx("::3/128"), true},
+
+		{pfxs("::0/127", "::0/128"), pfx("::0/127"), false},
+
+		// This map contains a node that strictly encompasses the query, but
+		// that node does not have an entry
+		{pfxs("::0/128", "::1/128"), pfx("::0/128"), false},
+
+		// A Prefix is not considered encompassed if the map contains all of its
+		// children but not the Prefix itself.
+		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
+
+		// IPv4
+		{pfxs("10.0.0.1/32"), pfx("10.0.0.1/32"), false},
+		{pfxs("10.0.0.0/32"), pfx("10.0.0.0/31"), false},
+
+		{pfxs("10.0.0.0/31"), pfx("10.0.0.0/32"), true},
+		{pfxs("10.0.0.0/31"), pfx("10.0.0.1/32"), true},
+
+		{pfxs("10.0.0.2/31"), pfx("10.0.0.1/32"), false},
+		{pfxs("10.0.0.2/31"), pfx("10.0.0.2/32"), true},
+		{pfxs("10.0.0.2/31"), pfx("10.0.0.3/32"), true},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		if got := pm.EncompassesStrict(tt.get); got != tt.want {
+			t.Errorf("pm.EncompassesStrict(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
 func TestPrefixMapToMap(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -210,7 +267,7 @@ func TestPrefixMapToMap(t *testing.T) {
 		{pfxs("::2/127"), wantMap(true, "::2/127")},
 		{pfxs("::0/128", "::1/128"), wantMap(true, "::0/128", "::1/128")},
 
-		// Parent and children are both included if they have values
+		// Parent and children are both included if they have entries
 		{pfxs("::0/127", "::0/128"), wantMap(true, "::0/127", "::0/128")},
 		{pfxs("::0/127", "::0/128", "::1/128"), wantMap(true, "::0/127", "::0/128", "::1/128")},
 
@@ -235,21 +292,21 @@ func TestPrefixMapRemove(t *testing.T) {
 	}{
 		{pfxs("::0/128"), pfxs("::0/128"), wantMap(true)},
 
-		// Try to remove a node with two children and no value
+		// Try to remove a node with two children and no entry
 		{
 			set:    pfxs("::1/128", "::0/128"),
 			remove: pfxs("::0/127"),
 			want:   wantMap(true, "::0/128", "::1/128"),
 		},
 
-		// Remove a node wth two children and a value
+		// Remove a node wth two children and an entry
 		{
 			set:    pfxs("::0/127", "::1/128", "::0/128"),
 			remove: pfxs("::0/127"),
 			want:   wantMap(true, "::0/128", "::1/128"),
 		},
 
-		// Remove a node with one child and a value
+		// Remove a node with one child and an entry
 		{
 			set:    pfxs("::0/126", "::0/127", "::1/128"),
 			remove: pfxs("::0/126"),
@@ -263,21 +320,21 @@ func TestPrefixMapRemove(t *testing.T) {
 			want:   wantMap(true, "::0/128"),
 		},
 
-		// Try to remove a value-less parent and one sibling
+		// Try to remove an entry-less parent and one sibling
 		{
 			set:    pfxs("::0/128", "::1/128"),
 			remove: pfxs("::0/127", "::1/128"),
 			want:   wantMap(true, "::0/128"),
 		},
 
-		// Remove two siblings with a common value-ful parent
+		// Remove two siblings with a common parent entry
 		{
 			set:    pfxs("::0/127", "::0/128", "::1/128"),
 			remove: pfxs("::0/128", "::1/128"),
 			want:   wantMap(true, "::0/127"),
 		},
 
-		// Remove two siblings with a common value-less parent
+		// Remove two siblings with a common parent entry
 		{
 			set:    pfxs("::0/128", "::1/128"),
 			remove: pfxs("::0/128", "::1/128"),
@@ -332,8 +389,8 @@ func TestPrefixMapBuilderSubtract(t *testing.T) {
 	}
 }
 
-// Make sure Subtract does not overwrite child values as it creates nodes to fill
-// in gaps.
+// Make sure Subtract does not overwrite child entries as it creates nodes to
+// fill in gaps.
 func TestPrefixMapBuilderSubtractNoOverwrite(t *testing.T) {
 	pmb := &PrefixMapBuilder[string]{}
 	pmb.Set(pfx("::0/127"), "parent")
@@ -357,7 +414,10 @@ func TestPrefixMapRootOf(t *testing.T) {
 		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
 		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
 
-		// Make sure value-less nodes are not returned by rootOf
+		// Unlike RootOfStrict, RootOf will return the prefix itself
+		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
+
+		// Make sure entry-less nodes are not returned by RootOf
 		{pfxs("::0/127", "::2/127"), pfx("::0/128"), pfx("::0/127"), true},
 
 		// IPv4
@@ -381,6 +441,44 @@ func TestPrefixMapRootOf(t *testing.T) {
 	}
 }
 
+func TestPrefixMapRootOfStrict(t *testing.T) {
+	tests := []struct {
+		set        []netip.Prefix
+		get        netip.Prefix
+		wantPrefix netip.Prefix
+		wantOK     bool
+	}{
+		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
+		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
+
+		// Unlike RootOf, RootOfStrict will not return the prefix itself
+		{pfxs("::0/128"), pfx("::0/128"), netip.Prefix{}, false},
+
+		// Make sure entry-less nodes are not returned by RootOfStrict
+		{pfxs("::0/127", "::2/127"), pfx("::0/128"), pfx("::0/127"), true},
+
+		// IPv4
+		{pfxs(), pfx("1.2.3.0/32"), netip.Prefix{}, false},
+		{pfxs("1.2.3.0/31"), pfx("1.2.3.0/32"), pfx("1.2.3.0/31"), true},
+		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		gotPrefix, _, gotOK := pm.RootOfStrict(tt.get)
+		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
+			t.Errorf(
+				"pm.RootOfStrict(%s) = (%v, _, %v), want (%v, _, %v)",
+				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
+			)
+		}
+	}
+}
+
 func TestPrefixMapParentOf(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix
@@ -391,6 +489,8 @@ func TestPrefixMapParentOf(t *testing.T) {
 		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
 		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
 		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
+
+		// Unlike ParentOfStrict, ParentOf will return the prefix itself
 		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
 
 		// IPv4
@@ -413,6 +513,45 @@ func TestPrefixMapParentOf(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapParentOfStrict(t *testing.T) {
+	tests := []struct {
+		set        []netip.Prefix
+		get        netip.Prefix
+		wantPrefix netip.Prefix
+		wantOK     bool
+	}{
+		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
+		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/127", "::0/128"), pfx("::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
+
+		// Unlike ParentOf, ParentOfStrict will not return the prefix itself
+		{pfxs("::0/128"), pfx("::0/128"), netip.Prefix{}, false},
+
+		// IPv4
+		{pfxs("1.2.3.0/31"), pfx("1.2.3.0/32"), pfx("1.2.3.0/31"), true},
+		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
+
+		// Another strictness check
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), netip.Prefix{}, false},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		pm := pmb.PrefixMap()
+		gotPrefix, _, gotOK := pm.ParentOfStrict(tt.get)
+		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
+			t.Errorf(
+				"pm.ParentOfStrict(%s) = (%v, _, %v), want (%v, _, %v)",
+				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
+			)
+		}
+	}
+}
+
 func TestPrefixMapDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -434,7 +573,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 		// Using "::/0" as a lookup key
 		{pfxs("::0/128"), pfx("::/0"), wantMap(true, "::0/128")},
 
-		// Get a prefix that has no value but has children.
+		// Get a prefix that has no entry but has children.
 		{
 			set:  pfxs("::0/128", "::1/128"),
 			get:  pfx("::0/127"),
@@ -456,20 +595,21 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 			want: wantMap(true, "::2/128", "::3/128"),
 		},
 
-		// Get a value-less shared prefix node that has a value-less child
+		// Get an entry-less shared prefix node that has an entry-less child
 		{
 			set: pfxs("::4/128", "::6/128", "::7/128"),
 			// This node is in the tree, as is "::6/127", but they are both
-			// value-less shared prefixes.
+			// entry-less shared prefixes.
 			get:  pfx("::4/126"),
 			want: wantMap(true, "::4/128", "::6/128", "::7/128"),
 		},
 
-		// Get a value-ful shared prefix node that has a value-less child
+		// Get a node that is both an entry and a shared prefix node and has an
+		// entry-less child
 		{
 			set: pfxs("::4/126", "::6/128", "::7/128"),
 			get: pfx("::4/126"),
-			// The node "::6/127" is a node in the tree but has no value, so it
+			// The node "::6/127" is a node in the tree but has no entry, so it
 			// should not be included in the result.
 			want: wantMap(true, "::4/126", "::6/128", "::7/128"),
 		},
@@ -498,6 +638,101 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 			pmb.Set(p, true)
 		}
 		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get).ToMap())
+	}
+}
+
+func TestPrefixMapDescendantsOfStrict(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want map[netip.Prefix]bool
+	}{
+		{pfxs(), pfx("::0/128"), wantMap(true)},
+
+		// Single-prefix maps
+		{pfxs("::0/128"), pfx("::1/128"), wantMap(true)},
+		{pfxs("::1/128"), pfx("::0/128"), wantMap(true)},
+		{pfxs("::0/128"), pfx("::0/128"), wantMap(true)},
+		{pfxs("::1/128"), pfx("::1/128"), wantMap(true)},
+		{pfxs("::2/128"), pfx("::2/128"), wantMap(true)},
+		{pfxs("::0/128"), pfx("::1/127"), wantMap(true, "::0/128")},
+		{pfxs("::1/128"), pfx("::0/127"), wantMap(true, "::1/128")},
+		{pfxs("::2/127"), pfx("::2/127"), wantMap(true)},
+
+		// Multi-prefix map
+		{
+			set:  pfxs("::0/127", "::0/128"),
+			get:  pfx("::0/127"),
+			want: wantMap(true, "::0/128"),
+		},
+
+		// Using "::/0" as a lookup key
+		{pfxs("::0/128"), pfx("::/0"), wantMap(true, "::0/128")},
+
+		// Get a prefix that has no entry but has children.
+		{
+			set:  pfxs("::0/128", "::1/128"),
+			get:  pfx("::0/127"),
+			want: wantMap(true, "::0/128", "::1/128"),
+		},
+		{
+			set:  pfxs("::0/128", "::1/128", "::2/128"),
+			get:  pfx("::2/127"),
+			want: wantMap(true, "::2/128"),
+		},
+		{
+			set:  pfxs("::0/128", "::1/128"),
+			get:  pfx("::0/127"),
+			want: wantMap(true, "::0/128", "::1/128"),
+		},
+		{
+			set:  pfxs("::2/128", "::3/128"),
+			get:  pfx("::2/127"),
+			want: wantMap(true, "::2/128", "::3/128"),
+		},
+
+		// Get a entry-less shared prefix node that has a entry-less child
+		{
+			set: pfxs("::4/128", "::6/128", "::7/128"),
+			// This node is in the tree, as is "::6/127", but they are both
+			// entry-less shared prefixes.
+			get:  pfx("::4/126"),
+			want: wantMap(true, "::4/128", "::6/128", "::7/128"),
+		},
+
+		// Get an entry shared prefix node that has a entry-less child
+		{
+			set: pfxs("::4/126", "::6/128", "::7/128"),
+			get: pfx("::4/126"),
+			// The node "::6/127" is a node in the tree but has no entry, so it
+			// should not be included in the result.
+			want: wantMap(true, "::6/128", "::7/128"),
+		},
+
+		// Get a prefix that has no exact node, but still has descendants
+		{
+			set:  pfxs("::2/128", "::3/128"),
+			get:  pfx("::0/126"),
+			want: wantMap(true, "::2/128", "::3/128"),
+		},
+
+		// IPv4
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), wantMap(true)},
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/24"), wantMap(true, "1.2.3.0/32")},
+		{pfxs("1.2.3.1/32"), pfx("1.2.3.0/24"), wantMap(true, "1.2.3.1/32")},
+		{pfxs("1.2.3.1/32"), pfx("1.2.4.0/24"), wantMap(true)},
+		{
+			set:  pfxs("1.2.3.0/32", "1.2.3.1/32"),
+			get:  pfx("1.2.3.0/24"),
+			want: wantMap(true, "1.2.3.0/32", "1.2.3.1/32"),
+		},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOfStrict(tt.get).ToMap())
 	}
 }
 
@@ -545,11 +780,11 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 			want: result("::0/126", "::0/127"),
 		},
 
-		// Make sure nodes with no values are excluded
+		// Make sure nodes without entries are excluded
 		{
 			set: pfxs("::0/128", "::2/128"),
 			get: pfx("::0/128"),
-			// "::2/127" is a node in the tree but has no value, so it should
+			// "::2/127" is a node in the tree but has no entry, so it should
 			// not be included in the result.
 			want: result("::0/128"),
 		},
@@ -593,6 +828,98 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 
 }
 
+func TestPrefixMapAncestorsOfStrict(t *testing.T) {
+	result := func(prefixes ...string) map[netip.Prefix]bool {
+		m := make(map[netip.Prefix]bool, len(prefixes))
+		for _, pStr := range prefixes {
+			p := netip.MustParsePrefix(pStr)
+			m[p] = true
+		}
+		return m
+	}
+
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want map[netip.Prefix]bool
+	}{
+		{pfxs(), pfx("::0/128"), result()},
+
+		// Single-prefix maps
+		{pfxs("::0/128"), pfx("::1/128"), result()},
+		{pfxs("::1/128"), pfx("::0/128"), result()},
+		{pfxs("::0/128"), pfx("::0/128"), result()},
+		{pfxs("::1/128"), pfx("::1/128"), result()},
+		{pfxs("::2/128"), pfx("::2/128"), result()},
+		{pfxs("::0/127"), pfx("::0/128"), result("::0/127")},
+		{pfxs("::0/127"), pfx("::1/128"), result("::0/127")},
+		{pfxs("::2/127"), pfx("::2/127"), result()},
+
+		// Multi-prefix maps
+		{
+			set:  pfxs("::0/127", "::0/128"),
+			get:  pfx("::0/128"),
+			want: result("::0/127"),
+		},
+		{
+			set:  pfxs("::0/128", "::1/128"),
+			get:  pfx("::0/128"),
+			want: result(),
+		},
+		{
+			set:  pfxs("::0/126", "::0/127", "::1/128"),
+			get:  pfx("::0/128"),
+			want: result("::0/126", "::0/127"),
+		},
+
+		// Make sure nodes without entries are excluded
+		{
+			set: pfxs("::0/128", "::2/128"),
+			get: pfx("::0/128"),
+			// "::2/127" is a node in the tree but has no entry, so it should
+			// not be included in the result. "0::/128" is the prefix itself,
+			// so it is also excluded.
+			want: result(),
+		},
+
+		// Make sure parent/child insertion order doesn't matter
+		{
+			set:  pfxs("::0/126", "::0/127"),
+			get:  pfx("::0/128"),
+			want: result("::0/127", "::0/126"),
+		},
+		{
+			set:  pfxs("::0/127", "::0/126"),
+			get:  pfx("::0/128"),
+			want: result("::0/127", "::0/126"),
+		},
+
+		// IPv4
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.1/32"), result()},
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), result()},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/32"), result("1.2.3.0/24")},
+		// Insert shortest prefix first
+		{
+			set:  pfxs("1.2.0.0/16", "1.2.3.0/24"),
+			get:  pfx("1.2.3.0/32"),
+			want: result("1.2.3.0/24", "1.2.0.0/16"),
+		},
+		// Insert longest prefix first
+		{
+			set:  pfxs("1.2.3.0/24", "1.2.0.0/16"),
+			get:  pfx("1.2.3.0/32"),
+			want: result("1.2.3.0/24", "1.2.0.0/16"),
+		},
+	}
+	for _, tt := range tests {
+		pmb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.set {
+			pmb.Set(p, true)
+		}
+		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOfStrict(tt.get).ToMap())
+	}
+
+}
 func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	pmb := &PrefixMapBuilder[int]{}
 
@@ -745,7 +1072,7 @@ func TestOverlapsPrefix(t *testing.T) {
 		{pfxs("::0/127"), pfx("::0/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
 
-		// Make sure value-less nodes don't count. This map contains
+		// Make sure entry-less nodes don't count. This map contains
 		// the shared prefix ::0/126.
 		{pfxs("::0/128", "::2/128"), pfx("::3/128"), false},
 
@@ -760,6 +1087,31 @@ func TestOverlapsPrefix(t *testing.T) {
 		pm := pmb.PrefixMap()
 		if got := pm.OverlapsPrefix(tt.get); got != tt.want {
 			t.Errorf("pm.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
+func TestPrefixMapSize(t *testing.T) {
+	tests := []struct {
+		add  []netip.Prefix
+		want int
+	}{
+		{pfxs(), 0},
+		{pfxs("::0/128"), 1},
+		{pfxs("::0/128", "::0/128"), 1},
+		{pfxs("::0/128", "::1/128"), 2},
+		{pfxs("::0/127", "::0/128"), 2},
+		{pfxs("::0/126", "::0/127"), 2},
+		{pfxs("0::0/127", "::0/128", "::1/128"), 3},
+	}
+	for _, tt := range tests {
+		psb := &PrefixMapBuilder[bool]{}
+		for _, p := range tt.add {
+			psb.Set(p, true)
+		}
+		ps := psb.PrefixMap()
+		if got := ps.Size(); got != tt.want {
+			t.Errorf("pm.Size() = %d, want %d", got, tt.want)
 		}
 	}
 }

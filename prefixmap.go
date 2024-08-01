@@ -149,8 +149,8 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.rootOf(p, false)
 }
 
-// RootOfStrict returns the shortest-prefix ancestor of p in m, if any.
-// If p has no ancestors in m, then RootOf returns zero values and false.
+// RootOfStrict returns the shortest-prefix ancestor of p in m, if any. If p
+// has no ancestors in m, then RootOfStrict returns zero values and false.
 func (m *PrefixMap[T]) RootOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.rootOf(p, true)
 }
@@ -218,7 +218,8 @@ func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*t, t.size()}
 }
 
-// Filter removes all Prefixes from m that are not encompassed by s.
+// Filter returns a new PrefixMap containing the entries of m that are
+// encompassed by s.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 	t := m.tree.filterCopy(s.tree)
 	return &PrefixMap[T]{*t, t.size()}

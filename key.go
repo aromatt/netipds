@@ -47,23 +47,23 @@ func keyFromPrefix(p netip.Prefix) key {
 // significant bit in the output is the bit at position (k.len - 1). Leading
 // zeros are omitted.
 func (k key) String() string {
-	var ret string
+	var content string
 	just := k.content.shiftRight(128 - k.len)
 	if just.isZero() {
-		ret = "0"
+		content = "0"
 	} else {
 		if just.hi > 0 {
-			ret = fmt.Sprintf("%x", just.hi)
+			content = fmt.Sprintf("%x", just.hi)
 		}
 		if just.lo > 0 {
 			if just.hi > 0 {
-				ret = fmt.Sprintf("%s%0*x", ret, (k.len-64)/4, just.lo)
+				content = fmt.Sprintf("%s%0*x", content, (k.len-64)/4, just.lo)
 			} else {
-				ret = fmt.Sprintf("%s%x", ret, just.lo)
+				content = fmt.Sprintf("%s%x", content, just.lo)
 			}
 		}
 	}
-	return fmt.Sprintf("%s,%d", ret, k.len)
+	return fmt.Sprintf("%s,%d", content, k.len)
 }
 
 // Parse parses the output of String.
@@ -114,24 +114,23 @@ func (k *key) Parse(s string) error {
 //   - key{uint128{256, 0}, 56} => "1,56"
 //   - key{uint128{256, 0}, 64} => "100,64"
 func (k key) StringRel() string {
-	//go:coverage ignore
-	var ret string
+	var content string
 	just := k.content.shiftLeft(k.offset).shiftRight(128 - k.len + k.offset)
 	if just.isZero() {
-		ret = "0"
+		content = "0"
 	} else {
 		if just.hi > 0 {
-			ret = fmt.Sprintf("%x", just.hi)
+			content = fmt.Sprintf("%x", just.hi)
 		}
 		if just.lo > 0 {
 			if just.hi > 0 {
-				ret = fmt.Sprintf("%s%0*x", ret, (k.len-64)/4, just.lo)
+				content = fmt.Sprintf("%s%0*x", content, (k.len-64)/4, just.lo)
 			} else {
-				ret = fmt.Sprintf("%s%x", ret, just.lo)
+				content = fmt.Sprintf("%s%x", content, just.lo)
 			}
 		}
 	}
-	return fmt.Sprintf("%s,%d", ret, k.len-k.offset)
+	return fmt.Sprintf("%s,%d", content, k.len-k.offset)
 }
 
 // truncated returns a copy of key truncated to n bits.
@@ -185,8 +184,13 @@ func (k key) commonPrefixLen(o key) uint8 {
 }
 
 // isPrefixOf reports whether k has the same content as o up to position k.len.
-func (k key) isPrefixOf(o key) bool {
-	return k.len <= o.len && k.content == o.content.bitsClearedFrom(k.len)
+//
+// If strict, returns false if k == o.
+func (k key) isPrefixOf(o key, strict bool) bool {
+	if k.len <= o.len && k.content == o.content.bitsClearedFrom(k.len) {
+		return !(strict && k.equalFromRoot(o))
+	}
+	return false
 }
 
 // isZero reports whether k is the zero key.
@@ -194,12 +198,6 @@ func (k key) isZero() bool {
 	// Bits beyond len are always ignored, so if k.len == zero, then this
 	// key effectively contains no bits.
 	return k.len == 0
-}
-
-// isValid reports whether k is a valid key.
-// TODO: remove if not used
-func (k key) isValid() bool {
-	return k.offset < 128 && k.len <= 128
 }
 
 // left returns a one-bit key just beyond k, set to 0.
