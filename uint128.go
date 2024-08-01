@@ -1,4 +1,4 @@
-// Copied with additions into netipds from net/netip
+// Copied with modifications into netipds from net/netip
 
 // Copyright 2020 The Inet.Af AUTHORS. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,7 +9,6 @@ package netipds
 import (
 	"encoding/binary"
 	"math/bits"
-	"net/netip"
 )
 
 // uint128 represents a uint128 using two uint64s.
@@ -28,19 +27,6 @@ func u128From16(a [16]byte) uint128 {
 	}
 }
 
-func (u uint128) IP6() netip.Addr {
-	var a [16]byte
-	binary.BigEndian.PutUint64(a[:8], u.hi)
-	binary.BigEndian.PutUint64(a[8:], u.lo)
-	return netip.AddrFrom16(a)
-}
-
-func (u uint128) IP4() netip.Addr {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], u.lo)
-	return netip.AddrFrom4([4]byte{a[4], a[5], a[6], a[7]})
-}
-
 // isZero reports whether u == 0.
 //
 // It's faster than u == (uint128{}) because the compiler (as of Go
@@ -51,11 +37,6 @@ func (u uint128) isZero() bool { return u.hi|u.lo == 0 }
 // and returns the bitwise AND of u and m (u&m).
 func (u uint128) and(m uint128) uint128 {
 	return uint128{u.hi & m.hi, u.lo & m.lo}
-}
-
-// xor returns the bitwise XOR of u and m (u^m).
-func (u uint128) xor(m uint128) uint128 {
-	return uint128{u.hi ^ m.hi, u.lo ^ m.lo}
 }
 
 // or returns the bitwise OR of u and m (u|m).

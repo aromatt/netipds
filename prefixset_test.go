@@ -28,12 +28,12 @@ func TestPrefixSetAddContains(t *testing.T) {
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Contains(tt.get); got != tt.want {
-			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
+			t.Errorf("ps.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
 }
 
-func TestPrefixSetAddEncompasses(t *testing.T) {
+func TestPrefixSetEncompasses(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -56,7 +56,36 @@ func TestPrefixSetAddEncompasses(t *testing.T) {
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Encompasses(tt.get); got != tt.want {
-			t.Errorf("pm.Encompasses(%s) = %v, want %v", tt.get, got, tt.want)
+			t.Errorf("ps.Encompasses(%s) = %v, want %v", tt.get, got, tt.want)
+		}
+	}
+}
+
+func TestPrefixSetEncompassesStrict(t *testing.T) {
+	tests := []struct {
+		set  []netip.Prefix
+		get  netip.Prefix
+		want bool
+	}{
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128"), pfx("::0/127"), false},
+		{pfxs("::0/127"), pfx("::0/128"), true},
+		{pfxs("::0/126"), pfx("::0/128"), true},
+		// The set covers the input prefix but does not encompass it.
+		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), true},
+	}
+
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.set {
+			psb.Add(p)
+		}
+		ps := psb.PrefixSet()
+		if got := ps.EncompassesStrict(tt.get); got != tt.want {
+			t.Errorf("ps.EncompassesStrict(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
 }
@@ -88,7 +117,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Overlaps(tt.get); got != tt.want {
-			t.Errorf("pm.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
+			t.Errorf("ps.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
 }
@@ -267,7 +296,7 @@ func TestPrefixSetUnionSet(t *testing.T) {
 	}
 }
 
-func TestPrefixSetPrefixes(t *testing.T) {
+func TestPrefixSetRemove(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
 		remove []netip.Prefix
@@ -289,6 +318,35 @@ func TestPrefixSetPrefixes(t *testing.T) {
 		}
 		ps := psb.PrefixSet()
 		checkPrefixSlice(t, ps.Prefixes(), tt.want)
+	}
+}
+
+func TestPrefixSetFilter(t *testing.T) {
+	tests := []struct {
+		add    []netip.Prefix
+		filter []netip.Prefix
+		want   []netip.Prefix
+	}{
+		{pfxs(), pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+		{pfxs("::0/127"), pfxs("::0/128"), pfxs()},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/126"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/128", "::2/128"), pfxs("::0/127"), pfxs("::0/128")},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			psb.Add(p)
+		}
+		filterPsb := &PrefixSetBuilder{}
+		for _, p := range tt.filter {
+			filterPsb.Add(p)
+		}
+		psb.Filter(filterPsb.PrefixSet())
+		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
 
@@ -314,5 +372,30 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 		}
 		ps := psb.PrefixSet()
 		checkPrefixSlice(t, ps.PrefixesCompact(), tt.want)
+	}
+}
+
+func TestPrefixSetSize(t *testing.T) {
+	tests := []struct {
+		add  []netip.Prefix
+		want int
+	}{
+		{pfxs(), 0},
+		{pfxs("::0/128"), 1},
+		{pfxs("::0/128", "::0/128"), 1},
+		{pfxs("::0/128", "::1/128"), 2},
+		{pfxs("::0/127", "::0/128"), 2},
+		{pfxs("::0/126", "::0/127"), 2},
+		{pfxs("0::0/127", "::0/128", "::1/128"), 3},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			psb.Add(p)
+		}
+		ps := psb.PrefixSet()
+		if got := ps.Size(); got != tt.want {
+			t.Errorf("ps.Size() = %d, want %d", got, tt.want)
+		}
 	}
 }
