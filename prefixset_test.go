@@ -213,16 +213,25 @@ func TestPrefixSetIntersectSet(t *testing.T) {
 	}{
 		// Note: since intersect is commutative, all test cases are performed
 		// twice (a & b) and (b & a)
-		{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
-		{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
+		{pfxs("::0/128"), pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs("::1/128"), pfxs()},
+		{pfxs("::0/128"), pfxs("::2/127"), pfxs()},
+		{pfxs("::0/128", "::1/128"), pfxs(), pfxs()},
 		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
 		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
 		{pfxs("::0/128"), pfxs("::0/126"), pfxs("::0/128")},
+		{pfxs("::1/128"), pfxs("::0/127"), pfxs("::1/128")},
 		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128")},
-		{pfxs("::0/128", "::1/128"), pfxs(), pfxs()},
+		{pfxs("::1/128", "::4/126"), pfxs("::0/127"), pfxs("::1/128")},
 		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfxs("::0/128", "::1/128")},
 		{pfxs("::0/128", "::1/128"), pfxs("::0/126"), pfxs("::0/128", "::1/128")},
 		{pfxs("::2/127"), pfxs("::0/126", "::2/128"), pfxs("::2/127", "::2/128")},
+		{pfxs("::2/127"), pfxs("::0/126", "::0/128"), pfxs("::2/127")},
+		{pfxs("::2/127", "::3/128"), pfxs("::0/126", "::0/128"), pfxs("::2/127", "::3/128")},
+
+		// IPv4
+		{pfxs("1.2.3.0/24"), pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32")},
+		{pfxs("1.2.3.0/24"), pfxs("1.2.0.0/32"), pfxs()},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}

@@ -417,8 +417,8 @@ func (t *tree[T]) intersectTreeImpl(
 
 	if t.key.equalFromRoot(o.key) {
 		// Consider t and o themselves.
-		//
-		// If there is no entry in o at t.key or above it, then remove t's entry.
+		// If there is no entry in o at t.key or above it, then remove t's
+		// entry.
 		//
 		// TODO should this be t.remove(t.key)? Could we end up with an
 		// unnecessary prefix node?
@@ -438,7 +438,7 @@ func (t *tree[T]) intersectTreeImpl(
 			case *tChild != nil && *oChild == nil && !(o.hasEntry || oPathHasEntry):
 				*tChild = nil
 			case *tChild != nil && *oChild != nil:
-				(*tChild).intersectTreeImpl(
+				*tChild = (*tChild).intersectTreeImpl(
 					**oChild,
 					t.hasEntry || tPathHasEntry,
 					o.hasEntry || oPathHasEntry,
@@ -451,39 +451,37 @@ func (t *tree[T]) intersectTreeImpl(
 	common := t.key.commonPrefixLen(o.key)
 	switch {
 	// t.key is a prefix of o.key
-	// e.g. t=00, o=000
+	// e.g. t=00, o=001
 	case common == t.key.len:
-		// If t is an entry then we keep everything under both t and o, since t
-		// is an ancestor entry to both.
 		if t.hasEntry {
 			if !oPathHasEntry {
 				t.clearValue()
 			}
-			t = t.unionTree(o)
-		} else {
-			// t forks in the middle of o.key. To take the intersection, we
-			// need to traverse t toward o.key and prune the other child of t.
-			//
-			// The bit of o.key just after the common prefix determines which
-			// of t's children to follow and which to remove.
-			// e.g. t=00, o=000 -> follow left, remove right
-			tChildFollow, tChildRemove := t.childPtrs(o.key, common)
+			t = t.insert(o.key, o.value)
+		}
 
-			// Traverse t in the direction of o.key.
-			if *tChildFollow != nil {
-				(*tChildFollow).intersectTreeImpl(o,
-					t.hasEntry || tPathHasEntry,
-					o.hasEntry || oPathHasEntry,
-				)
-			}
+		// t forks in the middle of o.key. To take the intersection, we
+		// need to traverse t toward o.key and prune the other child of t.
+		//
+		// The bit of o.key just after the common prefix determines which
+		// of t's children to follow and which to remove.
+		// e.g. t=00, o=000 -> follow left, remove right
+		tChildFollow, tChildRemove := t.childPtrs(o.key, common)
 
-			// Remove the child of t that diverges from o.
-			//
-			// Exception: if o has an ancestor entry, then we don't need to remove
-			// anything under t. TODO: is this check necessary?
-			if !oPathHasEntry {
-				*tChildRemove = nil
-			}
+		// Traverse t in the direction of o.key.
+		if *tChildFollow != nil {
+			*tChildFollow = (*tChildFollow).intersectTreeImpl(o,
+				t.hasEntry || tPathHasEntry,
+				o.hasEntry || oPathHasEntry,
+			)
+		}
+
+		// Remove the child of t that diverges from o.
+		//
+		// Exception: if o has an ancestor entry, then we don't need to remove
+		// anything under t. TODO: is this check necessary?
+		if !oPathHasEntry {
+			*tChildRemove = nil
 		}
 
 	// o.key is a prefix of t.key
@@ -498,11 +496,13 @@ func (t *tree[T]) intersectTreeImpl(
 		// under t, it will be handled within the call below by one of the
 		// above cases.
 		if *oChildFollow != nil {
-			t.intersectTreeImpl(**oChildFollow,
+			t = t.intersectTreeImpl(**oChildFollow,
 				t.hasEntry || tPathHasEntry,
 				o.hasEntry || oPathHasEntry,
 			)
 		}
+	case common < t.key.len:
+		t = nil
 	}
 
 	return t
