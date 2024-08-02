@@ -260,11 +260,14 @@ func TestPrefixSetUnionSet(t *testing.T) {
 	}{
 		// Note: since union is commutative, all test cases are performed twice
 		// (a | b) and (b | a)
+		{pfxs(), pfxs(), pfxs()},
+		{pfxs("::0/1"), pfxs(), pfxs("::0/1")},
 		{pfxs("::0/1"), pfxs("::0/1"), pfxs("::0/1")},
 		{pfxs("::0/2"), pfxs("::0/2"), pfxs("::0/2")},
 		{pfxs("::0/128"), pfxs("::0/128"), pfxs("::0/128")},
 		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/127", "::0/128")},
 		{pfxs("::0/128", "::1/128"), pfxs(), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128", "0::1/128")},
 		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::0/128", "0::1/128")},
 		{
 			pfxs("::0/127"),

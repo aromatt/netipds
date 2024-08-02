@@ -107,25 +107,12 @@ func (t *tree[T]) childPtrs(k key, offset uint8) (a **tree[T], b **tree[T]) {
 	return &t.right, &t.left
 }
 
-// setChildFromBit sets t's child to the provided node based on the bit at
-// offset i in k, if it isn't already set. A provided nil is ignored.
-func (t *tree[T]) setChildFromBit(k key, i uint8, n *tree[T]) *tree[T] {
-	childPtr := t.childPtr(k, i)
+// setChild sets t's child to the provided node based on the bit at
+// n.key.offset, if it isn't already set. A provided nil is ignored.
+func (t *tree[T]) setChild(n *tree[T]) *tree[T] {
+	childPtr := t.childPtr(n.key, n.key.offset)
 	if *childPtr == nil && n != nil {
 		*childPtr = n
-	}
-	return t
-}
-
-// setChildrenFromBit sets t's children to the provided nodes based on the bit
-// at offset i in k, if they aren't already set. Provided nils are ignored.
-func (t *tree[T]) setChildrenFromBit(k key, i uint8, a, b *tree[T]) *tree[T] {
-	aPtr, bPtr := t.childPtrs(k, i)
-	if *aPtr == nil && a != nil {
-		*aPtr = a
-	}
-	if *bPtr == nil && b != nil {
-		*bPtr = b
 	}
 	return t
 }
@@ -189,23 +176,16 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 		}
 		*childPtr = (*childPtr).insert(k, v)
 		return t
-	// inserting at a prefix of t.key; create a new node at k with t as its
+	// inserting at a prefix of t.key; create a new parent node with t as its
 	// sole child
 	case common == k.len:
-		newNode := newTree[T](k).setValue(v).setChildFromBit(t.key, k.len, t)
-		t.key.offset = newNode.key.len
-		return newNode
-	// k diverges in the middle of t.key; create a new parent at their common
-	// prefix with children k and t
-	case common < t.key.len:
-		newParent := newTree[T](t.key.truncated(common))
-		kChild := newTree[T](k.rest(common)).setValue(v)
-		newParent.setChildrenFromBit(t.key, common, t, kChild)
-		t.key.offset = common
-		return newParent
-	// nothing to do
+		return t.newParent(k).setValue(v)
+	// neither is a prefix of the other; create a new parent at their common
+	// prefix with children t and its new sibling
 	default:
-		return t
+		return t.newParent(t.key.truncated(common)).setChild(
+			newTree[T](k.rest(common)).setValue(v),
+		)
 	}
 }
 
@@ -321,29 +301,23 @@ func (t *tree[T]) subtractKey(k key) *tree[T] {
 // have value-less entries.
 func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 	if o.hasEntry {
-		// this whole branch is being subtracted; no need to traverse further
-		// TODO can this just be `if o.key.isPrefixOf(t.key, false)`
-		if t.key.equalFromRoot(o.key) || o.key.isPrefixOf(t.key, false) {
+		// This whole branch is being subtracted; no need to traverse further
+		if o.key.isPrefixOf(t.key, false) {
 			return nil
 		}
-		// a child of t is being subtracted
+		// A descendant of t is being subtracted
 		if t.key.isPrefixOf(o.key, false) {
 			t.insertHole(o.key, t.value)
 		}
 	}
-	// traverse children of both t and o as able
-	if o.left != nil {
-		if t.left != nil {
-			t.left = t.left.subtractTree(*o.left)
-		} else {
-			t = t.subtractTree(*o.left)
-		}
-	}
-	if o.right != nil {
-		if t.right != nil {
-			t.right = t.right.subtractTree(*o.right)
-		} else {
-			t = t.subtractTree(*o.right)
+	// Consider the children of both t and o
+	for _, direction := range []bool{false, true} {
+		tChild, oChild := t.child(direction), o.child(direction)
+		if *oChild != nil {
+			if *tChild == nil {
+				tChild = &t
+			}
+			*tChild = (*tChild).subtractTree(**oChild)
 		}
 	}
 	return t
@@ -351,6 +325,13 @@ func (t *tree[T]) subtractTree(o tree[T]) *tree[T] {
 
 func (t *tree[T]) isEmpty() bool {
 	return t.key.isZero() && t.left == nil && t.right == nil
+}
+
+// newParent returns a new node with key k whose sole child is t.
+func (t *tree[T]) newParent(k key) *tree[T] {
+	t.key.offset = k.len
+	parent := newTree[T](k).setChild(t)
+	return parent
 }
 
 // union modifies t so that it is the union of the entries of t and o.
@@ -386,23 +367,26 @@ func (t *tree[T]) unionTree(o tree[T]) *tree[T] {
 	// t.key is a prefix of o.key
 	case common == t.key.len:
 		// Traverse t in the direction of o
-		tChildFollow := t.childPtr(o.key, common)
+		tChildFollow := t.childPtr(o.key, t.key.len)
 		if *tChildFollow == nil {
 			*tChildFollow = o.copy()
 			(*tChildFollow).key.offset = t.key.len
 		} else {
 			*tChildFollow = (*tChildFollow).unionTree(o)
 		}
+		return t
 	// o.key is a prefix of t.key
 	case common == o.key.len:
 		// o needs to inserted as a parent of t regardless of whether o has an
 		// entry; if the node exists in the o tree, it will need to be in the
 		// union tree. Insert it and continue traversing from there.
-		newNode := newTree[T](o.key).setValueFrom(&o).setChildFromBit(t.key, o.key.len, t)
-		t.key.offset = newNode.key.len
-		t = newNode.unionTree(o)
+		return t.newParent(o.key).setValueFrom(&o).unionTree(o)
+	// neither is a prefix of the other
+	default:
+		return t.newParent(t.key.truncated(common)).setChild(
+			newTree[T](o.key.rest(common)).setValueFrom(&o),
+		)
 	}
-	return t
 }
 
 func (t *tree[T]) intersectTreeImpl(
@@ -451,7 +435,6 @@ func (t *tree[T]) intersectTreeImpl(
 	common := t.key.commonPrefixLen(o.key)
 	switch {
 	// t.key is a prefix of o.key
-	// e.g. t=00, o=001
 	case common == t.key.len:
 		if t.hasEntry {
 			if !oPathHasEntry {
@@ -485,7 +468,6 @@ func (t *tree[T]) intersectTreeImpl(
 		}
 
 	// o.key is a prefix of t.key
-	// e.g. t=000, o=00
 	case common == o.key.len:
 		// o forks in the middle of t.key. Similar to above.
 		oChildFollow := o.childPtr(t.key, common)
@@ -501,7 +483,8 @@ func (t *tree[T]) intersectTreeImpl(
 				o.hasEntry || oPathHasEntry,
 			)
 		}
-	case common < t.key.len:
+	// neither is a prefix of the other, so the intersection is empty
+	default:
 		t = nil
 	}
 
