@@ -71,31 +71,26 @@ func TestKeyParse(t *testing.T) {
 	}
 }
 
-func TestKeyHasBitZeroAt(t *testing.T) {
+func TestKeyBit(t *testing.T) {
 	tests := []struct {
-		k      key
-		i      uint8
-		want   bool
-		wantOk bool
+		k    key
+		i    uint8
+		want bool
 	}{
-		{k(uint128{0, 0}, 0, 128), 0, true, true},
-		{k(uint128{0, 1}, 0, 128), 0, true, true},
-		{k(uint128{1 << 63, 0}, 0, 128), 0, false, true},
-		{k(uint128{1 << 62, 0}, 0, 128), 1, false, true},
-		{k(uint128{0, 1 << 63}, 0, 128), 64, false, true},
-		{k(uint128{0, 1}, 0, 128), 127, false, true},
-		{k(uint128{0, 2}, 0, 128), 126, false, true},
-		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, false, true},
-		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, false, true},
-
-		// i > bp.len => false, false
-		{k(uint128{1 << 63, 0}, 0, 1), 1, false, false},
-		{k(uint128{0, 0}, 0, 128), 128, false, false},
+		{k(uint128{0, 0}, 0, 128), 0, false},
+		{k(uint128{0, 1}, 0, 128), 0, false},
+		{k(uint128{1 << 63, 0}, 0, 128), 0, true},
+		{k(uint128{1 << 62, 0}, 0, 128), 1, true},
+		{k(uint128{0, 1 << 63}, 0, 128), 64, true},
+		{k(uint128{0, 1}, 0, 128), 127, true},
+		{k(uint128{0, 2}, 0, 128), 126, true},
+		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, true},
+		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, true},
 	}
 	for _, tt := range tests {
-		if got, ok := tt.k.hasBitZeroAt(tt.i); got != tt.want || ok != tt.wantOk {
-			t.Errorf("%v.hasBitZeroAt(%d) = (%v, %v), want (%v, %v)",
-				tt.k, tt.i, got, ok, tt.want, tt.wantOk)
+		if got := tt.k.bit(tt.i); got != tt.want {
+			t.Errorf("%v.bit(%d) = %v, want %v",
+				tt.k, tt.i, got, tt.want)
 		}
 	}
 }
@@ -121,7 +116,7 @@ func TestKeyIsPrefixOf(t *testing.T) {
 	}
 }
 
-func TestKeyLeftRight(t *testing.T) {
+func TestKeyNext(t *testing.T) {
 	tests := []struct {
 		k         key
 		wantLeft  key
@@ -132,11 +127,11 @@ func TestKeyLeftRight(t *testing.T) {
 		{k(uint128{0, 2}, 0, 127), k(uint128{0, 2}, 127, 128), k(uint128{0, 3}, 127, 128)},
 	}
 	for _, tt := range tests {
-		if got := tt.k.left(); got != tt.wantLeft {
-			t.Errorf("%v.left() = %v, want %v", tt.k, got, tt.wantLeft)
+		if got := tt.k.next(bitL); got != tt.wantLeft {
+			t.Errorf("%v.next(bitL) = %v, want %v", tt.k, got, tt.wantLeft)
 		}
-		if got := tt.k.right(); got != tt.wantRight {
-			t.Errorf("%v.right() = %v, want %v", tt.k, got, tt.wantRight)
+		if got := tt.k.next(bitR); got != tt.wantRight {
+			t.Errorf("%v.next(bitR) = %v, want %v", tt.k, got, tt.wantRight)
 		}
 	}
 }

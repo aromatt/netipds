@@ -118,12 +118,12 @@ func (u uint128) shiftLeft(n uint8) uint128 {
 	}
 }
 
-// isBitZero returns true if the bit at the given position is zero.
-// If bit > 127, returns true.
-func (u uint128) isBitZero(bit uint8) bool {
+// isBitSet returns true if the bit at the given position is set.
+// If bit > 127, returns false.
+func (u uint128) isBitSet(bit uint8) bool {
 	if bit < 64 {
-		return u.hi&(uint64(1)<<(63-bit)) == 0
+		return u.hi&(uint64(1)<<(63-bit)) > 0
 	} else {
-		return u.lo&(uint64(1)<<(127-bit)) == 0
+		return u.lo&(uint64(1)<<(127-bit)) > 0
 	}
 }

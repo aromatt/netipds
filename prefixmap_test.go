@@ -39,7 +39,7 @@ func checkMap[T comparable](t *testing.T, want, got map[netip.Prefix]T) {
 	}
 }
 
-func TestPrefixMapSetGet(t *testing.T) {
+func TestPrefixMapGet(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
