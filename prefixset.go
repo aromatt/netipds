@@ -47,7 +47,7 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 
 // Filter removes all Prefixes that are not encompassed by o.
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
-	s.tree.filter(o.tree)
+	s.tree.filter(&o.tree)
 }
 
 // Subtract modifies s so that p and all of its descendants are removed,
@@ -72,19 +72,19 @@ func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) SubtractSet(o *PrefixSet) {
-	s.tree = *s.tree.subtractTree(o.tree)
+	s.tree = *s.tree.subtractTree(&o.tree)
 }
 
 // IntersectSet modifies s so that it contains the intersection of the entries
 // in s and o: each Prefix must either (a) exist in both sets or (b) exist in
 // one set and have an ancestor in the other.
 func (s *PrefixSetBuilder) IntersectSet(o *PrefixSet) {
-	s.tree = *s.tree.intersectTree(o.tree)
+	s.tree = *s.tree.intersectTree(&o.tree)
 }
 
 // UnionSet modifies s so that it contains the union of the entries in s and o.
 func (s *PrefixSetBuilder) UnionSet(o *PrefixSet) {
-	s.tree = *s.tree.unionTree(o.tree)
+	s.tree = *s.tree.unionTree(&o.tree)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.

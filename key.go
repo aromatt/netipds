@@ -6,6 +6,18 @@ import (
 	"strings"
 )
 
+// bit is used as a selector for a node's children.
+//
+// bitL refers to the left child, and bitR to the right.
+type bit = bool
+
+const (
+	bitL = false
+	bitR = true
+)
+
+var eachBit = [2]bit{bitL, bitR}
+
 // key stores the string of bits which represent the full path to a node in a
 // prefix tree. The maximum length is 128 bits. The key is stored in the
 // most-significant bits of the content field.
@@ -18,9 +30,8 @@ import (
 // this.
 type key struct {
 	content uint128
-	// TODO: I don't think we truly need offset for anything. Remove?
-	offset uint8
-	len    uint8
+	offset  uint8
+	len     uint8
 }
 
 func newKey(content uint128, offset uint8, len uint8) key {
@@ -150,17 +161,12 @@ func (k key) rest(i uint8) key {
 	return newKey(k.content, i, k.len)
 }
 
-// hasBitZeroAt returns true if the bit at position i is 0.
-// If i >= k.len, hasBitZeroAt returns false, false.
-func (k key) hasBitZeroAt(i uint8) (isZero bool, ok bool) {
-	if i >= k.len {
-		return false, false
-	}
-	return k.content.isBitZero(i), true
+func (k key) bit(i uint8) bit {
+	return k.content.isBitSet(i)
 }
 
 // equalFromRoot reports whether k and o have the same content and len (offsets
-// are ignored)
+// are ignored).
 func (k key) equalFromRoot(o key) bool {
 	return k.len == o.len && k.content == o.content
 }
@@ -200,20 +206,21 @@ func (k key) isZero() bool {
 	return k.len == 0
 }
 
-// left returns a one-bit key just beyond k, set to 0.
-func (k key) left() key {
-	return key{
-		content: k.content,
-		offset:  k.len,
-		len:     k.len + 1,
+// next returns a one-bit key just beyond k, set to 1 if b == bitR.
+func (k key) next(b bit) (ret key) {
+	switch b {
+	case bitL:
+		ret = key{
+			content: k.content,
+			offset:  k.len,
+			len:     k.len + 1,
+		}
+	case bitR:
+		ret = key{
+			content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
+			offset:  k.len,
+			len:     k.len + 1,
+		}
 	}
-}
-
-// right returns a one-bit key just beyond k, set to 1.
-func (k key) right() key {
-	return key{
-		content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
-		offset:  k.len,
-		len:     k.len + 1,
-	}
+	return
 }

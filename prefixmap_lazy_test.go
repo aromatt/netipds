@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestPrefixMapSetGetLazy(t *testing.T) {
+func TestPrefixMapGetLazy(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -13,6 +13,7 @@ func TestPrefixMapSetGetLazy(t *testing.T) {
 	}{
 		{pfxs(), pfx("::0/128"), false},
 		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("8000::/128"), pfx("8000::/128"), true},
 		{pfxs("::1/128"), pfx("::1/128"), true},
 		{pfxs("::2/128"), pfx("::2/128"), true},
 		{pfxs("::2/127"), pfx("::2/127"), true},
@@ -57,6 +58,7 @@ func TestPrefixMapContainsLazy(t *testing.T) {
 		{pfxs(), pfx("::0/128"), false},
 		{pfxs("::0/128"), pfx("::0/128"), true},
 		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/1", "8000::/1"), pfx("::0/1"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
