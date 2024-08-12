@@ -5,7 +5,7 @@ import (
 	"net/netip"
 )
 
-// PrefixSetBuilder builds an immutable PrefixSet.
+// PrefixSetBuilder builds an immutable [PrefixSet].
 //
 // The zero value is a valid PrefixSetBuilder representing a builder with zero
 // Prefixes.
@@ -36,7 +36,9 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 // Remove removes p from s. Only the exact Prefix provided is removed;
 // descendants are not.
 //
-// See RemoveDescendants and Subtract for descendant-removal.
+// To remove entire sections of IP space at once, see
+// [PrefixSetBuilder.Filter], [PrefixSetBuilder.Subtract] and
+// [PrefixSetBuilder.SubtractPrefix].
 func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
@@ -103,15 +105,15 @@ func (s *PrefixSetBuilder) String() string {
 	return s.tree.stringImpl("", "", true)
 }
 
-// PrefixSet is a set of netip.Prefixes. It is implemented as a binary radix
-// tree.
+// PrefixSet is a set of [netip.Prefix] values. It is implemented as a binary
+// radix tree.
 //
 // PrefixSet offers unique functionality beyond what a PrefixMap[bool] can do.
 // In particular, during the building stage (PrefixSetBuilder) you can combine
-// sets in useful ways using methods like netipds.PrefixSetBuilder.Merge,
-// netipds.PrefixSetBuilder.Intersect, and netipds.PrefixSetBuilder.Subtract.
+// sets in useful ways using methods like [PrefixSetBuilder.Merge],
+// [PrefixSetBuilder.Intersect], and [PrefixSetBuilder.Subtract].
 //
-// Use PrefixSetBuilder to construct PrefixSets.
+// Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
 	tree tree[bool]
 	size int

@@ -5,16 +5,17 @@ import (
 	"net/netip"
 )
 
-// PrefixMapBuilder builds an immutable PrefixMap.
+// PrefixMapBuilder builds an immutable [PrefixMap].
 //
 // The zero value is a valid PrefixMapBuilder representing a builder with zero
 // Prefixes.
 //
-// Call PrefixMap to obtain an immutable PrefixMap from a PrefixMapBuilder.
+// Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
+// PrefixMapBuilder.
 //
 // If Lazy == true, then path compression is delayed until a PrefixMap is
 // created. The builder itself remains uncompressed. Lazy mode can dramatically
-// improve performance when building large PrefixMaps.
+// reduce the time required to build a large PrefixMap.
 type PrefixMapBuilder[T any] struct {
 	Lazy bool
 	tree tree[T]
@@ -39,7 +40,11 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	return nil
 }
 
-// Remove removes p from m.
+// Remove removes p from m. Only the exact Prefix provided is removed;
+// descendants are not.
+//
+// To remove entire sections of IP space at once, see
+// [PrefixMapBuilder.Filter].
 func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
@@ -68,10 +73,10 @@ func (s *PrefixMapBuilder[T]) String() string {
 	return s.tree.stringImpl("", "", false)
 }
 
-// PrefixMap is a map of netip.Prefix to T. It is implemented as a binary radix
-// tree with path compression.
+// PrefixMap is a map of [netip.Prefix] to T. It is implemented as a binary
+// radix tree.
 //
-// Use PrefixMapBuilder to construct PrefixMaps.
+// Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
 	tree tree[T]
 	size int
