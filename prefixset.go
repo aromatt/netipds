@@ -82,9 +82,9 @@ func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree = *s.tree.intersectTree(&o.tree)
 }
 
-// Union modifies s so that it contains the union of the entries in s and o.
-func (s *PrefixSetBuilder) Union(o *PrefixSet) {
-	s.tree = *s.tree.unionTree(&o.tree)
+// Merge modifies s so that it contains the union of the entries in s and o.
+func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
+	s.tree = *s.tree.mergeTree(&o.tree)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
@@ -104,7 +104,12 @@ func (s *PrefixSetBuilder) String() string {
 }
 
 // PrefixSet is a set of netip.Prefixes. It is implemented as a binary radix
-// tree with path compression.
+// tree.
+//
+// PrefixSet offers unique functionality beyond what a PrefixMap[bool] can do.
+// In particular, during the building stage (PrefixSetBuilder) you can combine
+// sets in useful ways using methods like netipds.PrefixSetBuilder.Merge,
+// netipds.PrefixSetBuilder.Intersect, and netipds.PrefixSetBuilder.Subtract.
 //
 // Use PrefixSetBuilder to construct PrefixSets.
 type PrefixSet struct {
@@ -135,13 +140,88 @@ func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))
 }
 
+func (s *PrefixSet) rootOf(
+	p netip.Prefix,
+	strict bool,
+) (outPfx netip.Prefix, ok bool) {
+	label, _, ok := s.tree.rootOf(keyFromPrefix(p), strict)
+	if !ok {
+		return outPfx, false
+	}
+	return label.toPrefix(), true
+}
+
+// RootOf returns the shortest-prefix ancestor of p in s, if any.
+// If p itself has an entry and has no ancestors, then p's entry is returned.
+func (s *PrefixSet) RootOf(p netip.Prefix) (netip.Prefix, bool) {
+	return s.rootOf(p, false)
+}
+
+// RootOfStrict returns the shortest-prefix ancestor of p in s, if any. If p
+// has no ancestors in s, then RootOfStrict returns zero values and false.
+func (s *PrefixSet) RootOfStrict(p netip.Prefix) (netip.Prefix, bool) {
+	return s.rootOf(p, true)
+}
+
+func (s *PrefixSet) parentOf(
+	p netip.Prefix,
+	strict bool,
+) (outPfx netip.Prefix, ok bool) {
+	key, _, ok := s.tree.parentOf(keyFromPrefix(p), strict)
+	if !ok {
+		return outPfx, false
+	}
+	return key.toPrefix(), true
+}
+
+// ParentOf returns the longest-prefix ancestor of p in s, if any. If p itself
+// has an entry, then p's entry is returned.
+func (s *PrefixSet) ParentOf(p netip.Prefix) (netip.Prefix, bool) {
+	return s.parentOf(p, false)
+}
+
+// ParentOfStrict returns the longest-prefix ancestor of p in s, if any.
+// If p has no ancestors in the set, then ParentOfStrict returns zero values
+// and false.
+func (s *PrefixSet) ParentOfStrict(p netip.Prefix) (netip.Prefix, bool) {
+	return s.parentOf(p, true)
+}
+
+// DescendantsOf returns a PrefixSet containing all descendants of p in s,
+// including p itself if it has an entry.
+func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
+	t := s.tree.descendantsOf(keyFromPrefix(p), false)
+	return &PrefixSet{*t, t.size()}
+}
+
+// DescendantsOfStrict returns a PrefixSet containing all descendants of p in
+// s, excluding p itself.
+func (s *PrefixSet) DescendantsOfStrict(p netip.Prefix) *PrefixSet {
+	t := s.tree.descendantsOf(keyFromPrefix(p), true)
+	return &PrefixSet{*t, t.size()}
+}
+
+// AncestorsOf returns a PrefixSet containing all ancestors of p in s,
+// including p itself if it has an entry.
+func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
+	t := s.tree.ancestorsOf(keyFromPrefix(p), false)
+	return &PrefixSet{*t, t.size()}
+}
+
+// AncestorsOfStrict returns a PrefixSet containing all ancestors of p in s,
+// excluding p itself.
+func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
+	t := s.tree.ancestorsOf(keyFromPrefix(p), true)
+	return &PrefixSet{*t, t.size()}
+}
+
 // Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.tree.size())
 	i := 0
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
-			res[i] = prefixFromKey(n.key)
+			res[i] = n.key.toPrefix()
 			i++
 		}
 		return i >= len(res)
@@ -158,7 +238,7 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.tree.size())
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
-			res = append(res, prefixFromKey(n.key))
+			res = append(res, n.key.toPrefix())
 			return true
 		}
 		return false

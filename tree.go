@@ -4,13 +4,13 @@ import (
 	"fmt"
 )
 
-// tree is a binary radix tree.
+// tree is a binary radix tree supporting 128-bit keys (see key.go).
 //
 // The tree is compressed by default, however it supports uncompressed
 // insertion via insertLazy(). This can be much faster than insert() and works
 // well with netipds's intended usage pattern (build a collection with a
-// builder type, then generate an immutable version). Compression can then be
-// performed all at once with the compress() method.
+// builder type, then generate an immutable version). After lazy insertions,
+// the tree can be compressed using the compress() method.
 type tree[T any] struct {
 	key   key
 	value T
@@ -294,11 +294,11 @@ func (t *tree[T]) newParent(k key) *tree[T] {
 	return parent
 }
 
-// union modifies t so that it is the union of the entries of t and o.
+// mergeTree modifies t so that it is the union of the entries of t and o.
 //
 // TODO: same problem as subtractTree; only makes sense for PrefixSets.
 // TODO: lots of duplicated code here
-func (t *tree[T]) unionTree(o *tree[T]) *tree[T] {
+func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
 	// If o is empty, then the union is just t
 	if o.isEmpty() {
 		return t
@@ -316,7 +316,7 @@ func (t *tree[T]) unionTree(o *tree[T]) *tree[T] {
 				if *tChild != nil {
 					tNext = tChild
 				}
-				*tNext = (*tNext).unionTree(*oChild)
+				*tNext = (*tNext).mergeTree(*oChild)
 			}
 		}
 		return t
@@ -332,7 +332,7 @@ func (t *tree[T]) unionTree(o *tree[T]) *tree[T] {
 			*tChildFollow = o.copy()
 			(*tChildFollow).key.offset = t.key.len
 		} else {
-			*tChildFollow = (*tChildFollow).unionTree(o)
+			*tChildFollow = (*tChildFollow).mergeTree(o)
 		}
 		return t
 	// o.key is a prefix of t.key
@@ -340,7 +340,7 @@ func (t *tree[T]) unionTree(o *tree[T]) *tree[T] {
 		// o needs to inserted as a parent of t regardless of whether o has an
 		// entry (if the node exists in the o tree, it will need to be in the
 		// union tree). Insert it and continue traversing from there.
-		return t.newParent(o.key).setValueFrom(o).unionTree(o)
+		return t.newParent(o.key).setValueFrom(o).mergeTree(o)
 	// Neither is a prefix of the other
 	default:
 		// Insert a new parent above t, and create a new sibling for t having

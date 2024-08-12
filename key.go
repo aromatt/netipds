@@ -6,18 +6,6 @@ import (
 	"strings"
 )
 
-// bit is used as a selector for a node's children.
-//
-// bitL refers to the left child, and bitR to the right.
-type bit = bool
-
-const (
-	bitL = false
-	bitR = true
-)
-
-var eachBit = [2]bit{bitL, bitR}
-
 // key stores the string of bits which represent the full path to a node in a
 // prefix tree. The maximum length is 128 bits. The key is stored in the
 // most-significant bits of the content field.
@@ -53,6 +41,31 @@ func keyFromPrefix(p netip.Prefix) key {
 	}
 	return newKey(u128From16(addr.As16()), 0, bits)
 }
+
+// toPrefix returns the Prefix represented by k.
+func (k key) toPrefix() netip.Prefix {
+	var a16 [16]byte
+	bePutUint64(a16[:8], k.content.hi)
+	bePutUint64(a16[8:], k.content.lo)
+	addr := netip.AddrFrom16(a16)
+	bits := int(k.len)
+	if addr.Is4In6() {
+		bits -= 96
+	}
+	return netip.PrefixFrom(addr.Unmap(), bits)
+}
+
+// bit is used as a selector for a node's children.
+//
+// bitL refers to the left child, and bitR to the right.
+type bit = bool
+
+const (
+	bitL = false
+	bitR = true
+)
+
+var eachBit = [2]bit{bitL, bitR}
 
 // String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading

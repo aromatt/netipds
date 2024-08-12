@@ -105,19 +105,6 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 	return m.tree.overlapsKey(keyFromPrefix(p))
 }
 
-// prefixFromKey returns the Prefix represented by the provided key.
-func prefixFromKey(k key) netip.Prefix {
-	var a16 [16]byte
-	bePutUint64(a16[:8], k.content.hi)
-	bePutUint64(a16[8:], k.content.lo)
-	addr := netip.AddrFrom16(a16)
-	bits := int(k.len)
-	if addr.Is4In6() {
-		bits -= 96
-	}
-	return netip.PrefixFrom(addr.Unmap(), bits)
-}
-
 func (m *PrefixMap[T]) rootOf(
 	p netip.Prefix,
 	strict bool,
@@ -126,7 +113,7 @@ func (m *PrefixMap[T]) rootOf(
 	if !ok {
 		return outPfx, val, false
 	}
-	return prefixFromKey(label), val, true
+	return label.toPrefix(), val, true
 }
 
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
@@ -149,11 +136,11 @@ func (m *PrefixMap[T]) parentOf(
 	if !ok {
 		return outPfx, val, false
 	}
-	return prefixFromKey(key), val, true
+	return key.toPrefix(), val, true
 }
 
 // ParentOf returns the longest-prefix ancestor of p in m, if any. If p itself
-// has an entry and has no ancestors, then p's entry is returned.
+// has an entry, then p's entry is returned.
 func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, false)
 }
@@ -170,7 +157,7 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
 	m.tree.walk(key{}, func(n *tree[T]) bool {
 		if n.hasEntry {
-			res[prefixFromKey(n.key)] = n.value
+			res[n.key.toPrefix()] = n.value
 		}
 		return false
 	})
@@ -185,7 +172,7 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 }
 
 // DescendantsOfStrict returns a PrefixMap containing all descendants of p in
-// m.
+// m, excluding p itself.
 func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	t := m.tree.descendantsOf(keyFromPrefix(p), true)
 	return &PrefixMap[T]{*t, t.size()}
@@ -198,7 +185,8 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{*t, t.size()}
 }
 
-// AncestorsOfStrict returns a PrefixMap containing all ancestors of p in m.
+// AncestorsOfStrict returns a PrefixMap containing all ancestors of p in m,
+// excluding p itself.
 func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
 	t := m.tree.ancestorsOf(keyFromPrefix(p), true)
 	return &PrefixMap[T]{*t, t.size()}
