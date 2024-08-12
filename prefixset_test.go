@@ -116,7 +116,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 			psb.Add(p)
 		}
 		ps := psb.PrefixSet()
-		if got := ps.Overlaps(tt.get); got != tt.want {
+		if got := ps.OverlapsPrefix(tt.get); got != tt.want {
 			t.Errorf("ps.OverlapsPrefix(%s) = %v, want %v", tt.get, got, tt.want)
 		}
 	}
@@ -164,7 +164,7 @@ func TestPrefixSetSubtract(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Add(p)
 		}
-		pmb.Subtract(tt.subtract)
+		pmb.SubtractPrefix(tt.subtract)
 		checkPrefixSlice(t, pmb.PrefixSet().Prefixes(), tt.want)
 	}
 }
@@ -200,7 +200,7 @@ func TestPrefixSetSubtractSet(t *testing.T) {
 		for _, p := range tt.subtract {
 			subPsb.Add(p)
 		}
-		psb.SubtractSet(subPsb.PrefixSet())
+		psb.Subtract(subPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
@@ -242,7 +242,7 @@ func TestPrefixSetIntersectSet(t *testing.T) {
 		for _, p := range y {
 			intersectPsb.Add(p)
 		}
-		psb.IntersectSet(intersectPsb.PrefixSet())
+		psb.Intersect(intersectPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
 	}
 
@@ -299,7 +299,7 @@ func TestPrefixSetUnionSet(t *testing.T) {
 		for _, p := range y {
 			unionPsb.Add(p)
 		}
-		psb.UnionSet(unionPsb.PrefixSet())
+		psb.Union(unionPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
 	}
 	for _, tt := range tests {

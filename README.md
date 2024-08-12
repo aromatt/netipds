@@ -11,8 +11,8 @@ family, adding two new collection types:
   and a more comprehensive API than
   [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet)
 
-Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree)
-with path compression.
+Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree).
+
 
 ## Project Goals
 * Provide efficient, thread-safe, immutable collection types for IP networks

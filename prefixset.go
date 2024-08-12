@@ -45,18 +45,18 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	return nil
 }
 
-// Filter removes all Prefixes that are not encompassed by o.
+// Filter removes all Prefixes that are not encompassed by o from s.
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(&o.tree)
 }
 
-// Subtract modifies s so that p and all of its descendants are removed,
+// SubtractPrefix modifies s so that p and all of its descendants are removed,
 // leaving behind any remaining portions of affected Prefixes. This may add
 // elements to fill in gaps around the subtracted Prefix.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
-func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
+func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
@@ -64,26 +64,26 @@ func (s *PrefixSetBuilder) Subtract(p netip.Prefix) error {
 	return nil
 }
 
-// SubtractSet modifies s so that the Prefixes in o, and all of their
+// Subtract modifies s so that the Prefixes in o, and all of their
 // descendants, are removed from s, leaving behind any remaining portions of
 // affected Prefixes. This may add elements to fill in gaps around the
 // subtracted Prefixes.
 //
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
-func (s *PrefixSetBuilder) SubtractSet(o *PrefixSet) {
+func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 	s.tree = *s.tree.subtractTree(&o.tree)
 }
 
-// IntersectSet modifies s so that it contains the intersection of the entries
-// in s and o: each Prefix must either (a) exist in both sets or (b) exist in
-// one set and have an ancestor in the other.
-func (s *PrefixSetBuilder) IntersectSet(o *PrefixSet) {
+// Intersect modifies s so that it contains the intersection of the entries
+// in s and o: to be included in the result, a Prefix must either (a) exist in
+// both sets or (b) exist in one set and have an ancestor in the other.
+func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree = *s.tree.intersectTree(&o.tree)
 }
 
-// UnionSet modifies s so that it contains the union of the entries in s and o.
-func (s *PrefixSetBuilder) UnionSet(o *PrefixSet) {
+// Union modifies s so that it contains the union of the entries in s and o.
+func (s *PrefixSetBuilder) Union(o *PrefixSet) {
 	s.tree = *s.tree.unionTree(&o.tree)
 }
 
@@ -130,8 +130,8 @@ func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	return s.tree.encompasses(keyFromPrefix(p), true)
 }
 
-// Overlaps returns true if this set includes a Prefix which overlaps p.
-func (s *PrefixSet) Overlaps(p netip.Prefix) bool {
+// OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
+func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))
 }
 

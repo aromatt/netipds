@@ -48,21 +48,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	return nil
 }
 
-// Subtract modifies m so that p and all of its descendants are removed,
-// leaving behind any remaining portions of affected Prefixes. This may add
-// entries to fill in gaps around the subtracted Prefix.
-//
-// For example, if m is {::0/126:true}, and we subtract ::0/128, then m will
-// become {::1/128:true, ::2/127:true}.
-func (m *PrefixMapBuilder[T]) Subtract(p netip.Prefix) error {
-	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
-	}
-	m.tree.subtractKey(keyFromPrefix(p))
-	return nil
-}
-
-// Filter removes all Prefixes from m that are not encompassed by s.
+// Filter removes all Prefixes that are not encompassed by s from m.
 func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 	m.tree.filter(&s.tree)
 }

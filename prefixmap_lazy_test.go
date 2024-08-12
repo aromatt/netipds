@@ -267,54 +267,6 @@ func TestPrefixMapRemoveLazy(t *testing.T) {
 	}
 }
 
-func TestPrefixMapBuilderSubtractLazy(t *testing.T) {
-	tests := []struct {
-		set      []netip.Prefix
-		subtract netip.Prefix
-		want     map[netip.Prefix]bool
-	}{
-		{pfxs(), netip.Prefix{}, wantMap(true)},
-		{pfxs("::0/1"), pfx("::0/1"), wantMap(true)},
-		{pfxs("::0/2"), pfx("::0/2"), wantMap(true)},
-		{pfxs("::0/128"), pfx("::0/128"), wantMap(true)},
-		{pfxs("::0/128"), pfx("::0/127"), wantMap(true)},
-		{pfxs("::0/1"), pfx("::0/2"), wantMap(true, "4000::/2")},
-		{pfxs("::0/128"), pfx("::1/128"), wantMap(true, "::0/128")},
-		{pfxs("::0/127"), pfx("::0/128"), wantMap(true, "::1/128")},
-		{pfxs("::2/127"), pfx("::3/128"), wantMap(true, "::2/128")},
-		{pfxs("::0/126"), pfx("::0/128"), wantMap(true, "::1/128", "::2/127")},
-		{pfxs("::0/126"), pfx("::3/128"), wantMap(true, "::0/127", "::2/128")},
-		// IPv4
-		{
-			set:      pfxs("1.2.3.0/30"),
-			subtract: pfx("1.2.3.0/32"),
-			want:     wantMap(true, "1.2.3.1/32", "1.2.3.2/31"),
-		},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{Lazy: true}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		pmb.Subtract(tt.subtract)
-		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
-	}
-}
-
-// Make sure Subtract does not overwrite child values as it creates nodes to fill
-// in gaps.
-func TestPrefixMapBuilderSubtractNoOverwriteLazy(t *testing.T) {
-	pmb := &PrefixMapBuilder[string]{Lazy: true}
-	pmb.Set(pfx("::0/127"), "parent")
-	pmb.Set(pfx("::1/128"), "child")
-	pmb.Subtract(pfx("::0/128"))
-	pm := pmb.PrefixMap()
-	want := "child"
-	if val, _ := pm.Get(pfx("::1/128")); val != want {
-		t.Errorf("pm.Get(::1/128) = %v, want %v", val, want)
-	}
-}
-
 func TestPrefixMapRootOfLazy(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix
