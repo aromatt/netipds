@@ -40,10 +40,10 @@ p32 := netip.MustParsePrefix("1.2.3.4/32")
 val, ok := pm.Get(p16) // => ("hello", true)
 
 // Ask if the PrefixMap contains an exact entry.
-val, ok := pm.Contains(p32) // => false
+ok = pm.Contains(p32) // => false
 
 // Ask if a Prefix has any ancestor in the PrefixMap.
-val, ok := pm.Encompasses(p32) // => true
+ok = pm.Encompasses(p32) // => true
 
 // Fetch a Prefix's nearest ancestor.
 prefix, val, ok := pm.ParentOf(p32) // => (1.2.3.0/24, "world", true)
@@ -52,7 +52,7 @@ prefix, val, ok := pm.ParentOf(p32) // => (1.2.3.0/24, "world", true)
 m := pm.AncestorsOf(p32).ToMap() // map[1.2.0.0/16:"hello" 1.2.3.0/24:"world"]
 
 // Fetch all of a Prefix's descendants, and convert the result to a map[Prefix]string.
-m := pm.DescendantsOf(p8).ToMap() // map[1.2.0.0/16:"hello" 1.2.3.0/24:"world"]
+m = pm.DescendantsOf(p8).ToMap() // map[1.2.0.0/16:"hello" 1.2.3.0/24:"world"]
 ```
 
 ### Set Operations with PrefixSet
