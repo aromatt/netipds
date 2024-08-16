@@ -24,35 +24,38 @@ to construct a `PrefixMap` or `PrefixSet`, use the respective builder type.
 
 ### Example
 ```go
+// Make our examples more readable
+px := netip.MustParsePrefix
+
 // Build a PrefixMap
-psb := netipds.PrefixMapBuilder[string]
-pmb.Set(netip.MustParsePrefix("1.2.0.0/16"), "hello")
-pmb.Set(netip.MustParsePrefix("1.2.3.0/24"), "world")
+pmb := PrefixMapBuilder[string]{}
+pmb.Set(px("1.2.0.0/16"), "hello")
+pmb.Set(px("1.2.3.0/24"), "world")
 pm := pmb.PrefixMap()
 
-// (Prepare some Prefixes for queries)
-p8 := netip.MustParsePrefix("1.0.0.0/8")
-p16 := netip.MustParsePrefix("1.2.0.0/16")
-p24 := netip.MustParsePrefix("1.2.3.0/24")
-p32 := netip.MustParsePrefix("1.2.3.4/32")
-
 // Fetch an exact entry from the PrefixMap.
-val, ok := pm.Get(p16) // => ("hello", true)
+val, ok := pm.Get(px("1.0.0.0/16"))              // => ("hello", true)
 
-// Ask if the PrefixMap contains an exact entry.
-ok = pm.Contains(p32) // => false
+// Ask if the PrefixMap contains an exact
+// entry.
+ok = pm.Contains(px("1.2.3.4/32"))               // => false
 
-// Ask if a Prefix has any ancestor in the PrefixMap.
-ok = pm.Encompasses(p32) // => true
+// Ask if a Prefix has any ancestor in the
+// PrefixMap.
+ok = pm.Encompasses(px("1.2.3.4/32"))            // => true
 
 // Fetch a Prefix's nearest ancestor.
-prefix, val, ok := pm.ParentOf(p32) // => (1.2.3.0/24, "world", true)
+p, val, ok := pm.ParentOf(px("1.2.3.4/32"))      // => (1.2.3.0/24, "world", true)
 
-// Fetch all of a Prefix's ancestors, and convert the result to a map[Prefix]string.
-m := pm.AncestorsOf(p32).ToMap() // map[1.2.0.0/16:"hello" 1.2.3.0/24:"world"]
+// Fetch all of a Prefix's ancestors, and
+// convert the result to a map[Prefix]string.
+m := pm.AncestorsOf(px("1.2.3.4/32")).ToMap()    // => map[1.2.0.0/16:"hello"
+                                                 //        1.2.3.0/24:"world"]
 
-// Fetch all of a Prefix's descendants, and convert the result to a map[Prefix]string.
-m = pm.DescendantsOf(p8).ToMap() // map[1.2.0.0/16:"hello" 1.2.3.0/24:"world"]
+// Fetch all of a Prefix's descendants, and
+// convert the result to a map[Prefix]string.
+m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
+                                                 //        1.2.3.0/24:"world"]
 ```
 
 ### Set Operations with PrefixSet
