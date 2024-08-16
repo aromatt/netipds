@@ -15,7 +15,7 @@ and overlap.
 
 ### Goals
 * *Efficiency* - this package aims to provide fast, immutable, thread-safe collection types for IP networks.
-* *Integration* - `netipds` is built around `netip.Prefix` (to understand the benefits of this, see this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the predecessor to `net/netip`).
+* *Integration with `net/netip`* - this package is built around `netip.Prefix` (to understand the benefits of this IP type, see this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the predecessor to `net/netip`).
 * *Completeness* - most other radix tree IP libraries lack several of the queries provided by `netipds`.
 
 ### Non-Goals
