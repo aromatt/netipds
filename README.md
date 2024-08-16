@@ -5,18 +5,23 @@
 
 This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
-family, adding two new collection types:
-* `PrefixMap[T]`, an immutable, tree-based map with `netip.Prefix` keys
-* `PrefixSet`, an immutable set type for `netip.Prefix`, offering better performance
-  and a more comprehensive feature set than
-  [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet)
+family, adding two immutable, tree-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
+* `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data with network hierarchy awareness
+* `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways (unions, intersections, etc)
 
-Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree).
+Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree),
+which enables a rich set of efficient queries about prefix containment, hierarchy,
+and overlap.
 
-## Project Goals
-* Provide efficient, thread-safe, immutable collection types for IP networks
-* Integrate well with the `netip` and `netipx` packages
-* Support use cases that are not covered by other libraries
+### Goals
+* *Efficiency* - this package aims to provide fast, immutable, thread-safe collection types for IP networks.
+* *Integration* - `netipds` is built around `netip.Prefix` (to understand the benefits of this, see this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the predecessor to `net/netip`).
+* *Completeness* - most other radix tree IP libraries lack several of the queries provided by `netipds`.
+
+### Non-Goals
+* *Mutability* - for use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia).
+* *Persistence* - this package is for data sets that fit in memory.
+* *Non-IP network keys* - the collections in this package support exactly one key type: `netip.Prefix`.
 
 ## Usage
 Usage is similar to that of [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet):
