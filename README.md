@@ -14,14 +14,14 @@ which enables a rich set of efficient queries about prefix containment, hierarch
 and overlap.
 
 ### Goals
-* *Efficiency* - this package aims to provide fast, immutable, thread-safe collection types for IP networks.
-* *Integration with `net/netip`* - this package is built around `netip.Prefix` (to understand the benefits of this IP type, see this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the predecessor to `net/netip`).
-* *Completeness* - most other radix tree IP libraries lack several of the queries provided by `netipds`.
+* **Efficiency.** This package aims to provide fast, immutable, thread-safe collection types for IP networks.
+* **Integration with `net/netip`.** This package is built on the shoulders of `net/netip`, leveraging its types and lessons both under the hood and at interfaces. See this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the history and benefits of `net/netip`.
+* **Completeness.** Most other IP radix tree libraries lack several of the queries provided by `netipds`.
 
 ### Non-Goals
-* *Mutability* - for use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia).
-* *Persistence* - this package is for data sets that fit in memory.
-* *Non-IP network keys* - the collections in this package support exactly one key type: `netip.Prefix`.
+* **Mutability.** For use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia).
+* **Persistence.** This package is for data sets that fit in memory.
+* **Non-IP network keys.** The collections in this package support exactly one key type: `netip.Prefix`.
 
 ## Usage
 Usage is similar to that of [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet):
