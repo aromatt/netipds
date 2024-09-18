@@ -15,10 +15,13 @@ func TestReadmeExampleLiteral(t *testing.T) {
 	px := netip.MustParsePrefix
 
 	// Build a PrefixMap
-	pmb := PrefixMapBuilder[string]{}
-	pmb.Set(px("1.2.0.0/16"), "hello")
-	pmb.Set(px("1.2.3.0/24"), "world")
-	pm := pmb.PrefixMap()
+	builder := PrefixMapBuilder[string]{}
+	builder.Set(px("1.2.0.0/16"), "hello")
+	builder.Set(px("1.2.3.0/24"), "world")
+
+	// This returns an immutable snapshot of the
+	// builder's state. The builder remains usable.
+	pm := builder.PrefixMap()
 
 	// Fetch an exact entry from the PrefixMap.
 	val, ok := pm.Get(px("1.0.0.0/16")) // => ("hello", true)

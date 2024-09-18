@@ -5,7 +5,7 @@
 
 This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
-family, adding two immutable, tree-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
+family by adding two immutable, tree-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
 * `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data with network hierarchy awareness
 * `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways (unions, intersections, etc)
 
@@ -21,7 +21,7 @@ and overlap.
 ### Non-Goals
 * **Mutability.** For use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia).
 * **Persistence.** This package is for data sets that fit in memory.
-* **Non-IP network keys.** The collections in this package support exactly one key type: `netip.Prefix`.
+* **Other key types.** The collections in this package support exactly one key type: `netip.Prefix`.
 
 ## Usage
 Usage is similar to that of [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet):
@@ -33,10 +33,13 @@ to construct a `PrefixMap` or `PrefixSet`, use the respective builder type.
 px := netip.MustParsePrefix
 
 // Build a PrefixMap
-pmb := PrefixMapBuilder[string]{}
-pmb.Set(px("1.2.0.0/16"), "hello")
-pmb.Set(px("1.2.3.0/24"), "world")
-pm := pmb.PrefixMap()
+builder := PrefixMapBuilder[string]{}
+builder.Set(px("1.2.0.0/16"), "hello")
+builder.Set(px("1.2.3.0/24"), "world")
+
+// This returns an immutable snapshot of the
+// builder's state. The builder remains usable.
+pm := builder.PrefixMap()
 
 // Fetch an exact entry from the PrefixMap.
 val, ok := pm.Get(px("1.0.0.0/16"))              // => ("hello", true)
