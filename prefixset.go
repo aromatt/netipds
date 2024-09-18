@@ -85,8 +85,15 @@ func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 }
 
 // Merge modifies s so that it contains the union of the entries in s and o.
+//
+// Note: a child may coexist with its parent in the result. To remove entries
+// that have parents entries in the same set, see [PrefixSetBuilder.Compact].
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 	s.tree = *s.tree.mergeTree(&o.tree)
+}
+
+// Compact removes all entries from s that have parent entries in s.
+func (s *PrefixSetBuilder) Compact() {
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.

@@ -72,10 +72,10 @@ m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
 
 In particular, during the building stage, you can combine sets in the following ways:
 
-|Operation|Method|Result|
-|---|---|---|
-|**Union**|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|Every prefix found in either set.|
-|**Intersection**|[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|Every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
+|Method|Result|
+|---|---|
+|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|The union of the two sets. Note: a child may coexist with its parent in the result.|
+|[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|The intersection of the two sets: every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
 |**Difference**|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
 
 ## Related packages
