@@ -94,6 +94,7 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 
 // Compact removes all entries from s that have parent entries in s.
 func (s *PrefixSetBuilder) Compact() {
+	s.tree = *s.tree.compact()
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.

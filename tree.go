@@ -437,8 +437,8 @@ func (t *tree[T]) intersectTreeImpl(
 		// Traverse o in the direction of t.key.
 		//
 		// We don't need to visit t's children here; if there is intersection
-		// under t, it will be handled within the call below by one of the
-		// above cases.
+		// under t, it will be handled within the recursive call below by one
+		// of the above cases.
 		if *oChildFollow != nil {
 			t = t.intersectTreeImpl(*oChildFollow,
 				t.hasEntry || tPathHasEntry,
@@ -460,6 +460,11 @@ func (t *tree[T]) intersectTreeImpl(
 // TODO: same problem as subtractTree; only makes sense for PrefixSets.
 func (t *tree[T]) intersectTree(o *tree[T]) *tree[T] {
 	return t.intersectTreeImpl(o, false, false)
+}
+
+// compact removes all descendants of all entries, leaving behind only the most
+// senior entries (and their non-entry shared prefix nodes).
+func (t *tree[T]) compact() *tree[T] {
 }
 
 // insertHole removes k and sets t, and all of its descendants, to v.
