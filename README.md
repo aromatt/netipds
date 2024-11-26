@@ -74,9 +74,9 @@ In particular, during the building stage, you can combine sets in the following 
 
 |Method|Result|
 |---|---|
-|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|The union of the two sets. Note: a child may coexist with its parent in the result.|
+|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|The union of the two sets. Note: a child may coexist with its parent in the result. To eliminate redundancy, use [PrefixSetBuilder.Compact](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Compact).|
 |[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|The intersection of the two sets: every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
-|**Difference**|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
+|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
 
 ## Related packages
 
