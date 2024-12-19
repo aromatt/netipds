@@ -219,7 +219,7 @@ func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
 
 // Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
-	res := make([]netip.Prefix, s.tree.size())
+	res := make([]netip.Prefix, s.size)
 	i := 0
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
@@ -237,7 +237,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 // Note: PrefixCompact does not merge siblings, so the result may contain
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
-	res := make([]netip.Prefix, 0, s.tree.size())
+	res := make([]netip.Prefix, 0, s.size)
 	s.tree.walk(key{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.toPrefix())
