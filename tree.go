@@ -621,9 +621,9 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 //
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
-func (t *tree[T]) filter(o *tree[bool]) {
+func filter[T1, T2 any](t *tree[T1], o *tree[T2]) {
 	remove := make([]key, 0)
-	t.walk(key{}, func(n *tree[T]) bool {
+	t.walk(key{}, func(n *tree[T1]) bool {
 		if !o.encompasses(n.key, false) {
 			remove = append(remove, n.key)
 		}
@@ -639,9 +639,9 @@ func (t *tree[T]) filter(o *tree[bool]) {
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
-func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
-	ret := &tree[T]{}
-	t.walk(key{}, func(n *tree[T]) bool {
+func filterCopy[T1, T2 any](t *tree[T1], o *tree[T2]) *tree[T1] {
+	ret := &tree[T1]{}
+	t.walk(key{}, func(n *tree[T1]) bool {
 		if n.hasEntry && o.encompasses(n.key, false) {
 			ret = ret.insert(n.key, n.value)
 		}
