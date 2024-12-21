@@ -515,14 +515,34 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 
 // walkIter is a non-recursive version of walk.
 func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
+	// Follow path directly until it's exhausted
 	n := t
 	for n != nil && n.key.len <= path.len {
 		if !n.key.isZero() {
 			fn(n)
 		}
-		common := n.key.commonPrefixLen(path)
-		pathBit := path.bit(common)
-		n = *(n.child(pathBit))
+		n = *(n.child(path.bit(n.key.commonPrefixLen(path))))
+	}
+
+	if n == nil {
+		return
+	}
+
+	// Now visit all children
+	var st stack[*tree[T]]
+	st.Push(n)
+	for st.top >= 0 {
+		n = st.Pop()
+		if n == nil {
+			continue
+		}
+		if !n.key.isZero() {
+			if fn(n) {
+				return
+			}
+		}
+		st.Push(n.right)
+		st.Push(n.left)
 	}
 }
 
@@ -554,7 +574,7 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		ret = n.key.isPrefixOf(k, strict) && n.hasEntry
 		if ret {
 			return true
@@ -567,7 +587,7 @@ func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if n.key.isPrefixOf(k, strict) && n.hasEntry {
 			outKey, val, ok = n.key, n.value, true
 			return true
@@ -580,7 +600,7 @@ func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if n.key.isPrefixOf(k, strict) && n.hasEntry {
 			outKey, val, ok = n.key, n.value, true
 		}
@@ -616,7 +636,7 @@ func (t *tree[T]) descendantsOf(k key, strict bool) (ret *tree[T]) {
 // the tree.
 func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if !n.key.isPrefixOf(k, false) {
 			return true
 		}
@@ -634,7 +654,7 @@ func (t *tree[T]) ancestorsOf(k key, strict bool) (ret *tree[T]) {
 // at the same time.
 func (t *tree[T]) filter(o *tree[bool]) {
 	remove := make([]key, 0)
-	t.walk(key{}, func(n *tree[T]) bool {
+	t.walkIter(key{}, func(n *tree[T]) bool {
 		if !o.encompasses(n.key, false) {
 			remove = append(remove, n.key)
 		}
@@ -652,7 +672,7 @@ func (t *tree[T]) filter(o *tree[bool]) {
 // TODO: does it make sense to have both this method and filter()?
 func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
 	ret := &tree[T]{}
-	t.walk(key{}, func(n *tree[T]) bool {
+	t.walkIter(key{}, func(n *tree[T]) bool {
 		if n.hasEntry && o.encompasses(n.key, false) {
 			ret = ret.insert(n.key, n.value)
 		}
@@ -664,7 +684,7 @@ func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
 // overlapsKey reports whether any key in t overlaps k.
 func (t *tree[T]) overlapsKey(k key) bool {
 	var ret bool
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if !n.hasEntry {
 			return false
 		}
