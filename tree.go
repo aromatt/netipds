@@ -513,6 +513,19 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	}
 }
 
+// walkIter is a non-recursive version of walk.
+func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
+	n := t
+	for n != nil && n.key.len <= path.len {
+		if !n.key.isZero() {
+			fn(n)
+		}
+		common := n.key.commonPrefixLen(path)
+		pathBit := path.bit(common)
+		n = *(n.child(pathBit))
+	}
+}
+
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
@@ -529,7 +542,7 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
 			return true
 		}
