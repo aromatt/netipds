@@ -12,13 +12,11 @@ import (
 // builder type, then generate an immutable version). After lazy insertions,
 // the tree can be compressed using the compress() method.
 type tree[T any] struct {
-	key   key
-	value T
-	left  *tree[T]
-	right *tree[T]
-
-	// Not every node stores a value; some nodes are just shared prefixes
+	key      key
 	hasEntry bool
+	value    T
+	left     *tree[T]
+	right    *tree[T]
 }
 
 // newTree returns a new tree with the provided key.
