@@ -72,6 +72,20 @@ func (u uint128) commonPrefixLen(v uint128) (n uint8) {
 	return
 }
 
+// commonPrefixLenTrunc compares the first limit bits of u and v, returning the
+// length of their common prefix within that portion.
+func (u uint128) commonPrefixLenTrunc(v uint128, limit uint8) (n uint8) {
+	if n = u64CommonPrefixLen(u.hi, v.hi); limit < n {
+		return limit
+	}
+	if n == 64 {
+		if n += u64CommonPrefixLen(u.lo, v.lo); limit < n {
+			return limit
+		}
+	}
+	return
+}
+
 // func (u *uint128) halves() [2]*uint64 {
 // 	return [2]*uint64{&u.hi, &u.lo}
 // }
