@@ -48,6 +48,7 @@ func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 
 // child returns a pointer to the specified child of t.
 func (t *tree[T]) child(b bit) **tree[T] {
+	cc.Increment("tree.child")
 	if b == bitR {
 		return &t.right
 	}
@@ -515,6 +516,7 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 
 // walkIter is a non-recursive version of walk.
 func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
+	cc.Increment("tree.walkIter")
 	// Follow provided path directly until it's exhausted
 	n := t
 	for n != nil && n.key.len <= path.len {
@@ -537,15 +539,16 @@ func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
 	for !st.Empty() {
 		stop = false
 		n, _ = st.Pop()
-		if n == nil {
-			continue
-		}
 		if !n.key.isZero() {
 			stop = fn(n)
 		}
 		if n.key.len < 128 && !stop {
-			st.Push(n.right)
-			st.Push(n.left)
+			if n.right != nil {
+				st.Push(n.right)
+			}
+			if n.left != nil {
+				st.Push(n.left)
+			}
 		}
 	}
 }

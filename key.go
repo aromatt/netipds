@@ -175,6 +175,7 @@ func (k key) rest(i uint8) key {
 }
 
 func (k key) bit(i uint8) bit {
+	cc.Increment("key.bit")
 	return k.content.isBitSet(i)
 }
 
@@ -187,6 +188,7 @@ func (k key) equalFromRoot(o key) bool {
 // commonPrefixLen returns the length of the common prefix between k and
 // o, truncated to the length of the shorter of the two.
 func (k key) commonPrefixLen(o key) uint8 {
+	cc.Increment("key.commonPrefixLen")
 	common := k.content.commonPrefixLen(o.content)
 	// min(l.len, o.len, common)
 	if k.len < o.len {

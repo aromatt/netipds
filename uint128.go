@@ -62,6 +62,7 @@ func (u uint128) addOne() uint128 {
 }
 
 func u64CommonPrefixLen(a, b uint64) uint8 {
+	cc.Increment("u64CommonPrefixLen")
 	return uint8(bits.LeadingZeros64(a ^ b))
 }
 
