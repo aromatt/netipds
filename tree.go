@@ -515,11 +515,13 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 
 // walkIter is a non-recursive version of walk.
 func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
-	// Follow path directly until it's exhausted
+	// Follow provided path directly until it's exhausted
 	n := t
 	for n != nil && n.key.len <= path.len {
 		if !n.key.isZero() {
-			fn(n)
+			if fn(n) {
+				return
+			}
 		}
 		n = *(n.child(path.bit(n.key.commonPrefixLen(path))))
 	}
@@ -528,27 +530,29 @@ func (t *tree[T]) walkIter(path key, fn func(*tree[T]) bool) {
 		return
 	}
 
-	// Now visit all children
+	// After path is exhausted, visit all children
 	var st stack[*tree[T]]
+	var stop bool
 	st.Push(n)
-	for st.top >= 0 {
-		n = st.Pop()
+	for !st.Empty() {
+		stop = false
+		n, _ = st.Pop()
 		if n == nil {
 			continue
 		}
 		if !n.key.isZero() {
-			if fn(n) {
-				return
-			}
+			stop = fn(n)
 		}
-		st.Push(n.right)
-		st.Push(n.left)
+		if n.key.len < 128 && !stop {
+			st.Push(n.right)
+			st.Push(n.left)
+		}
 	}
 }
 
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if n.key.len >= k.len {
 			if n.key.equalFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
@@ -615,7 +619,7 @@ func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
 // provided key is not in the tree.
 func (t *tree[T]) descendantsOf(k key, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
-	t.walk(k, func(n *tree[T]) bool {
+	t.walkIter(k, func(n *tree[T]) bool {
 		if k.isPrefixOf(n.key, false) {
 			ret.key = n.key.rooted()
 			ret.left = n.left
