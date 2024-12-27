@@ -79,9 +79,7 @@ func (u uint128) commonPrefixLenTrunc(v uint128, limit uint8) (n uint8) {
 		return limit
 	}
 	if n == 64 {
-		if n += u64CommonPrefixLen(u.lo, v.lo); limit < n {
-			return limit
-		}
+		n += u64CommonPrefixLen(u.lo, v.lo)
 	}
 	return
 }
