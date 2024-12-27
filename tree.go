@@ -491,24 +491,36 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 //
 // If fn returns true, then walk stops traversing any deeper.
 func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
-	// Never call fn on root node
-	if !t.key.isZero() {
-		if fn(t) {
-			return
+	// Follow provided path directly until it's exhausted
+	n := t
+	for n != nil && n.key.len <= path.len {
+		if !n.key.isZero() {
+			if fn(n) {
+				return
+			}
 		}
+		n = *(n.child(path.bit(n.key.commonPrefixLen(path))))
 	}
 
-	common := t.key.commonPrefixLen(path)
-	pathBit := path.bit(common)
-	for _, bit := range eachBit {
-		// Skip any children that are not on the specified path.
-		// If the path has already been exhausted, then visit all children.
-		if t.key.len < path.len && bit != pathBit {
+	if n == nil {
+		return
+	}
+
+	// After path is exhausted, visit all children
+	var st stack[*tree[T]]
+	var stop bool
+	st.Push(n)
+	for !st.IsEmpty() {
+		stop = false
+		if n = st.Pop(); n == nil {
 			continue
 		}
-		child := t.child(bit)
-		if *child != nil {
-			(*child).walk(path.rest(t.key.len), fn)
+		if !n.key.isZero() {
+			stop = fn(n)
+		}
+		if n.key.len < 128 && !stop {
+			st.Push(n.right)
+			st.Push(n.left)
 		}
 	}
 }
