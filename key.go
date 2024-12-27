@@ -187,7 +187,7 @@ func (k key) equalFromRoot(o key) bool {
 // commonPrefixLen returns the length of the common prefix between k and
 // o, truncated to the length of the shorter of the two.
 func (k key) commonPrefixLen(o key) (n uint8) {
-	return k.content.commonPrefixLenTrunc(o.content, min(o.len, k.len))
+	return min(min(o.len, k.len), k.content.commonPrefixLen(o.content))
 }
 
 // isPrefixOf reports whether k has the same content as o up to position k.len.
