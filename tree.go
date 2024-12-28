@@ -525,6 +525,16 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	}
 }
 
+// pathNext returns the child of t which is next in the traversal of the
+// specified path.
+func (t *tree[T]) pathNext(path key) *tree[T] {
+	bit := path.bit(t.key.commonPrefixLen(path))
+	if bit == bitR {
+		return t.right
+	}
+	return t.left
+}
+
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
@@ -541,14 +551,12 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
-	n := t
-	for n != nil && n.key.len <= k.len {
+	for n := t; n != nil; n = n.pathNext(k) {
 		if !n.key.isZero() {
 			if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
 				break
 			}
 		}
-		n = *(n.child(k.bit(n.key.commonPrefixLen(k))))
 	}
 	return
 }
