@@ -541,12 +541,15 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
-	t.walk(k, func(n *tree[T]) bool {
-		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
-			return true
+	n := t
+	for n != nil && n.key.len <= k.len {
+		if !n.key.isZero() {
+			if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
+				break
+			}
 		}
-		return false
-	})
+		n = *(n.child(k.bit(n.key.commonPrefixLen(k))))
+	}
 	return
 }
 
