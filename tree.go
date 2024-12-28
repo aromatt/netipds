@@ -473,7 +473,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 		bit := k.bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
-			*sibling = newTree[T](t.key.next(!bit)).setValue(v)
+			*sibling = newTree[T](t.key.next((^bit) & 1)).setValue(v)
 		}
 		*child = newTree[T](t.key.next(bit)).insertHole(k, v)
 		return t
