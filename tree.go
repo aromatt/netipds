@@ -473,7 +473,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 		bit := k.bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
-			*sibling = newTree[T](t.key.next(!bit)).setValue(v)
+			*sibling = newTree[T](t.key.next((^bit) & 1)).setValue(v)
 		}
 		*child = newTree[T](t.key.next(bit)).insertHole(k, v)
 		return t
@@ -525,6 +525,15 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	}
 }
 
+// pathNext returns the child of t which is next in the traversal of the
+// specified path.
+func (t *tree[T]) pathNext(path key) *tree[T] {
+	if path.bit(t.key.len) == bitR {
+		return t.right
+	}
+	return t.left
+}
+
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
@@ -541,12 +550,13 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
-	t.walk(k, func(n *tree[T]) bool {
-		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
-			return true
+	for n := t; n != nil; n = n.pathNext(k) {
+		if !n.key.isZero() {
+			if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
+				break
+			}
 		}
-		return false
-	})
+	}
 	return
 }
 
