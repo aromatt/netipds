@@ -536,15 +536,14 @@ func (t *tree[T]) pathNext(path key) *tree[T] {
 
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
-	t.walk(k, func(n *tree[T]) bool {
-		if n.key.len >= k.len {
+	for n := t; n != nil; n = n.pathNext(k) {
+		if !n.key.isZero() && n.key.len >= k.len {
 			if n.key.equalFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
 			}
-			return true
+			break
 		}
-		return false
-	})
+	}
 	return
 }
 
