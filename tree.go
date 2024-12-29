@@ -15,8 +15,7 @@ type tree[T any] struct {
 	key      key
 	hasEntry bool
 	value    T
-	left     *tree[T]
-	right    *tree[T]
+	child    [2]*tree[T]
 }
 
 // newTree returns a new tree with the provided key.
@@ -47,27 +46,24 @@ func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 }
 
 // child returns a pointer to the specified child of t.
-func (t *tree[T]) child(b bit) **tree[T] {
-	if b == bitR {
-		return &t.right
-	}
-	return &t.left
-}
+//func (t *tree[T]) child(b bit) **tree[T] {
+//	if b == bitR {
+//		return &t.right
+//	}
+//	return &t.left
+//}
 
 // children returns pointers to t's children.
 func (t *tree[T]) children(whichFirst bit) (a **tree[T], b **tree[T]) {
-	if whichFirst == bitR {
-		return &t.right, &t.left
-	}
-	return &t.left, &t.right
+	return &t.child[whichFirst], &t.child[(^whichFirst)&1]
 }
 
 // setChild sets one of t's children to n, if it isn't already set, choosing
 // which child based on the bit at n.key.offset. A provided nil is ignored.
 func (t *tree[T]) setChild(n *tree[T]) *tree[T] {
-	child := t.child(n.key.bit(n.key.offset))
-	if *child == nil && n != nil {
-		*child = n
+	b := n.key.bit(n.key.offset)
+	if t.child[b] == nil && n != nil {
+		t.child[b] = n
 	}
 	return t
 }
@@ -76,11 +72,11 @@ func (t *tree[T]) setChild(n *tree[T]) *tree[T] {
 // process.
 func (t *tree[T]) copy() *tree[T] {
 	ret := newTree[T](t.key)
-	if t.left != nil {
-		ret.left = t.left.copy()
+	if t.child[0] != nil {
+		ret.child[0] = t.child[0].copy()
 	}
-	if t.right != nil {
-		ret.right = t.right.copy()
+	if t.child[1] != nil {
+		ret.child[1] = t.child[1].copy()
 	}
 	ret.setValueFrom(t)
 	return ret
@@ -93,11 +89,11 @@ func (t *tree[T]) stringImpl(indent string, pre string, hideVal bool) string {
 	} else {
 		ret = fmt.Sprintf("%s%s%s: %v\n", indent, pre, t.key.StringRel(), t.value)
 	}
-	if t.left != nil {
-		ret += t.left.stringImpl(indent+"  ", "L:", hideVal)
+	if t.child[0] != nil {
+		ret += t.child[0].stringImpl(indent+"  ", "L:", hideVal)
 	}
-	if t.right != nil {
-		ret += t.right.stringImpl(indent+"  ", "R:", hideVal)
+	if t.child[1] != nil {
+		ret += t.child[1].stringImpl(indent+"  ", "R:", hideVal)
 	}
 	return ret
 }
@@ -113,11 +109,11 @@ func (t *tree[T]) size() int {
 	if t.hasEntry {
 		size = 1
 	}
-	if t.left != nil {
-		size += t.left.size()
+	if t.child[0] != nil {
+		size += t.child[0].size()
 	}
-	if t.right != nil {
-		size += t.right.size()
+	if t.child[1] != nil {
+		size += t.child[1].size()
 	}
 	return size
 }
@@ -133,7 +129,7 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	switch {
 	// Inserting at a descendant; recurse into the appropriate child
 	case common == t.key.len:
-		child := t.child(k.bit(t.key.len))
+		child := &t.child[k.bit(t.key.len)]
 		if *child == nil {
 			*child = newTree[T](k.rest(t.key.len)).setValue(v)
 		}
@@ -161,7 +157,7 @@ func (t *tree[T]) insertLazy(k key, v T) *tree[T] {
 	// Inserting at a descendant
 	case t.key.commonPrefixLen(k) == t.key.len:
 		bit := k.bit(t.key.len)
-		child := t.child(bit)
+		child := &t.child[bit]
 		if *child == nil {
 			*child = newTree[T](t.key.next(bit))
 		}
@@ -176,14 +172,14 @@ func (t *tree[T]) insertLazy(k key, v T) *tree[T] {
 // compress performs path compression on tree t.
 func (t *tree[T]) compress() *tree[T] {
 	switch {
-	case t.left == nil && t.right == nil:
+	case t.child[0] == nil && t.child[1] == nil:
 		return t
-	case t.left == nil:
-		t.right.key.offset = t.key.offset
-		return t.right
-	case t.right == nil:
-		t.left.key.offset = t.key.offset
-		return t.left
+	case t.child[0] == nil:
+		t.child[1].key.offset = t.key.offset
+		return t.child[1]
+	case t.child[1] == nil:
+		t.child[0].key.offset = t.key.offset
+		return t.child[0]
 	default:
 		return t
 	}
@@ -200,22 +196,22 @@ func (t *tree[T]) remove(k key) *tree[T] {
 		}
 		switch {
 		// No children (deleting a leaf node)
-		case t.left == nil && t.right == nil:
+		case t.child[0] == nil && t.child[1] == nil:
 			return nil
 		// Only one child; merge with it
-		case t.left == nil:
-			t.right.key.offset = t.key.offset
-			return t.right
-		case t.right == nil:
-			t.left.key.offset = t.key.offset
-			return t.left
+		case t.child[0] == nil:
+			t.child[1].key.offset = t.key.offset
+			return t.child[1]
+		case t.child[1] == nil:
+			t.child[0].key.offset = t.key.offset
+			return t.child[0]
 		// t is a shared prefix node, so it can't be removed
 		default:
 			return t
 		}
 	// Removing a descendant of t; recurse into the appropriate child
 	case t.key.isPrefixOf(k, false):
-		child := t.child(k.bit(t.key.len))
+		child := &t.child[k.bit(t.key.len)]
 		if *child != nil {
 			*child = (*child).remove(k)
 		}
@@ -236,13 +232,13 @@ func (t *tree[T]) subtractKey(k key) *tree[T] {
 	}
 	// A child of t is being subtracted
 	if t.key.isPrefixOf(k, false) {
-		child := t.child(k.bit(t.key.len))
+		child := &t.child[k.bit(t.key.len)]
 		if *child != nil {
 			*child = (*child).subtractKey(k.rest(t.key.len))
 		} else {
 			t.insertHole(k, t.value)
 		}
-		if t.right == nil && t.left == nil && !t.hasEntry {
+		if t.child[1] == nil && t.child[0] == nil && !t.hasEntry {
 			return nil
 		}
 	}
@@ -270,7 +266,7 @@ func (t *tree[T]) subtractTree(o *tree[T]) *tree[T] {
 	}
 	// Consider the children of both t and o
 	for _, bit := range eachBit {
-		tChild, oChild := t.child(bit), o.child(bit)
+		tChild, oChild := &t.child[bit], &o.child[bit]
 		if *oChild != nil {
 			if *tChild == nil {
 				tChild = &t
@@ -282,7 +278,7 @@ func (t *tree[T]) subtractTree(o *tree[T]) *tree[T] {
 }
 
 func (t *tree[T]) isEmpty() bool {
-	return t.key.isZero() && t.left == nil && t.right == nil
+	return t.key.isZero() && t.child[0] == nil && t.child[1] == nil
 }
 
 // newParent returns a new node with key k whose sole child is t.
@@ -308,7 +304,7 @@ func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
 		}
 
 		for _, bit := range eachBit {
-			tChild, oChild := t.child(bit), o.child(bit)
+			tChild, oChild := &t.child[bit], &o.child[bit]
 			if *oChild != nil {
 				tNext := &t
 				if *tChild != nil {
@@ -325,7 +321,7 @@ func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
 	// t.key is a prefix of o.key
 	case common == t.key.len:
 		// Traverse t in the direction of o
-		tChildFollow := t.child(o.key.bit(t.key.len))
+		tChildFollow := &t.child[o.key.bit(t.key.len)]
 		if *tChildFollow == nil {
 			*tChildFollow = o.copy()
 			(*tChildFollow).key.offset = t.key.len
@@ -375,7 +371,7 @@ func (t *tree[T]) intersectTreeImpl(
 
 		// Consider the children of t and o
 		for _, bit := range eachBit {
-			tChild, oChild := t.child(bit), o.child(bit)
+			tChild, oChild := &t.child[bit], &o.child[bit]
 			switch {
 			case *tChild == nil && *oChild != nil && (t.hasEntry || tPathHasEntry):
 				*tChild = (*oChild).copy()
@@ -430,7 +426,7 @@ func (t *tree[T]) intersectTreeImpl(
 	// o.key is a prefix of t.key
 	case common == o.key.len:
 		// o forks in the middle of t.key. Similar to above.
-		oChildFollow := o.child(t.key.bit(common))
+		oChildFollow := &o.child[t.key.bit(common)]
 
 		// Traverse o in the direction of t.key.
 		//
@@ -499,7 +495,7 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 				return
 			}
 		}
-		n = *(n.child(path.bit(n.key.commonPrefixLen(path))))
+		n = n.child[path.bit(n.key.commonPrefixLen(path))]
 	}
 
 	if n == nil {
@@ -519,8 +515,8 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 			stop = fn(n)
 		}
 		if n.key.len < 128 && !stop {
-			st.Push(n.right)
-			st.Push(n.left)
+			st.Push(n.child[1])
+			st.Push(n.child[0])
 		}
 	}
 }
@@ -528,11 +524,7 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
 func (t *tree[T]) pathNext(path key) *tree[T] {
-	bit := path.bit(t.key.commonPrefixLen(path))
-	if bit == bitR {
-		return t.right
-	}
-	return t.left
+	return t.child[path.bit(t.key.commonPrefixLen(path))]
 }
 
 // get returns the value associated with the exact key provided, if it exists.
@@ -608,8 +600,8 @@ func (t *tree[T]) descendantsOf(k key, strict bool) (ret *tree[T]) {
 	t.walk(k, func(n *tree[T]) bool {
 		if k.isPrefixOf(n.key, false) {
 			ret.key = n.key.rooted()
-			ret.left = n.left
-			ret.right = n.right
+			ret.child[0] = n.child[0]
+			ret.child[1] = n.child[1]
 			if !(strict && n.key.equalFromRoot(k)) {
 				ret.setValueFrom(n)
 			}
