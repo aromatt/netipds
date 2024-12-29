@@ -528,8 +528,7 @@ func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
 func (t *tree[T]) pathNext(path key) *tree[T] {
-	bit := path.bit(t.key.commonPrefixLen(path))
-	if bit == bitR {
+	if path.bit(t.key.len) == bitR {
 		return t.right
 	}
 	return t.left
