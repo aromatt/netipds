@@ -115,7 +115,7 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree node[bool]
+	tree tree[bool]
 	size int
 }
 
