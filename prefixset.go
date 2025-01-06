@@ -17,7 +17,7 @@ import (
 // improve performance when building large PrefixSets.
 type PrefixSetBuilder struct {
 	Lazy bool
-	tree tree[bool]
+	tree node[bool]
 }
 
 // Add adds p to s.
@@ -115,7 +115,7 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree tree[bool]
+	tree node[bool]
 	size int
 }
 
@@ -221,7 +221,7 @@ func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.size)
 	i := 0
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	s.tree.walk(key{}, func(n *node[bool]) bool {
 		if n.hasEntry {
 			res[i] = n.key.toPrefix()
 			i++
@@ -238,7 +238,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size)
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	s.tree.walk(key{}, func(n *node[bool]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.toPrefix())
 			return true

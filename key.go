@@ -157,8 +157,8 @@ func (k key) StringRel() string {
 	return fmt.Sprintf("%s,%d", content, k.len-k.offset)
 }
 
-// truncated returns a copy of key truncated to n bits.
-func (k key) truncated(n uint8) key {
+// trunc returns a copy of key truncated to n bits.
+func (k key) trunc(n uint8) key {
 	return newKey(k.content, k.offset, n)
 }
 

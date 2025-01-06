@@ -18,7 +18,7 @@ import (
 // reduce the time required to build a large PrefixMap.
 type PrefixMapBuilder[T any] struct {
 	Lazy bool
-	tree tree[T]
+	tree node[T]
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
@@ -78,7 +78,7 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree tree[T]
+	tree node[T]
 	size int
 }
 
@@ -160,7 +160,7 @@ func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walk(key{}, func(n *tree[T]) bool {
+	m.tree.walk(key{}, func(n *node[T]) bool {
 		if n.hasEntry {
 			res[n.key.toPrefix()] = n.value
 		}
