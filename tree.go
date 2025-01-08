@@ -23,14 +23,17 @@ type node struct {
 // builder type, then generate an immutable version). After lazy insertions,
 // the tree can be compressed using the compress() method.
 type tree[T any] struct {
-	// The absolute root node is always at index 0.
+	// The nodes slice has two reserved indices:
+	// 0: sentinel representing the absence of a node.
+	// 1: always occupied by the root of the tree.
 	nodes []node
+
 	// Values are indexed by the node's index in the nodes slice.
 	values map[nodeRef]T
-	// cur is a reference to some node in the tree.
+
+	// pos is a reference to some node in the tree.
 	// This is the node from which traversals will start.
-	// TODO
-	cur nodeRef
+	//pos nodeRef
 }
 
 // newNode creates a new node in t with the provided key.
@@ -43,8 +46,9 @@ func (t *tree[T]) newNode(k key) nodeRef {
 // newTree returns a new tree.
 func newTree[T any]() *tree[T] {
 	return &tree[T]{
-		nodes:  []node{node{}},
+		nodes:  []node{node{}, node{}},
 		values: map[nodeRef]T{},
+		//pos:    1,
 	}
 }
 
@@ -79,12 +83,13 @@ func (t *tree[T]) childAt(n nodeRef, b bit) nodeRef {
 
 // children returns the indices of n's children in the order indicated by
 // whichFirst.
-func (t *tree[T]) children(n nodeRef, whichFirst bit) (id1, id2 nodeRef) {
-	if whichFirst == bitR {
-		return t.nodes[n].right, t.nodes[n].left
-	}
-	return t.nodes[n].left, t.nodes[n].right
-}
+// TODO remove
+//func (t *tree[T]) children(n nodeRef, whichFirst bit) (id1, id2 nodeRef) {
+//	if whichFirst == bitR {
+//		return t.nodes[n].right, t.nodes[n].left
+//	}
+//	return t.nodes[n].left, t.nodes[n].right
+//}
 
 // setChildAt assigns o as the child of n specified by b.
 func (t *tree[T]) setChildAt(b bit, n, o nodeRef) {
@@ -112,7 +117,7 @@ func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
 
 // TODO document
 func (t *tree[T]) Cursor() treeCursor[T] {
-	return treeCursor[T]{t, 0}
+	return treeCursor[T]{t, 1} // TODO
 }
 
 // String returns a string representation of t, showing its structure and
@@ -372,8 +377,9 @@ func (t treeCursor[T]) compress() treeCursor[T] {
 	}
 }
 
-// Remove removes the exact provided key from the tree, if it exists, and
-// performs path compression.
+// Remove removes the exact provided key from the tree, if it exists, with
+// path compression, and returns a reference to the node that replaces t's
+// current node, if any.
 func (t treeCursor[T]) Remove(k key) nodeRef {
 	tKey := t.Key()
 	switch {
@@ -433,7 +439,7 @@ func (t treeCursor[T]) SubtractKey(k key) nodeRef {
 			t.insertHole(k, t.value)
 		}
 		tn := t.Node()
-		// TODO is this IsEmpty?
+		// TODO is this just IsEmpty?
 		if tn.right == 0 && tn.left == 0 && !tn.hasEntry {
 			return 0
 		}
@@ -621,7 +627,7 @@ func (t treeCursor[T]) intersectTreeImpl(
 		// - this could be natural to return uint64's
 		bit := oKey.bit(com)
 		tFollow, tFollowOk := t.ChildAt(bit)
-		tRemove, _ := t.ChildAt((^bit) & 1)
+		tRemove, _ := t.ChildAt(inv(bit))
 
 		// Traverse t in the direction of oKey.
 		if tFollowOk {
@@ -668,7 +674,7 @@ func (t treeCursor[T]) intersectTreeImpl(
 // present in one tree and has a parent entry in the other tree.
 //
 // TODO: same problem as subtractTree; only makes sense for PrefixSets.
-func (t treeCursor[T]) intersectTree(o treeCursor[T]) treeCursor[T] {
+func (t treeCursor[T]) IntersectTree(o treeCursor[T]) treeCursor[T] {
 	return t.intersectTreeImpl(o, false, false)
 }
 
@@ -685,7 +691,7 @@ func (t *node[T]) insertHole(k key, v T) *node[T] {
 		bit := k.bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
-			*sibling = newNode[T](t.key.next((^bit) & 1)).setValue(v)
+			*sibling = newNode[T](t.key.next(inv(bit))).setValue(v)
 		}
 		*child = newNode[T](t.key.next(bit)).insertHole(k, v)
 		return t

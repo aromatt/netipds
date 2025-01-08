@@ -67,6 +67,10 @@ const (
 
 var eachBit = [2]bit{bitL, bitR}
 
+func inv(b bit) bit {
+	return (^b) & 1
+}
+
 // String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading
 // zeros are omitted.
