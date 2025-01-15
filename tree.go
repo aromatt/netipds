@@ -538,7 +538,7 @@ func (t *tree[T]) pathNext(path key) *tree[T] {
 func (t *tree[T]) get(k key) (val T, ok bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
 		if n.key.len >= k.len {
-			if n.key.equalFromRoot(k) && n.hasEntry {
+			if n.hasEntry && n.key.equalFromRoot(k) {
 				val, ok = n.value, true
 			}
 			break
@@ -550,7 +550,7 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
+		if ret = n.hasEntry && n.key.equalFromRoot(k); ret {
 			break
 		}
 	}
@@ -561,7 +561,7 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.key.isPrefixOf(k, strict) && n.hasEntry; ret {
+		if ret = n.hasEntry && n.key.isPrefixOf(k, strict); ret {
 			break
 		}
 	}
