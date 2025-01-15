@@ -562,13 +562,13 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
-	t.walk(k, func(n *tree[T]) bool {
-		ret = n.key.isPrefixOf(k, strict) && n.hasEntry
-		if ret {
-			return true
+	for n := t; n != nil; n = n.pathNext(k) {
+		if !n.key.isZero() {
+			if ret = n.key.isPrefixOf(k, strict) && n.hasEntry; ret {
+				break
+			}
 		}
-		return false
-	})
+	}
 	return
 }
 
