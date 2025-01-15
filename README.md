@@ -14,12 +14,12 @@ which enables a rich set of efficient queries about prefix containment, hierarch
 and overlap.
 
 ### Goals
-* **Efficiency.** This package aims to provide fast, immutable, thread-safe collection types for IP networks.
+* **Efficiency.** This package aims to provide fast, immutable collection types for IP networks.
 * **Integration with `net/netip`.** This package is built on the shoulders of `net/netip`, leveraging its types and lessons both under the hood and at interfaces. See this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the history and benefits of `net/netip`.
 * **Completeness.** Most other IP radix tree libraries lack several of the queries provided by `netipds`.
 
 ### Non-Goals
-* **Mutability.** For use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia).
+* **Mutability.** For use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia) or [gaissmai/bart](https://github.com/gaissmai/bart).
 * **Persistence.** This package is for data sets that fit in memory.
 * **Other key types.** The collections in this package support exactly one key type: `netip.Prefix`.
 
@@ -78,11 +78,25 @@ In particular, during the building stage, you can combine sets in the following 
 |**Intersection**|[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|Every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
 |**Difference**|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
 
-## Related packages
+## Related Packages
 
-### https://github.com/kentik/patricia
+### [kentik/patricia](https://github.com/kentik/patricia)
 
 This package uses a similar underlying data structure, but its goal is to provide
-mutability while minimizing garbage collection cost. By contrast, netipds aims to
-provide immutable (and thus GC-friendly) collection types that integrate well with
-the netip family and offer a comprehensive API.
+mutability while minimizing garbage collection cost.
+
+By contrast, `netipds` aims to provide immutable collection types that integrate well
+with the netip family and offer a comprehensive API.
+
+### [gaissmai/bart](https://github.com/gaissmai/bart)
+
+This package uses a different trie implementation based on the ART algorithm (Knuth).
+It provides mutability while optimizing for lookup time and memory usage. Its API
+also provides useful methods such as `Subnets`, `Supernets`, `Union`, and iterators.
+
+By contrast, `netipds` uses a traditional trie implementation, provides immutable
+types, and offers additional set operations.
+
+### Additional packages
+[gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more alternatives and
+benchmarks.
