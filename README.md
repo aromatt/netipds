@@ -98,5 +98,5 @@ By contrast, `netipds` uses a traditional trie implementation, provides immutabl
 types, and offers additional set operations.
 
 ### Additional packages
-[gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more alternatives and
-benchmarks.
+[gaissmai/iprbench](https://github.com/gaissmai/iprbench) is a suite of benchmarks
+comparing the performance of several similar libaries.
