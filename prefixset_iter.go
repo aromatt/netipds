@@ -12,9 +12,9 @@ func (s *PrefixSet) All() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
 		i := 0
-		s.tree.walk(key{}, func(n *node[bool]) bool {
-			if canYield && n.hasEntry {
-				canYield = yield(n.key.toPrefix())
+		s.tree.Cursor().walk(key{}, func(n treeCursor[bool]) bool {
+			if canYield && n.HasEntry() {
+				canYield = yield(n.Key().toPrefix())
 				i++
 			}
 			return !canYield || i >= s.size
@@ -30,9 +30,9 @@ func (s *PrefixSet) All() iter.Seq[netip.Prefix] {
 func (s *PrefixSet) AllCompact() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
-		s.tree.walk(key{}, func(n *node[bool]) bool {
-			if canYield && n.hasEntry {
-				canYield = yield(n.key.toPrefix())
+		s.tree.Cursor().walk(key{}, func(n treeCursor[bool]) bool {
+			if canYield && n.HasEntry() {
+				canYield = yield(n.Key().toPrefix())
 				return true
 			}
 			return !canYield

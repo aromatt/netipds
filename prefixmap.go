@@ -18,12 +18,12 @@ import (
 // reduce the time required to build a large PrefixMap.
 type PrefixMapBuilder[T any] struct {
 	Lazy bool
-	tree node[T]
+	tree tree[T]
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
-	return m.tree.get(keyFromPrefix(p))
+	return m.tree.Cursor().Get(keyFromPrefix(p))
 }
 
 // Set associates v with p.
@@ -33,9 +33,9 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	}
 	// TODO so should m.tree just be a *tree[T]?
 	if m.Lazy {
-		m.tree = *(m.tree.insertLazy(keyFromPrefix(p), v))
+		m.tree.Cursor().InsertLazy(keyFromPrefix(p), v)
 	} else {
-		m.tree = *(m.tree.insert(keyFromPrefix(p), v))
+		m.tree.Cursor().Insert(keyFromPrefix(p), v)
 	}
 	return nil
 }
@@ -49,28 +49,28 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	m.tree.remove(keyFromPrefix(p))
+	m.tree.Cursor().Remove(keyFromPrefix(p))
 	return nil
 }
 
 // Filter removes all Prefixes that are not encompassed by s from m.
 func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
-	m.tree.filter(&s.tree)
+	m.tree.Cursor().Filter(s.tree.Cursor())
 }
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
-	t := m.tree.copy()
-	if m.Lazy && t != nil {
-		t = t.compress()
+	t := m.tree.Copy()
+	if m.Lazy {
+		t.Cursor().Compress()
 	}
-	return &PrefixMap[T]{*t, t.size()}
+	return &PrefixMap[T]{*t, t.Cursor().Size()}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
-	return s.tree.stringImpl("", "", false)
+	return s.tree.Cursor().stringImpl("", "", false)
 }
 
 // PrefixMap is a map of [netip.Prefix] to T. It is implemented as a binary
@@ -78,43 +78,43 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree node[T]
+	tree tree[T]
 	size int
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
-	return m.tree.get(keyFromPrefix(p))
+	return m.tree.Cursor().Get(keyFromPrefix(p))
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
 func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
-	return m.tree.contains(keyFromPrefix(p))
+	return m.tree.Cursor().Contains(keyFromPrefix(p))
 }
 
 // Encompasses returns true if this map includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
-	return m.tree.encompasses(keyFromPrefix(p), false)
+	return m.tree.Cursor().Encompasses(keyFromPrefix(p), false)
 }
 
 // EncompassesStrict returns true if this map includes a Prefix which
 // completely encompasses p. The encompassing Prefix must be an ancestor of p,
 // not p itself.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
-	return m.tree.encompasses(keyFromPrefix(p), true)
+	return m.tree.Cursor().Encompasses(keyFromPrefix(p), true)
 }
 
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
-	return m.tree.overlapsKey(keyFromPrefix(p))
+	return m.tree.Cursor().OverlapsKey(keyFromPrefix(p))
 }
 
 func (m *PrefixMap[T]) rootOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	label, val, ok := m.tree.rootOf(keyFromPrefix(p), strict)
+	label, val, ok := m.tree.Cursor().RootOf(keyFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
@@ -137,7 +137,7 @@ func (m *PrefixMap[T]) parentOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	key, val, ok := m.tree.parentOf(keyFromPrefix(p), strict)
+	key, val, ok := m.tree.Cursor().ParentOf(keyFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
@@ -160,9 +160,12 @@ func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walk(key{}, func(n *node[T]) bool {
-		if n.hasEntry {
-			res[n.key.toPrefix()] = n.value
+	m.tree.Cursor().walk(key{}, func(n treeCursor[T]) bool {
+		if n.HasEntry() {
+			// sr: TODO
+			if val, ok := n.Value(); ok {
+				res[n.Key().toPrefix()] = val
+			}
 		}
 		return false
 	})
@@ -172,41 +175,41 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.descendantsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t, t.size()}
+	t := m.tree.Cursor().DescendantsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t.tree, t.Size()}
 }
 
 // DescendantsOfStrict returns a PrefixMap containing all descendants of p in
 // m, excluding p itself.
 func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.descendantsOf(keyFromPrefix(p), true)
-	return &PrefixMap[T]{*t, t.size()}
+	t := m.tree.Cursor().DescendantsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t.tree, t.Size()}
 }
 
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.ancestorsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t, t.size()}
+	t := m.tree.Cursor().AncestorsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t.tree, t.Size()}
 }
 
 // AncestorsOfStrict returns a PrefixMap containing all ancestors of p in m,
 // excluding p itself.
 func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.ancestorsOf(keyFromPrefix(p), true)
-	return &PrefixMap[T]{*t, t.size()}
+	t := m.tree.Cursor().AncestorsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t.tree, t.Size()}
 }
 
 // Filter returns a new PrefixMap containing the entries of m that are
 // encompassed by s.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
-	t := m.tree.filterCopy(&s.tree)
-	return &PrefixMap[T]{*t, t.size()}
+	t := m.tree.Cursor().FilterCopy(s.tree.Cursor())
+	return &PrefixMap[T]{*t.tree, t.Size()}
 }
 
 // String returns a human-readable representation of m's tree structure.
 func (m *PrefixMap[T]) String() string {
-	return m.tree.stringImpl("", "", false)
+	return m.tree.Cursor().stringImpl("", "", false)
 }
 
 // Size returns the number of entries in m.

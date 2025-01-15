@@ -23,9 +23,8 @@ type node struct {
 // builder type, then generate an immutable version). After lazy insertions,
 // the tree can be compressed using the compress() method.
 type tree[T any] struct {
-	// The nodes slice has two reserved indices:
-	// 0: sentinel representing the absence of a node.
-	// 1: always occupied by the root of the tree.
+	// Index 0 is occupied by the root node, and is also used as a sentinel
+	// nodeRef for child nodes to indicate the absence of a child.
 	nodes []node
 
 	// Values are indexed by the node's index in the nodes slice.
@@ -46,7 +45,7 @@ func (t *tree[T]) newNode(k key) nodeRef {
 // newTree returns a new tree.
 func newTree[T any]() *tree[T] {
 	return &tree[T]{
-		nodes:  []node{node{}, node{}},
+		nodes:  []node{{}},
 		values: map[nodeRef]T{},
 		pos:    1,
 	}
@@ -122,7 +121,7 @@ func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
 
 // TODO document
 func (t *tree[T]) Cursor() treeCursor[T] {
-	return treeCursor[T]{t, 1} // TODO
+	return treeCursor[T]{t, 0}
 }
 
 // String returns a string representation of t, showing its structure and
@@ -369,9 +368,9 @@ func (t treeCursor[T]) InsertLazy(k key, v T) treeCursor[T] {
 	}
 }
 
-// compress performs path compression on tree t.
+// Compress performs path compression on tree t.
 // TODO: test this, I don't think it was correct before the slice refactor
-func (t treeCursor[T]) compress() treeCursor[T] {
+func (t treeCursor[T]) Compress() treeCursor[T] {
 	left, leftOk := t.ChildAt(bitL)
 	right, rightOk := t.ChildAt(bitR)
 	switch {
@@ -379,10 +378,10 @@ func (t treeCursor[T]) compress() treeCursor[T] {
 		return t
 	case leftOk:
 		right.SetOffset(t.Key().offset)
-		return right.compress()
+		return right.Compress()
 	case rightOk:
 		left.SetOffset(t.Key().offset)
-		return left.compress()
+		return left.Compress()
 	default:
 		return t
 	}
@@ -447,7 +446,11 @@ func (t treeCursor[T]) SubtractKey(k key) nodeRef {
 			// We need to use SetChildAt because the returned nodeRef may be 0
 			t.SetChildAt(bit, child.SubtractKey(k.rest(tKey.len)))
 		} else {
-			t.insertHole(k, t.value)
+			// sr: I'm not sure if this is right. It was:
+			// t.insertHole(k, t.value)
+			if val, ok := t.Value(); ok {
+				t.insertHole(k, val)
+			}
 		}
 		tn := t.Node()
 		// TODO is this just IsEmpty?
@@ -476,7 +479,11 @@ func (t treeCursor[T]) SubtractTree(o treeCursor[T]) nodeRef {
 		}
 		// A descendant of t is being subtracted
 		if tKey.isPrefixOf(oKey, false) {
-			t.insertHole(oKey, t.Value())
+			// sr: I'm not sure if this is right. It was:
+			// t.insertHole(o.key, t.value)
+			if val, ok := t.Value(); ok {
+				t.insertHole(oKey, val)
+			}
 		}
 	}
 	// Consider the children of both t and o
@@ -531,6 +538,7 @@ func (t treeCursor[T]) MergeTree(o treeCursor[T]) treeCursor[T] {
 		for _, bit := range eachBit {
 			if oChild, oOk := o.ChildAt(bit); oOk {
 				tChild, _ := t.ChildAt(bit)
+				// sr: this assignment was unconditional
 				t.SetChild(tChild.MergeTree(oChild).node)
 			}
 		}
@@ -544,6 +552,7 @@ func (t treeCursor[T]) MergeTree(o treeCursor[T]) treeCursor[T] {
 	case com == tKey.len:
 		// Traverse t in the direction of o
 		if tChild, ok := t.ChildAt(oKey.bit(tKey.len)); ok {
+			// sr: the condition is explicit here (ok)
 			t.SetChild(tChild.MergeTree(o).node)
 		} else {
 			tChild.CopyFrom(o).SetOffset(tKey.len)
@@ -601,6 +610,7 @@ func (t treeCursor[T]) intersectTreeImpl(
 			case tOk && !oOk && !(o.HasEntry() || oPathHasEntry):
 				tChild.SetNode(node{}) //*tChild = nil
 			case tOk && oOk:
+				// sr: the condition is explicit here (tOk)
 				t.SetChild(tChild.intersectTreeImpl(
 					oChild,
 					t.HasEntry() || tPathHasEntry,
@@ -642,6 +652,7 @@ func (t treeCursor[T]) intersectTreeImpl(
 
 		// Traverse t in the direction of oKey.
 		if tFollowOk {
+			// sr: the condition is explicit here (tFollowOk)
 			t.SetChild(tFollow.intersectTreeImpl(o,
 				t.HasEntry() || tPathHasEntry,
 				o.HasEntry() || oPathHasEntry,
@@ -667,6 +678,11 @@ func (t treeCursor[T]) intersectTreeImpl(
 		// under t, it will be handled within the call below by one of the
 		// above cases.
 		if oOk {
+			// sr: is this right? it was:
+			//t = t.intersectTreeImpl(*oChildFollow,
+			//	t.hasEntry || tPathHasEntry,
+			//	o.hasEntry || oPathHasEntry,
+			//)
 			t.SetChild(t.intersectTreeImpl(oFollow,
 				t.HasEntry() || tPathHasEntry,
 				o.HasEntry() || oPathHasEntry,
@@ -702,12 +718,14 @@ func (t treeCursor[T]) insertHole(k key, v T) nodeRef {
 
 		// Create a new sibling to receive v if needed, then continue traversing
 		bit := k.bit(tKey.len)
-		child, childOk := t.ChildAt(bit)
-		sibling, siblingOk := t.ChildAt(inv(bit))
+		child, _ := t.ChildAt(bit)
+		_, siblingOk := t.ChildAt(inv(bit))
 		if !siblingOk {
-			t.SetChildAt(tKey.next(inv(bit))).SetValue(v)
+			//*sibling = newTree[T](t.key.next((^bit) & 1)).setValue(v)
+			t.AddChild(tKey.next(inv(bit))).SetValue(v)
 		}
-		t.SetChildAt(tKey.next(bit), child.insertHole(k, v))
+		//*child = newTree[T](t.key.next(bit)).insertHole(k, v)
+		t.SetChild(child.insertHole(k, v))
 
 		// Create a new sibling to receive v if needed, then continue traversing
 		//bit := k.bit(tKey.len)
@@ -734,7 +752,7 @@ func (t treeCursor[T]) insertHole(k key, v T) nodeRef {
 func (t treeCursor[T]) walk(path key, fn func(treeCursor[T]) bool) {
 	// Follow provided path directly until it's exhausted
 	var ok bool
-	for t, ok = t, true; ok; t, ok = t.pathNext(path) {
+	for ok = true; ok; t, ok = t.pathNext(path) {
 		if !t.Key().isZero() {
 			if fn(t) {
 				return
@@ -775,12 +793,12 @@ func (t treeCursor[T]) pathNext(path key) (treeCursor[T], bool) {
 
 // get returns the value associated with the exact key provided, if it exists.
 // TODO this is only applicable to value-bearing trees
-func (t treeCursor[T]) get(k key) (val T, ok bool) {
-	for n, pathOk := t, true; pathOk; n, pathOk = n.pathNext(k) {
-		nKey := n.Key()
-		if !nKey.isZero() && nKey.len >= k.len {
-			if nKey.equalFromRoot(k) && n.HasEntry() {
-				val, ok = n.Value()
+func (t treeCursor[T]) Get(k key) (val T, ok bool) {
+	for pathOk := true; pathOk; t, pathOk = t.pathNext(k) {
+		tKey := t.Key()
+		if !tKey.isZero() && tKey.len >= k.len {
+			if tKey.equalFromRoot(k) && t.HasEntry() {
+				val, ok = t.Value()
 			}
 			break
 		}
@@ -789,11 +807,11 @@ func (t treeCursor[T]) get(k key) (val T, ok bool) {
 }
 
 // contains returns true if this tree includes the exact key provided.
-func (t treeCursor[T]) contains(k key) (ret bool) {
-	for n, pathOk := t, true; pathOk; n, pathOk = n.pathNext(k) {
-		nKey := n.Key()
-		if !nKey.isZero() {
-			if ret = (nKey.equalFromRoot(k) && n.HasEntry()); ret {
+func (t treeCursor[T]) Contains(k key) (ret bool) {
+	for pathOk := true; pathOk; t, pathOk = t.pathNext(k) {
+		tKey := t.Key()
+		if !tKey.isZero() {
+			if ret = (tKey.equalFromRoot(k) && t.HasEntry()); ret {
 				break
 			}
 		}
@@ -803,7 +821,7 @@ func (t treeCursor[T]) contains(k key) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
-func (t treeCursor[T]) encompasses(k key, strict bool) (ret bool) {
+func (t treeCursor[T]) Encompasses(k key, strict bool) (ret bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
 		ret = n.Key().isPrefixOf(k, strict) && n.HasEntry()
 		if ret {
@@ -816,7 +834,7 @@ func (t treeCursor[T]) encompasses(k key, strict bool) (ret bool) {
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t treeCursor[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
+func (t treeCursor[T]) RootOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
 		if n.Key().isPrefixOf(k, strict) && n.HasEntry() {
 			outKey = n.Key()
@@ -830,7 +848,7 @@ func (t treeCursor[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t treeCursor[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
+func (t treeCursor[T]) ParentOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
 		if n.Key().isPrefixOf(k, strict) && n.HasEntry() {
 			outKey = n.Key()
@@ -845,7 +863,7 @@ func (t treeCursor[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool)
 // provided key. The key itself will be included if it has an entry in the
 // tree, unless strict == true. descendantsOf returns an empty tree if the
 // provided key is not in the tree.
-func (t treeCursor[T]) descendantsOf(k key, strict bool) (ret treeCursor[T]) {
+func (t treeCursor[T]) DescendantsOf(k key, strict bool) (ret treeCursor[T]) {
 	t.walk(k, func(n treeCursor[T]) bool {
 		if k.isPrefixOf(n.Key(), false) {
 			ret = n.Copy()
@@ -864,7 +882,7 @@ func (t treeCursor[T]) descendantsOf(k key, strict bool) (ret treeCursor[T]) {
 // key. The key itself will be included if it has an entry in the tree, unless
 // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
 // the tree.
-func (t treeCursor[T]) ancestorsOf(k key, strict bool) (ret treeCursor[T]) {
+func (t treeCursor[T]) AncestorsOf(k key, strict bool) (ret treeCursor[T]) {
 	ret = newTree[T]().Cursor()
 	t.walk(k, func(n treeCursor[T]) bool {
 		if !n.Key().isPrefixOf(k, false) {
@@ -885,10 +903,10 @@ func (t treeCursor[T]) ancestorsOf(k key, strict bool) (ret treeCursor[T]) {
 //
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
-func (t treeCursor[T]) filter(o treeCursor[bool]) {
+func (t treeCursor[T]) Filter(o treeCursor[bool]) {
 	remove := make([]key, 0)
 	t.walk(key{}, func(n treeCursor[T]) bool {
-		if !o.encompasses(n.Key(), false) {
+		if !o.Encompasses(n.Key(), false) {
 			remove = append(remove, n.Key())
 		}
 		return false
@@ -903,10 +921,10 @@ func (t treeCursor[T]) filter(o treeCursor[bool]) {
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
-func (t treeCursor[T]) filterCopy(o treeCursor[bool]) treeCursor[T] {
+func (t treeCursor[T]) FilterCopy(o treeCursor[bool]) treeCursor[T] {
 	ret := newTree[T]().Cursor()
 	t.walk(key{}, func(n treeCursor[T]) bool {
-		if n.HasEntry() && o.encompasses(n.Key(), false) {
+		if n.HasEntry() && o.Encompasses(n.Key(), false) {
 			// TODO always expect ok == true if hasEntry == true
 			if val, ok := n.Value(); ok {
 				ret = ret.Insert(n.Key(), val)
@@ -918,7 +936,7 @@ func (t treeCursor[T]) filterCopy(o treeCursor[bool]) treeCursor[T] {
 }
 
 // overlapsKey reports whether any key in t overlaps k.
-func (t treeCursor[T]) overlapsKey(k key) (ret bool) {
+func (t treeCursor[T]) OverlapsKey(k key) (ret bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
 		if !n.HasEntry() {
 			return false
