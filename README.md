@@ -97,6 +97,6 @@ also provides useful methods such as `Subnets`, `Supernets`, `Union`, and iterat
 By contrast, `netipds` uses a traditional trie implementation, provides immutable
 types, and offers additional set operations.
 
-### Additional packages
-[gaissmai/iprbench](https://github.com/gaissmai/iprbench) is a suite of benchmarks
-comparing the performance of several similar libaries.
+### Additional Packages
+See [gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more libraries and
+benchmarks comparing them.
