@@ -550,7 +550,7 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
+		if ret = n.key.equalFromRoot(k) && n.hasEntry; ret {
 			break
 		}
 	}
@@ -561,7 +561,7 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.key.isPrefixOf(k, strict) && n.hasEntry; ret {
+		if ret = n.hasEntry && n.key.isPrefixOf(k, strict); ret {
 			break
 		}
 	}
@@ -572,7 +572,7 @@ func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		if n.key.isPrefixOf(k, strict) && n.hasEntry {
+		if n.hasEntry && n.key.isPrefixOf(k, strict) {
 			outKey, val, ok = n.key, n.value, true
 			return true
 		}
@@ -585,7 +585,7 @@ func (t *tree[T]) rootOf(k key, strict bool) (outKey key, val T, ok bool) {
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) parentOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
-		if n.key.isPrefixOf(k, strict) && n.hasEntry {
+		if n.hasEntry && n.key.isPrefixOf(k, strict) {
 			outKey, val, ok = n.key, n.value, true
 		}
 		return false
