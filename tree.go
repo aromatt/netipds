@@ -63,7 +63,8 @@ func (t *tree[T]) children(whichFirst bit) (a **tree[T], b **tree[T]) {
 }
 
 // setChild sets one of t's children to n, if it isn't already set, choosing
-// which child based on the bit at n.key.offset. A provided nil is ignored.
+// which child based on n.key's first bit (n.key.offset). A provided nil is
+// ignored.
 func (t *tree[T]) setChild(n *tree[T]) *tree[T] {
 	child := t.child(n.key.bit(n.key.offset))
 	if *child == nil && n != nil {
@@ -534,10 +535,21 @@ func (t *tree[T]) pathNext(path key) *tree[T] {
 	return t.left
 }
 
+func (t *tree[T]) pathNextSlice(path [128]bit) *tree[T] {
+	if t.key.len >= 128 {
+		return nil
+	}
+	if path[t.key.len] == bitR {
+		return t.right
+	}
+	return t.left
+}
+
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T]) get(k key) (val T, ok bool) {
-	for n := t; n != nil; n = n.pathNext(k) {
-		if !n.key.isZero() && n.key.len >= k.len {
+	path := k.toSlice()
+	for n := t.pathNextSlice(path); n != nil; n = n.pathNextSlice(path) {
+		if n.key.len >= k.len {
 			if n.key.equalFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
 			}
@@ -549,11 +561,10 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
-	for n := t; n != nil; n = n.pathNext(k) {
-		if !n.key.isZero() {
-			if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
-				break
-			}
+	path := k.toSlice()
+	for n := t.pathNextSlice(path); n != nil; n = n.pathNextSlice(path) {
+		if ret = (n.key.equalFromRoot(k) && n.hasEntry); ret {
+			break
 		}
 	}
 	return
@@ -562,11 +573,10 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
-	for n := t; n != nil; n = n.pathNext(k) {
-		if !n.key.isZero() {
-			if ret = n.key.isPrefixOf(k, strict) && n.hasEntry; ret {
-				break
-			}
+	path := k.toSlice()
+	for n := t.pathNextSlice(path); n != nil; n = n.pathNextSlice(path) {
+		if ret = n.key.isPrefixOf(k, strict) && n.hasEntry; ret {
+			break
 		}
 	}
 	return

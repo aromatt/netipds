@@ -16,6 +16,7 @@ func TestPrefixMapGetLazy(t *testing.T) {
 		{pfxs("8000::/128"), pfx("8000::/128"), true},
 		{pfxs("::1/128"), pfx("::1/128"), true},
 		{pfxs("::2/128"), pfx("::2/128"), true},
+		{pfxs("::2/128"), pfx("::1/128"), false},
 		{pfxs("::2/127"), pfx("::2/127"), true},
 		{pfxs("::/128", "::1/128"), pfx("::1/128"), true},
 		{pfxs("::/128", "::1/128", "::2/127"), pfx("::1/128"), true},

@@ -178,6 +178,17 @@ func (k key) bit(i uint8) bit {
 	return k.content.isBitSet(i)
 }
 
+func (k key) toSlice() [128]bit {
+	var ret [128]bit
+	hi := k.content.hi
+	lo := k.content.lo
+	for i := uint8(0); i < 64; i++ {
+		ret[i] = bit((hi >> (63 - i)) & 1)
+		ret[i+64] = bit((lo >> (63 - i)) & 1)
+	}
+	return ret
+}
+
 // equalFromRoot reports whether k and o have the same content and len (offsets
 // are ignored).
 func (k key) equalFromRoot(o key) bool {
