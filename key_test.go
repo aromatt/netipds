@@ -75,17 +75,17 @@ func TestKeyBit(t *testing.T) {
 	tests := []struct {
 		k    key
 		i    uint8
-		want uint8
+		want bit
 	}{
-		{k(uint128{0, 0}, 0, 128), 0, 0},
-		{k(uint128{0, 1}, 0, 128), 0, 0},
-		{k(uint128{1 << 63, 0}, 0, 128), 0, 1},
-		{k(uint128{1 << 62, 0}, 0, 128), 1, 1},
-		{k(uint128{0, 1 << 63}, 0, 128), 64, 1},
-		{k(uint128{0, 1}, 0, 128), 127, 1},
-		{k(uint128{0, 2}, 0, 128), 126, 1},
-		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, 1},
-		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, 1},
+		{k(uint128{0, 0}, 0, 128), 0, bitL},
+		{k(uint128{0, 1}, 0, 128), 0, bitL},
+		{k(uint128{1 << 63, 0}, 0, 128), 0, bitR},
+		{k(uint128{1 << 62, 0}, 0, 128), 1, bitR},
+		{k(uint128{0, 1 << 63}, 0, 128), 64, bitR},
+		{k(uint128{0, 1}, 0, 128), 127, bitR},
+		{k(uint128{0, 2}, 0, 128), 126, bitR},
+		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, bitR},
+		{k(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, bitR},
 	}
 	for _, tt := range tests {
 		if got := tt.k.bit(tt.i); got != tt.want {

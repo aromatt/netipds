@@ -473,7 +473,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 		bit := k.bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
-			*sibling = newTree[T](t.key.next((^bit) & 1)).setValue(v)
+			*sibling = newTree[T](t.key.next(!bit)).setValue(v)
 		}
 		*child = newTree[T](t.key.next(bit)).insertHole(k, v)
 		return t
@@ -560,10 +560,15 @@ func (t *tree[T]) contains(k key) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
-	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+	n := t.pathNext(k)
+	for {
+		if n == nil {
+			break
+		}
 		if ret = n.hasEntry && n.key.isPrefixOf(k, strict); ret {
 			break
 		}
+		n = n.pathNext(k)
 	}
 	return
 }
