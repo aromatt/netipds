@@ -493,7 +493,7 @@ func (t *tree[T]) insertHole(k key, v T) *tree[T] {
 func (t *tree[T]) walk(path key, fn func(*tree[T]) bool) {
 	// Follow provided path directly until it's exhausted
 	n := t
-	for n != nil && n.key.len <= path.len {
+	for n != nil && n.key.len < path.len {
 		if !n.key.isZero() {
 			if fn(n) {
 				return
