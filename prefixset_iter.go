@@ -12,7 +12,7 @@ func (s *PrefixSet) All() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
 		i := 0
-		s.tree.walk(key{}, func(n *tree[bool]) bool {
+		s.tree.walk(key6{}, func(n *tree[bool]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.toPrefix())
 				i++
@@ -30,7 +30,7 @@ func (s *PrefixSet) All() iter.Seq[netip.Prefix] {
 func (s *PrefixSet) AllCompact() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
-		s.tree.walk(key{}, func(n *tree[bool]) bool {
+		s.tree.walk(key6{}, func(n *tree[bool]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.toPrefix())
 				return true

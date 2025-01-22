@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-var k = newKey
+var k = newKey6
 
 func TestKeyString(t *testing.T) {
 	tests := []struct {
-		k    key
+		k    key6
 		want string
 	}{
 		{k(uint128{0, 0}, 0, 0), "0,0"},
@@ -40,7 +40,7 @@ func TestKeyString(t *testing.T) {
 func TestKeyParse(t *testing.T) {
 	tests := []struct {
 		s    string
-		want key
+		want key6
 	}{
 		{"0,0", k(uint128{0, 0}, 0, 0)},
 		{"0,1", k(uint128{0, 0}, 0, 1)},
@@ -62,7 +62,7 @@ func TestKeyParse(t *testing.T) {
 		{"1,120", k(uint128{0, 256}, 0, 120)},
 	}
 	for _, tt := range tests {
-		var got key
+		var got key6
 		if err := got.Parse(tt.s); err != nil {
 			t.Errorf("key.Parse(%q) = %v", tt.s, err)
 		} else if got != tt.want {
@@ -73,7 +73,7 @@ func TestKeyParse(t *testing.T) {
 
 func TestKeyBit(t *testing.T) {
 	tests := []struct {
-		k    key
+		k    key6
 		i    uint8
 		want uint8
 	}{
@@ -97,8 +97,8 @@ func TestKeyBit(t *testing.T) {
 
 func TestKeyIsPrefixOf(t *testing.T) {
 	tests := []struct {
-		a    key
-		b    key
+		a    key6
+		b    key6
 		want bool
 	}{
 		{k(uint128{0, 0}, 0, 0), k(uint128{0, 0}, 0, 0), true},
@@ -118,9 +118,9 @@ func TestKeyIsPrefixOf(t *testing.T) {
 
 func TestKeyNext(t *testing.T) {
 	tests := []struct {
-		k         key
-		wantLeft  key
-		wantRight key
+		k         key6
+		wantLeft  key6
+		wantRight key6
 	}{
 		{k(uint128{0, 0}, 0, 0), k(uint128{0, 0}, 0, 1), k(uint128{1 << 63, 0}, 0, 1)},
 		{k(uint128{0, 0}, 0, 1), k(uint128{0, 0}, 1, 2), k(uint128{1 << 62, 0}, 1, 2)},

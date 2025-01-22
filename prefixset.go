@@ -26,9 +26,9 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if s.Lazy {
-		s.tree = *(s.tree.insertLazy(keyFromPrefix(p), true))
+		s.tree = *(s.tree.insertLazy(key6FromPrefix(p), true))
 	} else {
-		s.tree = *(s.tree.insert(keyFromPrefix(p), true))
+		s.tree = *(s.tree.insert(key6FromPrefix(p), true))
 	}
 	return nil
 }
@@ -43,7 +43,7 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.remove(keyFromPrefix(p))
+	s.tree.remove(key6FromPrefix(p))
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.subtractKey(keyFromPrefix(p))
+	s.tree.subtractKey(key6FromPrefix(p))
 	return nil
 }
 
@@ -121,32 +121,32 @@ type PrefixSet struct {
 
 // Contains returns true if this set includes the exact Prefix provided.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
-	return s.tree.contains(keyFromPrefix(p))
+	return s.tree.contains(key6FromPrefix(p))
 }
 
 // Encompasses returns true if this set includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
-	return s.tree.encompasses(keyFromPrefix(p), false)
+	return s.tree.encompasses(key6FromPrefix(p), false)
 }
 
 // EncompassesStrict returns true if this set includes a Prefix which
 // completely encompasses p. The encompassing Prefix must be an ancestor of p,
 // not p itself.
 func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
-	return s.tree.encompasses(keyFromPrefix(p), true)
+	return s.tree.encompasses(key6FromPrefix(p), true)
 }
 
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
-	return s.tree.overlapsKey(keyFromPrefix(p))
+	return s.tree.overlapsKey(key6FromPrefix(p))
 }
 
 func (s *PrefixSet) rootOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, ok bool) {
-	label, _, ok := s.tree.rootOf(keyFromPrefix(p), strict)
+	label, _, ok := s.tree.rootOf(key6FromPrefix(p), strict)
 	if !ok {
 		return outPfx, false
 	}
@@ -169,7 +169,7 @@ func (s *PrefixSet) parentOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, ok bool) {
-	key, _, ok := s.tree.parentOf(keyFromPrefix(p), strict)
+	key, _, ok := s.tree.parentOf(key6FromPrefix(p), strict)
 	if !ok {
 		return outPfx, false
 	}
@@ -192,28 +192,28 @@ func (s *PrefixSet) ParentOfStrict(p netip.Prefix) (netip.Prefix, bool) {
 // DescendantsOf returns a PrefixSet containing all descendants of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
-	t := s.tree.descendantsOf(keyFromPrefix(p), false)
+	t := s.tree.descendantsOf(key6FromPrefix(p), false)
 	return &PrefixSet{*t, t.size()}
 }
 
 // DescendantsOfStrict returns a PrefixSet containing all descendants of p in
 // s, excluding p itself.
 func (s *PrefixSet) DescendantsOfStrict(p netip.Prefix) *PrefixSet {
-	t := s.tree.descendantsOf(keyFromPrefix(p), true)
+	t := s.tree.descendantsOf(key6FromPrefix(p), true)
 	return &PrefixSet{*t, t.size()}
 }
 
 // AncestorsOf returns a PrefixSet containing all ancestors of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
-	t := s.tree.ancestorsOf(keyFromPrefix(p), false)
+	t := s.tree.ancestorsOf(key6FromPrefix(p), false)
 	return &PrefixSet{*t, t.size()}
 }
 
 // AncestorsOfStrict returns a PrefixSet containing all ancestors of p in s,
 // excluding p itself.
 func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
-	t := s.tree.ancestorsOf(keyFromPrefix(p), true)
+	t := s.tree.ancestorsOf(key6FromPrefix(p), true)
 	return &PrefixSet{*t, t.size()}
 }
 
@@ -221,7 +221,7 @@ func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, s.size)
 	i := 0
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	s.tree.walk(key6{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
 			res[i] = n.key.toPrefix()
 			i++
@@ -238,7 +238,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size)
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	s.tree.walk(key6{}, func(n *tree[bool]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.toPrefix())
 			return true
