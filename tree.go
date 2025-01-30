@@ -4,7 +4,11 @@ import (
 	"fmt"
 )
 
-// tree is a binary radix tree supporting 128-bit keys (see key.go).
+// tree is a binary radix tree supporting 128-bit keys (see key.go), with each
+// node owning a segment of up to 64 bits.
+//
+// The tree is partitioned into two halves depth-wise: each key's offset and
+// len must both be in the range [0, 63] or [64, 127].
 //
 // The tree is compressed by default, however it supports uncompressed
 // insertion via insertLazy(). This can be much faster than insert() and works
@@ -123,9 +127,9 @@ func (t *tree[T]) size() int {
 }
 
 // insert inserts value v at key k with path compression.
-func (t *tree[T]) insert(k key, v T) *tree[T] {
+func (t *tree[T]) insert(k fullKey, v T) *tree[T] {
 	// Inserting at t itself
-	if t.key.equalFromRoot(k) {
+	if t.key.equalFullFromRoot(k) {
 		return t.setValue(v)
 	}
 
