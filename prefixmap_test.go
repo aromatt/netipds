@@ -262,6 +262,8 @@ func TestPrefixMapToMap(t *testing.T) {
 	}{
 		{pfxs(), wantMap(true)},
 		{pfxs("::0/128"), wantMap(true, "::0/128")},
+		{pfxs("::0/1"), wantMap(true, "::0/1")},
+		{pfxs("8000::/1"), wantMap(true, "8000::/1")},
 		{pfxs("::1/128"), wantMap(true, "::1/128")},
 		{pfxs("::2/128"), wantMap(true, "::2/128")},
 		{pfxs("::2/127"), wantMap(true, "::2/127")},
