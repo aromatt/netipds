@@ -60,3 +60,10 @@ func (k key) rest(i uint8) key {
 	}
 	return newKey(k.content, i, k.len)
 }
+
+// segment returns the half of k that resides in the same partition as s.
+// If k ends in lo and s ends in hi, then... TODO
+func (k key) segment(s segment) segment {
+	if s.len > 64 {
+		return segment{k.content.lo, 64, k.len}
+}

@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-// tree is a binary radix tree supporting 128-bit keys (see segment.go), with
-// each node owning a segment of up to 64 bits.
+// tree is a binary radix tree supporting 128-bit keys, with each node owning a
+// segment of up to 64 bits.
 //
-// The tree is partitioned into halves depth-wise: each key's offset and len
+// The tree is partitioned depth-wise into halves: each key's offset and len
 // must both be in the range [0, 63] or [64, 127].
 //
 // The tree is compressed by default, however it supports uncompressed
@@ -50,7 +50,7 @@ func (t *tree[T]) setValueFrom(o *tree[T]) *tree[T] {
 	return t
 }
 
-// child returns a pointer to the specified child of t.
+// child returns a pointer to the child of t selected by b.
 func (t *tree[T]) child(b bit) **tree[T] {
 	if b == bitR {
 		return &t.right
@@ -110,7 +110,7 @@ func (t *tree[T]) String() string {
 	return t.stringImpl("", "", false)
 }
 
-// size returns the number of nodes within t that have values.
+// size returns the number of entries in t.
 // TODO: keep track of this instead of calculating it lazily
 func (t *tree[T]) size() int {
 	size := 0
@@ -126,9 +126,6 @@ func (t *tree[T]) size() int {
 	return size
 }
 
-// segment 0000
-// key     0000 0001
-
 // insert inserts value v at key k with path compression.
 func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// Inserting at t itself
@@ -138,65 +135,74 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 
 	// TODO what if t is hi and k is low?
 	// Seems like we might need insertKey and insertSegment?
-	// Where insertKey is the entrypoing and insertSegment is inner
+	// Where insertKey is the entrypoint and insertSegment is inner
 	common := t.seg.keyCommonPrefixLen(k)
 	switch {
 	// Inserting at a descendant; recurse into the appropriate child.
-	// In this case, k is strictly longer than t.seg (k.len > t.seg.len).
+	//
+	// Note: in this case, k is strictly longer than t.seg (k.len > t.seg.len),
+	// because (1) t.seg is itself the common prefix and (2) the check above
+	// ruled out the possibility that k == t.seg.
 	case common == t.seg.len:
+		// t.seg: 000
+		// k:     0001
+		//           ^ this bit determines which child of t to select
 		child := t.child(k.bit(t.seg.len))
 		if *child == nil {
-			var restSeg segment
-			restKey := k.rest(t.seg.len)
+			var kRestSeg segment
+			kRest := k.rest(t.seg.len)
 			switch {
-			// t and k both contained in hi partition
+			// t.seg and k are both contained in hi partition
+			// . t.seg: 000
+			// . k:     0000
 			case t.seg.len < 64 && k.len <= 64:
-				restSeg = segment{restKey.content.hi, restKey.offset, restKey.len}
-			// t in hi partition, k ends in lo partition
-			// TODO does k.offset matter? i.e. whether it's in hi or lo
+				kRestSeg = segment{kRest.content.hi, kRest.offset, kRest.len}
+			// t.seg ends in hi partition; k ends in lo partition
+			// . t.seg: 000
+			// . k:     0000 01
+			// We need to bridge the gap from t.seg to the end of hi partition.
+			// Note: does it matter in which partition k starts?
 			// - if k starts in lo, this is fine
 			// - if k starts in hi, we still need to bridge the gap, right?
 			case t.seg.len < 64 && k.len > 64:
-				restHi := segment{restKey.content.hi, restKey.offset, 64}
-				*child = newTree[T](restHi)
-				restSeg = segment{restKey.content.lo, 64, restKey.len}
-			// t and k are both in the lo partition
+				*child = newTree[T](segment{kRest.content.hi, kRest.offset, 64})
+				kRestSeg = segment{kRest.content.lo, 64, kRest.len}
+			// t and k both end in the lo partition
+			// . t.seg: 0000 0
+			// . k:     0000 01
 			// TODO what if k _starts_ in lo partition? I guess that shouldn't
 			// happen
 			case t.seg.len >= 64 && k.len > 64:
-				restSeg = segment{restKey.content.lo, restKey.offset, restKey.len}
+				kRestSeg = segment{kRest.content.lo, kRest.offset, kRest.len}
 			default:
 				// all other cases impossible (k is strictly longer than t.seg)
+				panic("unreachable")
 			}
-			// TODO remove
-			//*child = newTree[T](k.rest(t.seg.len)).setValue(v)
-			*child = newTree[T](restSeg).setValue(v)
+			*child = newTree[T](kRestSeg).setValue(v)
+			// TODO this is an optimization that wasn't here before the 64-bit
+			// key refactor
+			return t
 		}
 		*child = (*child).insert(k, v)
 		return t
 	// Inserting at a prefix of t.seg; create a new parent node with t as its
 	// sole child.
-	// In this case, t.seg is strictly longer than k (t.seg.len > k.len).
+	//
+	// Note: in this case, t.seg is strictly longer than k (t.seg.len > k.len),
+	// because (1) k is itself the common prefix and (2) the check above ruled
+	// out the possibility that k == t.seg.
 	case common == k.len:
-		// TODO need to handle cases:
-		// t in hi, k in lo
-		//   - is this possible? wouldn't t's lo parent catch this first?
-		// t in hi, k crosses from hi to lo
-		//   - impossible: t is longer than k
-		// So can we assume t and k are in the same partition?
-		// I think yes except maybe k.len == 64?
-		//   - This would mean somehow there is no node with len 64 that's
-		//     a parent of t. I think that's impossible. You can't go from
-		//     len 63 to 65. Why not? because then there would be a gap in
-		//     the bits. bit 63 would not be owned by any node. Why wouldn't
-		//     it be owned by the node w/len 65? because that node's offset
-		//     has to be 64. A node's offset and len have to be in the same
-		//     partition.
-		// Ok, let's assume t and k are in the same partition.
+		// We also know that t.seg and k end in the same partition. All
+		// insertions into the hi partition must hit at least one hi-partition
+		// node (a node can't start at root and end in the lo partition).
+
+		if (t.seg.len > 64) != (k.len > 64) {
+			panic("unreachable")
+		}
 		// Need a function on key that "gets the segment you want"
 		return t.newParent(k).setValue(v)
 	// Neither is a prefix of the other; create a new parent at their common
-	// prefix with children t and its new sibling.
+	// prefix, with children t and its new sibling.
 	default:
 		return t.newParent(t.seg.truncated(common)).setChild(
 			newTree[T](k.rest(common)).setValue(v),
@@ -341,6 +347,9 @@ func (t *tree[T]) isEmpty() bool {
 //
 // t and s must be in the same partition.
 func (t *tree[T]) newParent(s segment) *tree[T] {
+	if t.seg.len <= 64 != s.len <= 64 {
+		panic("t.seg and s are in different partitions")
+	}
 	t.seg.offset = s.len
 	parent := newTree[T](s).setChild(t)
 	return parent
