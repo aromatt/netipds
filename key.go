@@ -45,7 +45,7 @@ func (s key) bit(i uint8) bit {
 // isZero reports whether k is the zero key.
 func (k key) isZero() bool {
 	// Bits beyond len are always ignored, so if k.len == zero, then this
-	// segment effectively contains no bits.
+	// key effectively contains no bits.
 	return k.len == 0
 }
 
@@ -61,9 +61,9 @@ func (k key) rest(i uint8) key {
 	return newKey(k.content, i, k.len)
 }
 
-// segment returns the half of k that resides in the same partition as s.
+// halfkey returns the half of k that resides in the same partition as s.
 // If k ends in lo and s ends in hi, then... TODO
-func (k key) segment(s segment) segment {
-	if s.len > 64 {
-		return segment{k.content.lo, 64, k.len}
-}
+//func (k key) half(s halfkey) halfkey {
+//	if s.len > 64 {
+//		return halfkey{k.content.lo, 64, k.len}
+//}
