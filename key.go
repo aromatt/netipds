@@ -63,7 +63,7 @@ func (k key) rest(i uint8) key {
 
 // halfkey returns the half of k that resides in the same partition as s.
 // If k ends in lo and s ends in hi, then... TODO
-//func (k key) half(s halfkey) halfkey {
-//	if s.len > 64 {
+//func (k key) half(h halfkey) halfkey {
+//	if h.len > 64 {
 //		return halfkey{k.content.lo, 64, k.len}
 //}
