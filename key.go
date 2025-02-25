@@ -51,15 +51,31 @@ func (k key) isZero() bool {
 
 // rest returns a copy of k with offset = i.
 //
-// Returns the zero key if i > k.len or k is already the zero key.
+// Returns the zero key if i > k.len or k.isZero().
 func (k key) rest(i uint8) key {
-	if k.isZero() {
-		return k
-	}
-	if i > k.len {
-		i = 0
+	if k.isZero() || i > k.len {
+		return key{}
 	}
 	return newKey(k.content, i, k.len)
+}
+
+// halves splits k into two halfkeys.
+//
+// Note: if k.offset > 64, then the hi half will be invalid.
+func (k key) halves() (halfkey, halfkey) {
+	return halfkey{k.content.hi, k.offset, 64}, halfkey{k.content.lo, 64, k.len}
+}
+
+// TODO: a key may have offset < 64 and len >= 64
+func (k key) half() halfkey {
+	// TODO can we make the type system prevent this?
+	if (k.offset < 64) != (k.len < 64) {
+		panic("tried to get half() of a key that crosses partitions")
+	}
+	if k.len < 64 {
+		return halfkey{k.content.hi, k.offset, k.len}
+	}
+	return halfkey{k.content.lo, k.offset, k.len}
 }
 
 // halfkey returns the half of k that resides in the same partition as s.

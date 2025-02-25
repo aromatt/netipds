@@ -125,6 +125,50 @@ func (t *tree[T]) size() int {
 	return size
 }
 
+// insertAtChild inserts a new child node at the specified bit, creating a bridge
+// node if necessary.
+//
+// TODO: it's awkward that this accepts a bit, since it's always k.rest(t.halfkey.len)
+// TODO: do all calls to setChild need to do this logic too?
+func (t *tree[T]) insertAtChild(b bit, k key, v T) {
+	child := t.child(b)
+	var kRestHalf halfkey
+	kRest := k.rest(t.halfkey.len)
+	switch {
+
+	// t and k both end in the hi partition, e.g.:
+	//   t: 000
+	//   k: 0000
+	case t.halfkey.len < 64 && k.len <= 64:
+		kRestHalf = halfkey{kRest.content.hi, kRest.offset, kRest.len}
+
+	// t and k both end in the lo partition, e.g.:
+	//   t: 0000 0
+	//   k: 0000 01
+	// TODO what if k _starts_ in lo partition? I guess that shouldn't
+	// happen
+	case t.halfkey.len >= 64 && k.len > 64:
+		kRestHalf = halfkey{kRest.content.lo, kRest.offset, kRest.len}
+
+	// t ends in hi partition; k ends in lo partition, e.g.:
+	//   t: 000
+	//   k: 0000 0
+	// We need a bridge node: a child of t, with len 64, which will be
+	// the parent of the new node.
+	case t.halfkey.len < 64 && k.len > 64:
+		// TODO: what if kRest.offset is > 64?
+		kHi, kLo := kRest.halves()
+		*child = newTree[T](kHi)
+		child = (*child).child(k.bit(64))
+		kRestHalf = kLo
+
+	default:
+		// all other cases are impossible (k is strictly longer than t.halfkey)
+		panic("unreachable")
+	}
+	*child = newTree[T](kRestHalf).setValue(v)
+}
+
 // insert inserts value v at key k with path compression.
 func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// Inserting at t itself
@@ -140,69 +184,52 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// check above ruled out the possibility that k == t.halfkey and (2)
 	// t.halfkey is itself the common prefix.
 	case common == t.halfkey.len:
+
 		// Select the child of t to recurse into.
 		//   t: 000
 		//   k: 0001
 		//         ^ this bit determines which child of t to select
-		child := t.child(k.bit(t.halfkey.len))
+		b := k.bit(t.halfkey.len)
+		child := t.child(b)
 		if *child == nil {
-			var kRestHalf halfkey
-			kRest := k.rest(t.halfkey.len)
-			switch {
-
-			// t and k are both contained in hi partition, e.g.:
-			//   t: 000
-			//   k: 0000
-			case t.halfkey.len < 64 && k.len <= 64:
-				kRestHalf = halfkey{kRest.content.hi, kRest.offset, kRest.len}
-
-			// t ends in hi partition; k ends in lo partition, e.g.:
-			//   t: 000
-			//   k: 0000 01
-			// We need to create a transition node to fill out hi and be a
-			// parent of k
-			case t.halfkey.len < 64 && k.len > 64:
-				// TODO: what if kRest.offset is > 64?
-				*child = newTree[T](halfkey{kRest.content.hi, kRest.offset, 64})
-				kRestHalf = halfkey{kRest.content.lo, 64, kRest.len}
-
-			// t and k both end in the lo partition
-			//   t: 0000 0
-			//   k: 0000 01
-			// TODO what if k _starts_ in lo partition? I guess that shouldn't
-			// happen
-			case t.halfkey.len >= 64 && k.len > 64:
-				kRestHalf = halfkey{kRest.content.lo, kRest.offset, kRest.len}
-
-			default:
-				// all other cases impossible (k is strictly longer than t.halfkey)
-				panic("unreachable")
-			}
-			*child = newTree[T](kRestHalf).setValue(v)
-			// TODO this is an optimization that wasn't here before the 64-bit
+			t.insertAtChild(b, k, v)
+			// TODO: this is an optimization that wasn't here before the 64-bit
 			// key refactor
 			return t
 		}
+
+		// Child already exists; recurse into it
 		*child = (*child).insert(k, v)
 		return t
-	// Inserting at a prefix of t.halfkey; create a new parent node with t as its
-	// sole child.
-	//
-	// Note: in this case, t.halfkey is strictly longer than k (t.halfkey.len > k.len),
-	// because (1) k is itself the common prefix and (2) the check above ruled
-	// out the possibility that k == t.halfkey.
-	case common == k.len:
-		// We also know that t.halfkey and k end in the same partition. All
-		// insertions into the hi partition must hit at least one hi-partition
-		// node (a node can't start at root and end in the lo partition).
 
+	// Inserting at a prefix of t.halfkey, e.g.:
+	//   t: 0000
+	//   k: 00
+	// Create a new parent node with t as its sole child.
+	//
+	// Note: in this case, t.halfkey is strictly longer than k, because (1) the
+	// check above ruled out the possibility that k == t.halfkey and (2) k is
+	// itself the common prefix.
+	case common == k.len:
+		// We also know that t.halfkey and k must end in the same partition. We
+		// can't have:
+		//   t: 0000 0
+		//   k: 00
+		// because this insertion would have already been handled by a parent
+		// of t.
 		if (t.halfkey.len > 64) != (k.len > 64) {
 			panic("unreachable")
 		}
-		// Need a function on key that "gets the halfkey you want"
-		return t.newParent(k).setValue(v)
-	// Neither is a prefix of the other; create a new parent at their common
-	// prefix, with children t and its new sibling.
+		// TODO: what if we have:
+		//   t: 0000 0000
+		//   k: 0000 00
+		return t.newParent(k.half()).setValue(v)
+
+	// Neither is a prefix of the other, e.g.:
+	//   t: 0000
+	//   k: 001
+	// Create a new parent at their common prefix, with children t and its new
+	// sibling.
 	default:
 		return t.newParent(t.halfkey.truncated(common)).setChild(
 			newTree[T](k.rest(common)).setValue(v),
@@ -633,7 +660,7 @@ func (t *tree[T]) encompasses(k halfkey, strict bool) (ret bool) {
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t *tree[T]) rootOf(k halfkey, strict bool) (outKey keyhalf, val T, ok bool) {
+func (t *tree[T]) rootOf(k halfkey, strict bool) (outKey halfkey, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
 		if n.hasEntry && n.halfkey.isPrefixOf(k, strict) {
 			outKey, val, ok = n.halfkey, n.value, true
@@ -646,7 +673,7 @@ func (t *tree[T]) rootOf(k halfkey, strict bool) (outKey keyhalf, val T, ok bool
 
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t *tree[T]) parentOf(k halfkey, strict bool) (outKey keyhalf, val T, ok bool) {
+func (t *tree[T]) parentOf(k halfkey, strict bool) (outKey halfkey, val T, ok bool) {
 	t.walk(k, func(n *tree[T]) bool {
 		if n.hasEntry && n.halfkey.isPrefixOf(k, strict) {
 			outKey, val, ok = n.halfkey, n.value, true

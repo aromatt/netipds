@@ -106,13 +106,10 @@ func (h halfkey) truncated(n uint8) halfkey {
 
 // rest returns a copy of h starting at position i.
 //
-// If i > h.len, returns the zero halfkey.
+// Returns the zero halfkey if i > h.len or h.isZero().
 func (h halfkey) rest(i uint8) halfkey {
-	if h.isZero() {
-		return h
-	}
-	if i > h.len {
-		i = 0
+	if h.isZero() || i > h.len {
+		return halfkey{}
 	}
 	return newHalfkey(h.content, i, h.len)
 }
