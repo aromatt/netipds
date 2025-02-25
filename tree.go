@@ -132,47 +132,48 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 		return t.setValue(v)
 	}
 
-	// TODO what if t is hi and k is low?
-	// Seems like we might need insertKey and insertHalfkey?
-	// Where insertKey is the entrypoint and insertHalfkey is inner
 	common := t.halfkey.keyCommonPrefixLen(k)
 	switch {
 	// Inserting at a descendant; recurse into the appropriate child.
 	//
-	// Note: in this case, k is strictly longer than t.halfkey (k.len > t.halfkey.len),
-	// because (1) t.halfkey is itself the common prefix and (2) the check above
-	// ruled out the possibility that k == t.halfkey.
+	// Note: in this case, k is strictly longer than t.halfkey, because (1) the
+	// check above ruled out the possibility that k == t.halfkey and (2)
+	// t.halfkey is itself the common prefix.
 	case common == t.halfkey.len:
-		// t.halfkey: 000
-		// k:     0001
-		//           ^ this bit determines which child of t to select
+		// Select the child of t to recurse into.
+		//   t: 000
+		//   k: 0001
+		//         ^ this bit determines which child of t to select
 		child := t.child(k.bit(t.halfkey.len))
 		if *child == nil {
 			var kRestHalf halfkey
 			kRest := k.rest(t.halfkey.len)
 			switch {
-			// t.halfkey and k are both contained in hi partition
-			// . t.halfkey: 000
-			// . k:     0000
+
+			// t and k are both contained in hi partition, e.g.:
+			//   t: 000
+			//   k: 0000
 			case t.halfkey.len < 64 && k.len <= 64:
 				kRestHalf = halfkey{kRest.content.hi, kRest.offset, kRest.len}
-			// t.halfkey ends in hi partition; k ends in lo partition
-			// . t.halfkey: 000
-			// . k:     0000 01
-			// We need to create a transition node to fill out hi and be a parent of k
-			// TODO: does it matter in which partition k starts?
-			// - if k starts in lo, this is fine
-			// - if k starts in hi, we still need to bridge the gap, right?
+
+			// t ends in hi partition; k ends in lo partition, e.g.:
+			//   t: 000
+			//   k: 0000 01
+			// We need to create a transition node to fill out hi and be a
+			// parent of k
 			case t.halfkey.len < 64 && k.len > 64:
+				// TODO: what if kRest.offset is > 64?
 				*child = newTree[T](halfkey{kRest.content.hi, kRest.offset, 64})
 				kRestHalf = halfkey{kRest.content.lo, 64, kRest.len}
+
 			// t and k both end in the lo partition
-			// . t.halfkey: 0000 0
-			// . k:     0000 01
+			//   t: 0000 0
+			//   k: 0000 01
 			// TODO what if k _starts_ in lo partition? I guess that shouldn't
 			// happen
 			case t.halfkey.len >= 64 && k.len > 64:
 				kRestHalf = halfkey{kRest.content.lo, kRest.offset, kRest.len}
+
 			default:
 				// all other cases impossible (k is strictly longer than t.halfkey)
 				panic("unreachable")

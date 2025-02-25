@@ -49,8 +49,9 @@ func (k key) isZero() bool {
 	return k.len == 0
 }
 
-// rest returns a copy of k starting at position i. if i > k.len, returns the
-// zero key.
+// rest returns a copy of k with offset = i.
+//
+// Returns the zero key if i > k.len or k is already the zero key.
 func (k key) rest(i uint8) key {
 	if k.isZero() {
 		return k
