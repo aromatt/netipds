@@ -4,6 +4,11 @@ import (
 	"net/netip"
 )
 
+//type key struct {
+//	hi halfkey
+//	lo halfkey
+//}
+
 type key struct {
 	content uint128
 	offset  uint8
@@ -59,19 +64,22 @@ func (k key) rest(i uint8) key {
 	return newKey(k.content, i, k.len)
 }
 
-// halves splits k into two halfkeys.
+// halves splits k into two halfkeys: hi and lo.
 //
-// Note: if k.offset > 64, then the hi half will be invalid.
-func (k key) halves() (halfkey, halfkey) {
-	return halfkey{k.content.hi, k.offset, 64}, halfkey{k.content.lo, 64, k.len}
+// If k.offset > 64, then hi will be the zero halfkey.
+// If k.len <= 64, then lo will be the zero halfkey.
+func (k key) halves() (hi halfkey, lo halfkey) {
+	if k.offset < 64 {
+		hi = halfkey{k.content.hi, k.offset, 64}
+	}
+	if k.len > 64 {
+		lo = halfkey{k.content.lo, 64, k.len}
+	}
+	return
 }
 
-// TODO: a key may have offset < 64 and len >= 64
-func (k key) half() halfkey {
-	// TODO can we make the type system prevent this?
-	if (k.offset < 64) != (k.len < 64) {
-		panic("tried to get half() of a key that crosses partitions")
-	}
+// half returns the half of k in which k ends.
+func (k key) endHalf() halfkey {
 	if k.len < 64 {
 		return halfkey{k.content.hi, k.offset, k.len}
 	}
