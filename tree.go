@@ -6,8 +6,9 @@ import (
 
 // tree is a compressed binary radix tree supporting 128-bit keys.
 //
-// The tree is partitioned depth-wise into halves: each node owns a "halfkey"
-// which is aligned at offset 0 or 64 in the full key space.
+// The tree is partitioned depth-wise into halves: "hi" (most-significant 64
+// bits) and "lo" (least-significant 64 bits). Each node owns a "halfkey" which
+// is aligned at offset 0 or 64 in the full key space.
 type tree[T any] struct {
 	halfkey  halfkey
 	hasEntry bool
@@ -77,7 +78,8 @@ func (t *tree[T]) children(whichFirst bit) (a **tree[T], b **tree[T]) {
 }
 
 // adopt sets one of t's children to n, if it isn't already set, choosing
-// which child based on the bit at n.halfkey.offset. A provided nil is ignored.
+// which child based on the first bit of n (n.halfkey.offset). A provided nil
+// is ignored.
 func (t *tree[T]) adopt(n *tree[T]) *tree[T] {
 	child := t.child(n.halfkey.bit(n.halfkey.offset))
 	if *child == nil && n != nil {
@@ -136,12 +138,22 @@ func (t *tree[T]) size() int {
 	return size
 }
 
-// setChild creates a new child node to own k and attaches it at c (via a
-// new bridge node, if k crosses the partition boundary).
-func setChild[T any](c **tree[T], k key) *tree[T] {
+// childOrCreate returns the child of t that follows the path of k.
+//
+// If no such child exists, then a new child owning k is created and attached
+// to t (via a bridge node if k crosses partitions).
+//
+// The bool is true iff the child already existed.
+func (t *tree[T]) childOrCreate(k key) (**tree[T], bool) {
+	c := t.child(k.bit(t.halfkey.len))
+	if *c != nil {
+		return c, true
+	}
+
 	var kHalf halfkey
 	kHi, kLo := k.halves()
 
+	// Handle partition scenarios
 	switch {
 
 	// k crosses partition boundary (starts in hi and ends in lo)
@@ -162,7 +174,39 @@ func setChild[T any](c **tree[T], k key) *tree[T] {
 		panic("unreachable")
 	}
 
-	return newTree[T](kHalf)
+	*c = newTree[T](kHalf)
+	return c, false
+}
+
+// addChildAt creates a new child node to own k, attaches it at c (via a new
+// bridge node, if k crosses the partition boundary), and returns it.
+//
+// We implement as a function instead of a method because if a bridge node is
+// required, the caller needs two things to happen: the bridge node must be
+// attached to the tree, and the child must be returned for further traversal
+// or modification.
+func addChildAt[T any](c **tree[T], k key) *tree[T] {
+	var kHalf halfkey
+	kHi, kLo := k.halves()
+
+	switch {
+	// k crosses partition boundary (starts in hi and ends in lo)
+	case !kHi.isZero() && !kLo.isZero():
+		*c = newTree[T](kHi)
+		c = (*c).child(k.bit(64))
+		kHalf = kLo
+	// k is contained in hi partition
+	case !kHi.isZero():
+		kHalf = kHi
+	// k is contained in lo partition
+	case !kLo.isZero():
+		kHalf = kLo
+	default:
+		panic("unreachable")
+	}
+
+	*c = newTree[T](kHalf)
+	return *c
 }
 
 // insert inserts value v at key k with path compression.
@@ -181,23 +225,19 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// above ruled out the possibility that k == t and (2) t is itself the
 	// common prefix.
 	case common == t.halfkey.len:
-
-		// Select the child of t to create or recurse into.
+		// Select the child of t to recurse into or create.
 		//   t: 000
 		//   k: 0001
 		//         ^ this bit determines which child of t to select
-		child := t.child(k.bit(t.halfkey.len))
-
-		if *child == nil {
-			setChild(child, k.rest(t.halfkey.len)).setValue(v)
-
-			// TODO: this is an optimization that wasn't here before the 64-bit
-			// key refactor
-			return t
+		//
+		// TODO: What about this?
+		//   t: 0000
+		//   k: 0000 1
+		if child, ok := t.childOrCreate(k.rest(t.halfkey.len)); ok {
+			*child = (*child).insert(k, v)
+		} else {
+			(*child).setValue(v)
 		}
-
-		// Child already exists; recurse into it
-		*child = (*child).insert(k, v)
 		return t
 
 	// Inserting at a prefix of t, e.g.:
@@ -215,33 +255,39 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// because t must have a parent in the hi partition which would handle the
 	// insertion first.
 	case common == k.len:
+		// TODO remove?
 		if (t.halfkey.len > 64) != (k.len > 64) {
 			panic("unreachable")
 		}
-		return t.newParent(k).setValue(v)
+		return t.newParent(k.endHalf()).setValue(v)
 
 	// Neither is a prefix of the other, e.g.:
 	//   t: 000
 	//   k: 001
-	// Create a new parent at their common prefix, with children t and its new
-	// sibling.
+	// Create a new parent at their common prefix having t and its new sibling
+	// as children.
 	//
-	// We know that either t and k are in the same partition, or t is in hi and k
-	// is in lo, e.g.
+	// We know that either t and k are in the same partition, or t is in hi and
+	// k is in lo, e.g.
 	//   t: 000
 	//   k: 0010 0
+	// In this case, their common prefix must be in hi.
+	//
 	// We can't have:
 	//   t: 0000 0
 	//   k: 001
 	// because t must have a parent in the hi partition which would handle the
 	// insertion first.
+	//
+	// TODO: What about this?
+	//   t: 0000 0
+	//   k: 0000 1
+	// This looks nasty. But wait... this would be handled by the first case.
 	default:
-		//return t.newParent(
-		//	t.halfkey.truncated(common),
-		//).adopt(
-		//	newTree[T](k.rest(common)).setValue(v),
-		//)
-
+		p := t.newParent(t.halfkey.truncated(common))
+		c, _ := p.childOrCreate(k.rest(common))
+		(*c).setValue(v)
+		return p
 	}
 }
 
@@ -341,38 +387,50 @@ func (t *tree[T]) isEmpty() bool {
 	return t.halfkey.isZero() && t.left == nil && t.right == nil
 }
 
-// newParent returns a new node to own k whose sole child is t.
-//func (t *tree[T]) newParent(h halfkey) *tree[T] {
-//	if (t.halfkey.len <= 64) != (h.len <= 64) {
-//		panic("t.halfkey and h are in different partitions")
-//	}
-//	t.halfkey.offset = h.len
-//	return newTree[T](h).adopt(t)
-//}
-
 // newParent returns a new node to own k whose sole child is t (via a bridge
-// node, if necessary).
-func (t *tree[T]) newParent(k key) *tree[T] {
-	var kHalf halfkey
-	kHi, kLo := k.halves()
-	t.halfkey.offset = k.len
-
-	switch {
-
-	// t ends in lo partition and k ends in hi partition, e.g.
-	//   t: 0000 0
-	//   k: 000
-	case !kHi.isZero() && !kLo.isZero():
-	//
-	case !kHi.isZero():
-	case !kLo.isZero():
-
-	default:
-		panic("unreachable")
+// node, if necessary). The new parent takes over ownership of t's first bits
+// through k.len, and t.offset is modified accordingly.
+func (t *tree[T]) newParent(h halfkey) *tree[T] {
+	if (t.halfkey.len <= 64) != (h.len <= 64) {
+		panic("t.halfkey and h are in different partitions")
 	}
-
-	return newTree[T](kHalf).adopt(t)
+	t.halfkey.offset = h.len
+	return newTree[T](h).adopt(t)
 }
+
+// insertParent returns a new node to own k whose sole child is t (via a bridge
+// node, if necessary). The new parent takes over ownership of t's first bits
+// through k.len, and t.offset is modified accordingly.
+//func (t *tree[T]) insertParent(k key) *tree[T] {
+//	//var kHalf halfkey
+//	tRest := t.
+//	tHi, tLo := tRest.halves()
+//
+//	switch {
+//
+//	// t ends in hi partition and k ends in lo partition, e.g.
+//	//   t: 000
+//	//   k: 0010 0
+//	case k.len <= 64 && t.halfkey.len > 64:
+//		t.halfkey.offset = k.len
+//		parent = newTree[T](halfkey{t.halfkey.content, t.halfkey.offset, 64})
+//		c = (*c).child(
+//
+//
+//		kHalf = kLo
+//	// t and k are both contained in hi partition
+//	case !kHi.isZero():
+//		kHalf = kHi
+//	// t and k are both contained in lo partition
+//	case !kLo.isZero():
+//		kHalf = kLo
+//	default:
+//		panic("unreachable")
+//	}
+//	(*c).halfkey.offset = kHalf.len
+//
+//	return newTree[T](kHalf).adopt(*c)
+//}
 
 // mergeTree modifies t so that it is the union of the entries of t and o.
 func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
@@ -430,7 +488,7 @@ func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
 
 	// Neither is a prefix of the other, e.g.
 	//   t: 0010
-	//   0: 000
+	//   o: 000
 	default:
 		// Insert a new parent above t, and create a new sibling for t having
 		// o's key and value.
@@ -562,14 +620,17 @@ func (t *tree[T]) insertHole(k halfkey, v T) *tree[T] {
 	case t.halfkey.isPrefixOf(k, false):
 		t.clearValue()
 		// Create a new sibling to receive v if needed, then continue traversing
-		bit := k.bit(t.halfkey.len)
-		child, sibling := t.children(bit)
+		b := k.bit(t.halfkey.len)
+		child, sibling := t.children(b)
 		if *sibling == nil {
 			//*sibling = newTree[T](t.halfkey.next((^bit) & 1)).setValue(v)
-			setChild(sibling, t.halfkey.next((^bit)&1)).setValue(v)
+			addChildAt(sibling, t.halfkey.next((^b)&1)).setValue(v)
 		}
 		//*child = newTree[T](t.halfkey.next(bit)).insertHole(k, v)
-		setChild(child, t.halfkey.next(bit)).insertHole(k, v)
+		addChildAt(child, t.halfkey.next(b)).insertHole(k, v)
+		//*child = newChild[T](t.halfkey.next(b), func(c *tree[T]) {
+		//	c.insertHole(k, v)
+		//})
 		return t
 	// Nothing to do
 	default:
