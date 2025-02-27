@@ -12,12 +12,7 @@ import (
 //
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
-//
-// If Lazy == true, then path compression is delayed until a PrefixMap is
-// created. The builder itself remains uncompressed. Lazy mode can dramatically
-// reduce the time required to build a large PrefixMap.
 type PrefixMapBuilder[T any] struct {
-	Lazy bool
 	tree tree[T]
 }
 
@@ -31,15 +26,11 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	// TODO so should m.tree just be a *tree[T]?
-	if m.Lazy {
-		m.tree = *(m.tree.insertLazy(keyFromPrefix(p), v))
-	} else {
-		m.tree = *(m.tree.insert(keyFromPrefix(p), v))
-	}
+	m.tree = *(m.tree.insert(keyFromPrefix(p), v))
 	return nil
 }
 
+/* HACK
 // Remove removes p from m. Only the exact Prefix provided is removed;
 // descendants are not.
 //
@@ -57,15 +48,13 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 	m.tree.filter(&s.tree)
 }
+*/
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.copy()
-	if m.Lazy && t != nil {
-		t = t.compress()
-	}
 	return &PrefixMap[T]{*t, t.size()}
 }
 

@@ -11,12 +11,7 @@ import (
 // Prefixes.
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
-//
-// If Lazy == true, then path compression is delayed until a PrefixSet is
-// created. The builder itself remains uncompressed. Lazy mode can dramatically
-// improve performance when building large PrefixSets.
 type PrefixSetBuilder struct {
-	Lazy bool
 	tree tree[bool]
 }
 
@@ -25,14 +20,11 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	if s.Lazy {
-		s.tree = *(s.tree.insertLazy(keyFromPrefix(p), true))
-	} else {
-		s.tree = *(s.tree.insert(keyFromPrefix(p), true))
-	}
+	s.tree = *(s.tree.insert(keyFromPrefix(p), true))
 	return nil
 }
 
+/* HACK
 // Remove removes p from s. Only the exact Prefix provided is removed;
 // descendants are not.
 //
@@ -88,15 +80,13 @@ func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 	s.tree = *s.tree.mergeTree(&o.tree)
 }
+*/
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
 //
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	t := s.tree.copy()
-	if s.Lazy && t != nil {
-		t = t.compress()
-	}
 	return &PrefixSet{*t, t.size()}
 }
 

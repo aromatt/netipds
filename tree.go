@@ -291,6 +291,7 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	}
 }
 
+/* HACK
 // remove removes the exact provided key from the tree, if it exists, and
 // performs path compression.
 func (t *tree[T]) remove(k halfkey) *tree[T] {
@@ -382,6 +383,7 @@ func (t *tree[T]) subtractTree(o *tree[T]) *tree[T] {
 	}
 	return t
 }
+*/
 
 func (t *tree[T]) isEmpty() bool {
 	return t.halfkey.isZero() && t.left == nil && t.right == nil
@@ -432,6 +434,7 @@ func (t *tree[T]) newParent(h halfkey) *tree[T] {
 //	return newTree[T](kHalf).adopt(*c)
 //}
 
+/* HACK
 // mergeTree modifies t so that it is the union of the entries of t and o.
 func (t *tree[T]) mergeTree(o *tree[T]) *tree[T] {
 	// TODO: same problem as subtractTree; only makes sense for PrefixSets.
@@ -637,6 +640,7 @@ func (t *tree[T]) insertHole(k halfkey, v T) *tree[T] {
 		return t
 	}
 }
+*/
 
 // walk traverses the tree starting at this tree's root, following the
 // provided path and calling fn(node) at each visited node.
