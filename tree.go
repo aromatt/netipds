@@ -686,7 +686,13 @@ func (t *tree[T]) walk(path halfkey, fn func(*tree[T]) bool) {
 
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
-func (t *tree[T]) pathNext(path halfkey) *tree[T] {
+//
+// For example:
+//
+//	t:    00
+//	path: 0000
+//	        ^-- bit == 0; return t.left
+func (t *tree[T]) pathNext(path key) *tree[T] {
 	if path.bit(t.halfkey.len) == bitR {
 		return t.right
 	}
@@ -694,10 +700,13 @@ func (t *tree[T]) pathNext(path halfkey) *tree[T] {
 }
 
 // get returns the value associated with the exact key provided, if it exists.
-func (t *tree[T]) get(k halfkey) (val T, ok bool) {
+func (t *tree[T]) get(k key) (val T, ok bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
 		if n.halfkey.len >= k.len {
-			if n.halfkey.equalFromRoot(k) && n.hasEntry {
+			// TODO when crossing to lo partition, do we need to check the
+			// bridge node for equality to the hi half of k? I think so,
+			// but maybe not.
+			if n.halfkey.equalHalf(k) && n.hasEntry {
 				val, ok = n.value, true
 			}
 			break
@@ -707,9 +716,9 @@ func (t *tree[T]) get(k halfkey) (val T, ok bool) {
 }
 
 // contains returns true if this tree includes the exact key provided.
-func (t *tree[T]) contains(k halfkey) (ret bool) {
+func (t *tree[T]) contains(k key) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.halfkey.equalFromRoot(k) && n.hasEntry; ret {
+		if ret = n.halfkey.equalHalf(k) && n.hasEntry; ret {
 			break
 		}
 	}
@@ -718,6 +727,7 @@ func (t *tree[T]) contains(k halfkey) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
+/* HACK
 func (t *tree[T]) encompasses(k halfkey, strict bool) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
 		if ret = n.hasEntry && n.halfkey.isPrefixOf(k, strict); ret {
@@ -726,6 +736,7 @@ func (t *tree[T]) encompasses(k halfkey, strict bool) (ret bool) {
 	}
 	return
 }
+*/
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
@@ -777,6 +788,7 @@ func (t *tree[T]) descendantsOf(k halfkey, strict bool) (ret *tree[T]) {
 // key. The key itself will be included if it has an entry in the tree, unless
 // strict == true. ancestorsOf returns the empty tree if key has no ancestors in
 // the tree.
+/* HACK
 func (t *tree[T]) ancestorsOf(k halfkey, strict bool) (ret *tree[T]) {
 	ret = &tree[T]{}
 	t.walk(k, func(n *tree[T]) bool {
@@ -790,11 +802,13 @@ func (t *tree[T]) ancestorsOf(k halfkey, strict bool) (ret *tree[T]) {
 	})
 	return
 }
+*/
 
 // filter updates t to include only the keys encompassed by o.
 //
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
+/* HACK
 func (t *tree[T]) filter(o *tree[bool]) {
 	remove := make([]halfkey, 0)
 	t.walk(halfkey{}, func(n *tree[T]) bool {
@@ -807,12 +821,14 @@ func (t *tree[T]) filter(o *tree[bool]) {
 		t.remove(k)
 	}
 }
+*/
 
 // filterCopy returns a recursive copy of t that includes only keys that are
 // encompassed by o.
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
+/* HACK
 func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
 	ret := &tree[T]{}
 	t.walk(halfkey{}, func(n *tree[T]) bool {
@@ -823,6 +839,7 @@ func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
 	})
 	return ret
 }
+*/
 
 // overlapsKey reports whether any key in t overlaps k.
 func (t *tree[T]) overlapsKey(k halfkey) bool {

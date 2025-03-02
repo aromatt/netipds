@@ -1,6 +1,7 @@
 package netipds
 
 import (
+	"fmt"
 	"net/netip"
 )
 
@@ -45,6 +46,13 @@ func (k key) toPrefix() netip.Prefix {
 
 func (s key) bit(i uint8) bit {
 	return s.content.isBitSet(i)
+}
+
+// equalFromRoot reports whether k and o have the same content and len (offsets
+// are ignored).
+// TODO remove if not used
+func (k key) equalFromRoot(o key) bool {
+	return k.len == o.len && k.content == o.content
 }
 
 // isZero reports whether k is the zero key.
@@ -92,3 +100,48 @@ func (k key) endHalf() halfkey {
 //	if h.len > 64 {
 //		return halfkey{k.content.lo, 64, k.len}
 //}
+
+// next returns a one-bit key just beyond k, set to 1 if b == bitR.
+// TODO remove if not used
+func (k key) next(b bit) (ret key) {
+	switch b {
+	case bitL:
+		ret = key{
+			content: k.content,
+			offset:  k.len,
+			len:     k.len + 1,
+		}
+	case bitR:
+		ret = key{
+			content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
+			offset:  k.len,
+			len:     k.len + 1,
+		}
+	}
+	return
+}
+
+// isPrefixOf reports whether k has the same content as o up to position k.len.
+//
+// If strict, returns false if k == o.
+// TODO remove if not used
+func (k key) isPrefixOf(o key, strict bool) bool {
+	if k.len <= o.len && k.content == o.content.bitsClearedFrom(k.len) {
+		return !(strict && k.equalFromRoot(o))
+	}
+	return false
+}
+
+// String prints the key's content in hex, followed by "," + s.len. The
+// least significant bit in the output is the bit at position (s.len - 1).
+// Leading zeros are omitted.
+func (k key) String() string {
+	var content string
+	just := k.content.shiftRight(128 - k.len)
+	if just.isZero() {
+		content = "0"
+	} else {
+		content = fmt.Sprintf("%x", just)
+	}
+	return fmt.Sprintf("%s,%d", content, k.len)
+}

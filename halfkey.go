@@ -5,17 +5,20 @@ import (
 	"strings"
 )
 
-// halfkey stores a string of bits which represent part of a path to a node in
-// a prefix tree.
+// halfkey stores up to 64 bits, which represent up to half of a 128-bit key in
+// a partitioned prefix tree. The content field is left-aligned at either bit 0
+// or 64.
 //
-// The halfkey's bits are stored in the content field, between offset and len
-// (counting from most-significant toward least-significant).
+// The halfkey's bits are stored in the content field, which is left-aligned at
+// either bit 0 or 64, between offset and len (counting from most-significant
+// toward least-significant).
 //
-// Each halfkey's offset and len must both be in the range [0, 63] or
-// [64, 127].
+// The offset and len fields specify which range of bits within the full
+// 128-bit key are owned by the halfkey. The offset and len must both be in the
+// range [0, 63] or [64, 127].
 //
-// The content field should not have any bits set beyond len. newHalfkey
-// enforces this.
+// The content field should not have any bits set beyond len (or len - 64, if
+// len > 64). newHalfkey enforces this.
 type halfkey struct {
 	content uint64
 	offset  uint8
@@ -23,7 +26,11 @@ type halfkey struct {
 }
 
 func newHalfkey(content uint64, offset uint8, len uint8) halfkey {
-	return halfkey{bitsClearedFrom(content, len), offset, len}
+	len64 := len
+	if len64 > 64 {
+		len64 -= 64
+	}
+	return halfkey{bitsClearedFrom(content, len64), offset, len}
 }
 
 // rooted returns a copy of h with offset set to 0
@@ -174,6 +181,7 @@ func (h halfkey) isZero() bool {
 }
 
 // next returns a one-bit halfkey just beyond s, set to 1 if b == bitR.
+// TODO should/does this handle partition-crossing?
 func (h halfkey) next(b bit) (ret halfkey) {
 	switch b {
 	case bitL:

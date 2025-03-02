@@ -114,6 +114,7 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	return s.tree.contains(keyFromPrefix(p))
 }
 
+/* HACK
 // Encompasses returns true if this set includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
@@ -237,6 +238,7 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	})
 	return res
 }
+*/
 
 // String returns a human-readable representation of the s's tree structure.
 func (s *PrefixSet) String() string {

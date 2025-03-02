@@ -159,7 +159,6 @@ func TestPrefixMapContainsAfterRemove(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestPrefixMapEncompasses(t *testing.T) {
 	tests := []struct {
@@ -286,7 +285,6 @@ func TestPrefixMapToMap(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixMapRemove(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
@@ -358,7 +356,6 @@ func TestPrefixMapRemove(t *testing.T) {
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
 }
-*/
 
 func TestPrefixMapRootOf(t *testing.T) {
 	tests := []struct {
@@ -1021,7 +1018,6 @@ func TestPrefixMapFilter(t *testing.T) {
 		checkMap(t, tt.want, filtered.ToMap())
 	}
 }
-*/
 
 func TestOverlapsPrefix(t *testing.T) {
 	tests := []struct {
@@ -1054,6 +1050,7 @@ func TestOverlapsPrefix(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestPrefixMapSize(t *testing.T) {
 	tests := []struct {
