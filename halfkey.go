@@ -80,30 +80,20 @@ func (s *halfkey) Parse(str string) error {
 }
 
 // StringRel prints the portion of s.content from offset to len, as hex,
-// followed by "," + (len-offset). The least significant bit in the output is
+// followed by ",<len>-<offset>". The least significant bit in the output is
 // the bit at position (s.len - 1). Leading zeros are omitted.
 //
 // This representation is lossy in that it hides the first s.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.
-//
-// TODO
-//   - key{uint128{0, 1}, 127, 128} => "1,128"
-//   - key{uint128{0, 2}, 126, 128} => "2,128"
-//   - key{uint128{0, 2}, 126, 127} => "1,127"
-//   - key{uint128{1, 1}, 63, 128} => "10000000000000001,128"
-//   - key{uint128{1, 0}, 63, 64}  => "1,64"
-//   - key{uint128{256, 0}, 56} => "1,56"
-//   - key{uint128{256, 0}, 64} => "100,64"
 func (h halfkey) StringRel() string {
 	var content string
-	//just := k.content.shiftLeft(k.offset).shiftRight(128 - k.len + k.offset)
 	just := (h.content << h.offset) >> (64 - h.len + h.offset)
 	if just == 0 {
 		content = "0"
 	} else {
 		content = fmt.Sprintf("%x", just)
 	}
-	return fmt.Sprintf("%s,%d", content, h.len-h.offset)
+	return fmt.Sprintf("%s,%d-%d", content, h.offset, h.len)
 }
 
 // truncated returns a copy of halfkey truncated to n bits.
@@ -144,13 +134,17 @@ func (h halfkey) keyEqualFromRoot(k key) bool {
 	return h.len == k.len && h.content == k.content.hi
 }
 
-// keyEqualEndFromRoot returns true if h and k have equal content and len and
-// end in the same partition.
-func (h halfkey) keyEqualEndFromRoot(k key) bool {
-	if h.len <= 64 {
-		return h.len == k.len && h.content == k.content.hi
+// keyEndEqualFromRoot returns true if h and k have equal len, end in the same
+// partition, equal content in the corresponding half of k.
+// TODO does this obviate keyEqualFromRoot?
+func (h halfkey) keyEndEqualFromRoot(k key) bool {
+	if h.len != k.len {
+		return false
 	}
-	return h.len == k.len && h.content == k.content.lo
+	if h.len <= 64 {
+		return h.content == k.content.hi
+	}
+	return h.content == k.content.lo
 }
 
 // commonPrefixLen returns the length of the common prefix between h and o,
@@ -159,10 +153,25 @@ func (h halfkey) commonPrefixLen(o halfkey) (n uint8) {
 	return min(min(o.len, h.len), u64CommonPrefixLen(h.content, o.content))
 }
 
-// keyCommonPrefixLen returns the length of the common prefix between h and k,
-// truncated to the length of the shorter of the two.
-func (h halfkey) keyCommonPrefixLen(k key) (n uint8) {
-	return min(min(k.len, h.len), u64CommonPrefixLen(h.content, k.content.hi))
+// keyHalfCommonPrefixLen compares h with the half of k in which h resides, and
+// returns the length of the common prefix between them, truncated to the
+// length of the shorter of the two.
+//
+// Panics if h is in the lo partition but k is only the hi partition, because
+// we don't expect any caller to use this method in that scenario.
+func (h halfkey) keyHalfCommonPrefixLen(k key) (n uint8) {
+	var kHalf uint64
+	var hiPad uint8
+	if h.len <= 64 {
+		kHalf = k.content.hi
+	} else {
+		if k.len <= 64 {
+			panic("trying to compare prefix of lo halfkey with hi full key")
+		}
+		kHalf = k.content.lo
+		hiPad = 64
+	}
+	return min(min(k.len, h.len), u64CommonPrefixLen(h.content, kHalf)+hiPad)
 }
 
 // isPrefixOf reports whether h has the same content as o up to position s.len.
