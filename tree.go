@@ -706,7 +706,7 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 			// TODO when crossing to lo partition, do we need to check the
 			// bridge node for equality to the hi half of k? I think so,
 			// but maybe not.
-			if n.halfkey.equalHalf(k) && n.hasEntry {
+			if n.halfkey.keyEqualEndFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
 			}
 			break
@@ -718,7 +718,7 @@ func (t *tree[T]) get(k key) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T]) contains(k key) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.halfkey.equalHalf(k) && n.hasEntry; ret {
+		if ret = n.halfkey.keyEqualEndFromRoot(k) && n.hasEntry; ret {
 			break
 		}
 	}
@@ -736,7 +736,6 @@ func (t *tree[T]) encompasses(k halfkey, strict bool) (ret bool) {
 	}
 	return
 }
-*/
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
@@ -839,7 +838,6 @@ func (t *tree[T]) filterCopy(o *tree[bool]) *tree[T] {
 	})
 	return ret
 }
-*/
 
 // overlapsKey reports whether any key in t overlaps k.
 func (t *tree[T]) overlapsKey(k halfkey) bool {
@@ -856,3 +854,4 @@ func (t *tree[T]) overlapsKey(k halfkey) bool {
 	})
 	return ret
 }
+*/

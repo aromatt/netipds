@@ -136,19 +136,21 @@ func (h halfkey) equalFromRoot(o halfkey) bool {
 	return h.len == o.len && h.content == o.content
 }
 
-// equalFullFromRoot reports whether h and k have the same content and len
+// keyEqualFromRoot reports whether h and k have the same content and len
 // (offsets are ignored).
+//
+// Note: only keys with len <= 64 can be equal to a halfkey.
 func (h halfkey) keyEqualFromRoot(k key) bool {
 	return h.len == k.len && h.content == k.content.hi
 }
 
-// equalHalf reports whether h is equal to its respective half of f.
-// TODO remove if unused
-func (h halfkey) equalHalf(k key) bool {
-	if h.offset < 64 {
-		return h.content == k.content.hi
+// keyEqualEndFromRoot returns true if h and k have equal content and len and
+// end in the same partition.
+func (h halfkey) keyEqualEndFromRoot(k key) bool {
+	if h.len <= 64 {
+		return h.len == k.len && h.content == k.content.hi
 	}
-	return h.content == k.content.lo
+	return h.len == k.len && h.content == k.content.lo
 }
 
 // commonPrefixLen returns the length of the common prefix between h and o,
