@@ -213,7 +213,7 @@ func addChildAt[T any](c **tree[T], k key) *tree[T] {
 func (t *tree[T]) insert(k key, v T) *tree[T] {
 	println("\ninsert:\nt:", t.String(), "\nk:", k.String())
 	// Inserting at t itself
-	if t.halfkey.keyEqualFromRoot(k) {
+	if t.halfkey.keyEndEqualFromRoot(k) {
 		return t.setValue(v)
 	}
 

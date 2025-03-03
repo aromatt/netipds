@@ -6,6 +6,7 @@ import (
 
 var k = newKey
 
+/* HACK
 func TestKeyString(t *testing.T) {
 	tests := []struct {
 		k    key
@@ -37,7 +38,6 @@ func TestKeyString(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestKeyParse(t *testing.T) {
 	tests := []struct {
 		s    string

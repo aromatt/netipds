@@ -93,22 +93,22 @@ func TestPrefixMapContains(t *testing.T) {
 		get  netip.Prefix
 		want bool
 	}{
-		//{pfxs(), pfx("::0/128"), false},
-		//{pfxs("::0/128"), pfx("::0/128"), true},
-		//{pfxs("::0/128"), pfx("::1/128"), false},
-		//{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128", "::1/128"), pfx("::0/128"), true},
 		{pfxs("::0/128", "::1/128"), pfx("::1/128"), true},
-		//{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
+		{pfxs("::0/128", "::1/128"), pfx("::2/128"), false},
 
-		//// Nodes without entries should not report as contained
-		//{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
+		// Nodes without entries should not report as contained
+		{pfxs("::0/128", "::1/128"), pfx("::2/127"), false},
 
-		//// IPv4
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		// IPv4
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 
-		//// IPv4 prefixes are appropriately wrapped
-		//{pfxs("1.2.3.0/24"), pfx("::/24"), false},
+		// IPv4 prefixes are appropriately wrapped
+		{pfxs("1.2.3.0/24"), pfx("::/24"), false},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
