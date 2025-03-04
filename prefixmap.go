@@ -72,7 +72,10 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
-	return s.tree.stringImpl("", "", false)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", false),
+		s.tree.stringImpl("", "", false),
+	)
 }
 
 // PrefixMap is a map of [netip.Prefix] to T. It is implemented as a binary
@@ -226,8 +229,11 @@ func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 */
 
 // String returns a human-readable representation of m's tree structure.
-func (m *PrefixMap[T]) String() string {
-	return m.tree.stringImpl("", "", false)
+func (s *PrefixMap[T]) String() string {
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", false),
+		s.tree.stringImpl("", "", false),
+	)
 }
 
 // Size returns the number of entries in m.

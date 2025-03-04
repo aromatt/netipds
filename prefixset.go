@@ -108,8 +108,10 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSetBuilder) String() string {
-	// TODO
-	return s.tree.stringImpl("", "", true)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", true),
+		s.tree.stringImpl("", "", true),
+	)
 }
 
 // PrefixSet is a set of [netip.Prefix] values. It is implemented as a binary
@@ -272,9 +274,12 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 }
 */
 
-// String returns a human-readable representation of the s's tree structure.
+// String returns a human-readable representation of s's tree structure.
 func (s *PrefixSet) String() string {
-	return s.tree.stringImpl("", "", true)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", true),
+		s.tree.stringImpl("", "", true),
+	)
 }
 
 // Size returns the number of elements in s.

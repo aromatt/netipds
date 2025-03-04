@@ -27,6 +27,7 @@ func TestPrefixSetAddContains(t *testing.T) {
 			psb.Add(p)
 		}
 		ps := psb.PrefixSet()
+		println(ps.String())
 		if got := ps.Contains(tt.get); got != tt.want {
 			t.Errorf("ps.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}
