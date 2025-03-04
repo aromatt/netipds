@@ -19,6 +19,8 @@ func TestPrefixSetAddContains(t *testing.T) {
 		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
 		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
+		// 1.2.3.4/32 is encompassed, but not contained
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 	}
 	for _, tt := range tests {
@@ -27,7 +29,6 @@ func TestPrefixSetAddContains(t *testing.T) {
 			psb.Add(p)
 		}
 		ps := psb.PrefixSet()
-		println(ps.String())
 		if got := ps.Contains(tt.get); got != tt.want {
 			t.Errorf("ps.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}

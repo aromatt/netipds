@@ -22,12 +22,12 @@ type key4 struct {
 	len     uint8
 }
 
+func bitsClearedFrom(u uint64, bit uint8) uint64 {
+	return u & mask64[bit]
+}
+
 func newKey4(content uint64, offset uint8, len uint8) key4 {
-	len64 := len
-	if len64 > 64 {
-		len64 -= 64
-	}
-	return key4{bitsClearedFrom(content, len64), offset, len}
+	return key4{bitsClearedFrom(content, len), offset, len}
 }
 
 // rooted returns a copy of h with offset set to 0
@@ -36,18 +36,12 @@ func (h key4) rooted() key4 {
 }
 
 func u64From4(a [4]byte) uint64 {
-	return uint64(a[0])<<24 | uint64(a[1])<<16 | uint64(a[2])<<8 | uint64(a[3])
+	return uint64(a[0])<<56 | uint64(a[1])<<48 | uint64(a[2])<<40 | uint64(a[3])<<32
 }
 
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key4 {
-	addr := p.Addr()
-	// TODO bits could be -1
-	bits := uint8(p.Bits())
-	if addr.Is4() {
-		bits = bits + 96
-	}
-	return newKey4(u64From4(addr.As4()), 0, bits)
+	return newKey4(u64From4(p.Addr().As4()), 0, uint8(p.Bits()))
 }
 
 // String prints the key4's content in hex, followed by ",<offset>-<len>".
