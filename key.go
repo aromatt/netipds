@@ -55,18 +55,6 @@ func (k key) toPrefix() netip.Prefix {
 	return netip.PrefixFrom(addr.Unmap(), bits)
 }
 
-// bit is used as a selector for a node's children.
-//
-// bitL refers to the left child, and bitR to the right.
-type bit = uint8
-
-const (
-	bitL = 0
-	bitR = 1
-)
-
-var eachBit = [2]bit{bitL, bitR}
-
 // String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading
 // zeros are omitted.
