@@ -187,13 +187,16 @@ func (h halfkey) isPrefixOf(o halfkey, strict bool) bool {
 //
 // If strict, returns false if h == <k half>.
 func (h halfkey) isPrefixOfKeyEnd(k key, strict bool) bool {
+	if h.len > k.len {
+		return false
+	}
 	kHalf := k.content.hi
 	len64 := h.len
 	if h.len > 64 {
 		kHalf = k.content.lo
 		len64 -= 64
 	}
-	if h.len <= k.len && h.content == bitsClearedFrom(kHalf, len64) {
+	if h.content == bitsClearedFrom(kHalf, len64) {
 		return !(strict && h.content == kHalf && h.len == k.len)
 	}
 	return false

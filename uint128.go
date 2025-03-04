@@ -89,6 +89,10 @@ func (u uint128) bitsClearedFrom(bit uint8) uint128 {
 }
 
 func bitsClearedFrom(u uint64, bit uint8) uint64 {
+	// TODO
+	if bit > 64 {
+		bit -= 64
+	}
 	return u & mask64[bit]
 }
 
