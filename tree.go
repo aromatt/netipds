@@ -211,7 +211,6 @@ func addChildAt[T any](c **tree[T], k key) *tree[T] {
 
 // insert inserts value v at key k with path compression.
 func (t *tree[T]) insert(k key, v T) *tree[T] {
-	println("\ninsert:\nt:", t.String(), "\nk:", k.String())
 	// Inserting at t itself
 	if t.halfkey.keyEndEqualFromRoot(k) {
 		return t.setValue(v)
@@ -256,7 +255,6 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	// because t must have a parent in the hi partition which would handle the
 	// insertion first.
 	case common == k.len:
-		println("inserting at a prefix of t\nt:", t.String(), "\nk:", k.String())
 		// TODO remove?
 		if (t.halfkey.len > 64) != (k.len > 64) {
 			panic("unreachable")
@@ -286,7 +284,6 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 	//   k: 0000 1
 	// This looks nasty. But wait... this would be handled by the first case.
 	default:
-		println("\ncreating new parent\nt:", t.String(), "\nk:", k.String())
 		p := t.newParent(t.halfkey.truncated(common))
 		c, _ := p.childOrCreate(k.rest(common))
 		(*c).setValue(v)

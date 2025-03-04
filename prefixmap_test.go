@@ -116,7 +116,6 @@ func TestPrefixMapContains(t *testing.T) {
 			pmb.Set(p, true)
 		}
 		pm := pmb.PrefixMap()
-		println("pm:\n", pm.String())
 		if got := pm.Contains(tt.get); got != tt.want {
 			t.Errorf("pm.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}
