@@ -88,14 +88,6 @@ func (u uint128) bitsClearedFrom(bit uint8) uint128 {
 	return u.and(mask6[bit])
 }
 
-func bitsClearedFrom(u uint64, bit uint8) uint64 {
-	// TODO
-	if bit > 64 {
-		bit -= 64
-	}
-	return u & mask64[bit]
-}
-
 // shiftRight returns a copy of u shifted right by the given
 // number of bits.
 func (u uint128) shiftRight(n uint8) uint128 {

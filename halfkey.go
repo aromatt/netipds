@@ -25,6 +25,14 @@ type halfkey struct {
 	len     uint8
 }
 
+func bitsClearedFrom(u uint64, bit uint8) uint64 {
+	// TODO
+	if bit > 64 {
+		bit -= 64
+	}
+	return u & mask64[bit]
+}
+
 func newHalfkey(content uint64, offset uint8, len uint8) halfkey {
 	len64 := len
 	if len64 > 64 {
@@ -113,11 +121,11 @@ func (h halfkey) rest(i uint8) halfkey {
 
 // TODO remove?
 func isBitSet(u uint64, bit uint8) uint8 {
-	return uint8(u >> (64 - bit) & 1)
+	return uint8(u >> (63 - bit) & 1)
 }
 
 func (h halfkey) bit(i uint8) bit {
-	return bit(h.content >> (64 - i) & 1)
+	return bit(h.content >> (63 - i) & 1)
 }
 
 // equalFromRoot reports whether h and o have the same content and len (offsets

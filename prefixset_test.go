@@ -19,7 +19,10 @@ func TestPrefixSetAddContains(t *testing.T) {
 		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
 		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
+		// 1.2.3.4/32 is encompassed, but not contained
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
@@ -873,6 +876,8 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 		{pfxs("::0/127", "::0/128"), pfxs("::0/127")},
 		{pfxs("::0/126", "::0/127"), pfxs("::0/126")},
 		{pfxs("::0/1", "::0/128"), pfxs("::0/1")},
+		{pfxs("8000::/1"), pfxs("8000::/1")},
+		{pfxs("::0/1", "8000::/1"), pfxs("::0/1", "8000::/1")},
 		{pfxs("0::0/127", "::0/128", "::1/128"), pfxs("::0/127")},
 		{pfxs("0::0/127", "::0/128", "::2/128"), pfxs("::0/127", "::2/128")},
 		{pfxs("1.2.3.0/24", "1.2.3.4/32"), pfxs("1.2.3.0/24")},
@@ -886,6 +891,7 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 		checkPrefixSlice(t, ps.PrefixesCompact(), tt.want)
 	}
 }
+*/
 
 func TestPrefixSetSize(t *testing.T) {
 	tests := []struct {
@@ -894,8 +900,10 @@ func TestPrefixSetSize(t *testing.T) {
 	}{
 		{pfxs(), 0},
 		{pfxs("::0/128"), 1},
+		{pfxs("8000::/1"), 1},
 		{pfxs("::0/128", "::0/128"), 1},
 		{pfxs("::0/128", "::1/128"), 2},
+		{pfxs("::0/128", "8000::/1"), 2},
 		{pfxs("::0/127", "::0/128"), 2},
 		{pfxs("::0/126", "::0/127"), 2},
 		{pfxs("0::0/127", "::0/128", "::1/128"), 3},
@@ -911,4 +919,3 @@ func TestPrefixSetSize(t *testing.T) {
 		}
 	}
 }
-*/

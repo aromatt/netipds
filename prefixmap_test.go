@@ -258,6 +258,7 @@ func TestPrefixMapEncompassesStrict(t *testing.T) {
 }
 
 /* HACK
+
 func TestPrefixMapToMap(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -265,6 +266,8 @@ func TestPrefixMapToMap(t *testing.T) {
 	}{
 		{pfxs(), wantMap(true)},
 		{pfxs("::0/128"), wantMap(true, "::0/128")},
+		{pfxs("::0/1"), wantMap(true, "::0/1")},
+		{pfxs("8000::/1"), wantMap(true, "8000::/1")},
 		{pfxs("::1/128"), wantMap(true, "::1/128")},
 		{pfxs("::2/128"), wantMap(true, "::2/128")},
 		{pfxs("::2/127"), wantMap(true, "::2/127")},
@@ -876,8 +879,6 @@ func TestPrefixMapAncestorsOfStrict(t *testing.T) {
 	}
 
 }
-
-/* HACK
 func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	pmb := &PrefixMapBuilder[int]{}
 
@@ -895,9 +896,7 @@ func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	checkMap(t, wantMap(1, "::0/128", "::1/128"), pm1.ToMap())
 	checkMap(t, wantMap(2, "::1/128", "::2/128"), pm2.ToMap())
 }
-*/
 
-/* HACK
 func TestPrefixMapBuilderFilter(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
@@ -957,9 +956,7 @@ func TestPrefixMapBuilderFilter(t *testing.T) {
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
 }
-*/
 
-/* HACK
 func TestPrefixMapFilter(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
