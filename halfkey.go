@@ -38,8 +38,8 @@ func (h halfkey) rooted() halfkey {
 	return halfkey{h.content, 0, h.len}
 }
 
-// String prints the halfkey's content in hex, followed by "," + s.len. The
-// least significant bit in the output is the bit at position (s.len - 1).
+// String prints the halfkey's content in hex, followed by ",<offset>-<len>".
+// The least significant bit in the output is the bit at position (h.len - 1).
 // Leading zeros are omitted.
 func (h halfkey) String() string {
 	var content string
@@ -51,39 +51,39 @@ func (h halfkey) String() string {
 	} else {
 		content = fmt.Sprintf("%x", just)
 	}
-	return fmt.Sprintf("%s,%d", content, h.len)
+	return fmt.Sprintf("%s,%d-%d", content, h.offset, h.len)
 }
 
 // Parse parses the output of String.
 // Parse is intended to be used only in tests.
-func (s *halfkey) Parse(str string) error {
+func (h *halfkey) Parse(str string) error {
 	var err error
 
 	// Isolate content and len
 	parts := strings.Split(str, ",")
 	if len(parts) != 2 {
-		return fmt.Errorf("failed to parse halfkey '%s': invalid format", s)
+		return fmt.Errorf("failed to parse halfkey '%s': invalid format", h)
 	}
 	contentStr, lenStr := parts[0], parts[1]
-	if _, err = fmt.Sscanf(lenStr, "%d", &s.len); err != nil {
-		return fmt.Errorf("failed to parse halfkey '%s': %w", s, err)
+	if _, err = fmt.Sscanf(lenStr, "%d", &h.len); err != nil {
+		return fmt.Errorf("failed to parse halfkey '%s': %w", h, err)
 	}
 
 	lo := uint64(0)
 	loStart := 0
 	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &lo); err != nil {
-		return fmt.Errorf("failed to parse halfkey: '%s', %w", s, err)
+		return fmt.Errorf("failed to parse halfkey: '%s', %w", h, err)
 	}
-	s.content = lo << (64 - s.len)
-	s.offset = 0
+	h.content = lo << (64 - h.len)
+	h.offset = 0
 	return nil
 }
 
-// StringRel prints the portion of s.content from offset to len, as hex,
+// StringRel prints the portion of h.content from offset to len, as hex,
 // followed by ",<len>-<offset>". The least significant bit in the output is
-// the bit at position (s.len - 1). Leading zeros are omitted.
+// the bit at position (h.len - 1). Leading zeros are omitted.
 //
-// This representation is lossy in that it hides the first s.offset bits, but
+// This representation is lossy in that it hides the first h.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (h halfkey) StringRel() string {
 	var content string
@@ -158,13 +158,11 @@ func (h halfkey) commonPrefixLen(o halfkey) (n uint8) {
 // length of the shorter of the two.
 //
 // Panics if h is in the lo partition but k is only the hi partition, because
-// we don't expect any caller to use this method in that scenario.
+// we don't expect any caller to use this method in that scenario. TODO
 func (h halfkey) keyHalfCommonPrefixLen(k key) (n uint8) {
-	var kHalf uint64
-	var hiPad uint8
-	if h.len <= 64 {
-		kHalf = k.content.hi
-	} else {
+	hiPad := uint8(0)
+	kHalf := k.content.hi
+	if h.len > 64 {
 		if k.len <= 64 {
 			panic("trying to compare prefix of lo halfkey with hi full key")
 		}
@@ -174,7 +172,7 @@ func (h halfkey) keyHalfCommonPrefixLen(k key) (n uint8) {
 	return min(min(k.len, h.len), u64CommonPrefixLen(h.content, kHalf)+hiPad)
 }
 
-// isPrefixOf reports whether h has the same content as o up to position s.len.
+// isPrefixOf reports whether h has the same content as o up to position h.len.
 //
 // If strict, returns false if h == o.
 func (h halfkey) isPrefixOf(o halfkey, strict bool) bool {
@@ -184,9 +182,26 @@ func (h halfkey) isPrefixOf(o halfkey, strict bool) bool {
 	return false
 }
 
+// isPrefixOfKeyEnd reports whether h has the same content as its counterpart
+// half of k up to position h.len.
+//
+// If strict, returns false if h == <k half>.
+func (h halfkey) isPrefixOfKeyEnd(k key, strict bool) bool {
+	kHalf := k.content.hi
+	len64 := h.len
+	if h.len > 64 {
+		kHalf = k.content.lo
+		len64 -= 64
+	}
+	if h.len <= k.len && h.content == bitsClearedFrom(kHalf, len64) {
+		return !(strict && h.content == kHalf && h.len == k.len)
+	}
+	return false
+}
+
 // isZero reports whether h is the zero halfkey.
 func (h halfkey) isZero() bool {
-	// Bits beyond len are always ignored, so if s.len == zero, then this
+	// Bits beyond len are always ignored, so if h.len == zero, then this
 	// halfkey effectively contains no bits.
 	return h.len == 0
 }

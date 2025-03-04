@@ -11,8 +11,8 @@ func TestHalfkeyString(t *testing.T) {
 		k    halfkey
 		want string
 	}{
-		{hk(uint64(0), 0, 0), "0,0"},
-		{hk(uint64(0), 0, 1), "0,1"},
+		{hk(uint64(0), 0, 0), "0,0-0"},
+		{hk(uint64(0), 0, 1), "0,0-1"},
 		//{hk(uint128{0, 0}, 0, 64), "0,64"},
 		//{hk(uint128{1, 0}, 0, 64), "1,64"},
 		//{hk(uint128{256, 0}, 0, 56), "1,56"},

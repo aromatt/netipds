@@ -83,7 +83,6 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 
 // Encompasses returns true if this map includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
-/* HACK
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	return m.tree.encompasses(keyFromPrefix(p), false)
 }
@@ -95,6 +94,7 @@ func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	return m.tree.encompasses(keyFromPrefix(p), true)
 }
 
+/* HACK
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 	return m.tree.overlapsKey(keyFromPrefix(p))

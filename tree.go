@@ -730,16 +730,16 @@ func (t *tree[T]) contains(k key) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
-/* HACK
-func (t *tree[T]) encompasses(k halfkey, strict bool) (ret bool) {
+func (t *tree[T]) encompasses(k key, strict bool) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.hasEntry && n.halfkey.isPrefixOf(k, strict); ret {
+		if ret = n.hasEntry && n.halfkey.isPrefixOfKeyEnd(k, strict); ret {
 			break
 		}
 	}
 	return
 }
 
+/* HACK
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
 func (t *tree[T]) rootOf(k halfkey, strict bool) (outKey halfkey, val T, ok bool) {

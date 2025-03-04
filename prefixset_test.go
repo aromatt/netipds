@@ -33,7 +33,6 @@ func TestPrefixSetAddContains(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetEncompasses(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -91,6 +90,7 @@ func TestPrefixSetEncompassesStrict(t *testing.T) {
 	}
 }
 
+/* HACK
 func TestPrefixSetRootOf(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix
