@@ -11,13 +11,9 @@ import (
 // Prefixes.
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
-//
-// If Lazy == true, then path compression is delayed until a PrefixSet is
-// created. The builder itself remains uncompressed. Lazy mode can dramatically
-// improve performance when building large PrefixSets.
 type PrefixSetBuilder struct {
-	Lazy bool
-	tree tree[bool]
+	tree  tree[bool]
+	tree4 tree4[bool]
 }
 
 // Add adds p to s.
@@ -25,8 +21,8 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	if s.Lazy {
-		s.tree = *(s.tree.insertLazy(keyFromPrefix(p), true))
+	if p.Addr().Is4() {
+		s.tree4 = *(s.tree4.insert(key4FromPrefix(p), true))
 	} else {
 		s.tree = *(s.tree.insert(keyFromPrefix(p), true))
 	}
@@ -43,13 +39,18 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.remove(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		s.tree4.remove(key4FromPrefix(p))
+	} else {
+		s.tree.remove(keyFromPrefix(p))
+	}
 	return nil
 }
 
 // Filter removes all Prefixes that are not encompassed by o from s.
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree.filter(&o.tree)
+	s.tree4.filter(&o.tree4)
 }
 
 // SubtractPrefix modifies s so that p and all of its descendants are removed,
@@ -62,7 +63,11 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	s.tree.subtractKey(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		s.tree4.subtractKey(key4FromPrefix(p))
+	} else {
+		s.tree.subtractKey(keyFromPrefix(p))
+	}
 	return nil
 }
 
@@ -74,6 +79,7 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
+	s.tree4 = *s.tree4.subtractTree(&o.tree4)
 	s.tree = *s.tree.subtractTree(&o.tree)
 }
 
@@ -81,12 +87,14 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 // in s and o: to be included in the result, a Prefix must either (a) exist in
 // both sets or (b) exist in one set and have an ancestor in the other.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
+	s.tree4 = *s.tree4.intersectTree(&o.tree4)
 	s.tree = *s.tree.intersectTree(&o.tree)
 }
 
 // Merge modifies s so that it contains the union of the entries in s and o.
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 	s.tree = *s.tree.mergeTree(&o.tree)
+	s.tree4 = *s.tree4.mergeTree(&o.tree4)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
@@ -94,15 +102,16 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	t := s.tree.copy()
-	if s.Lazy && t != nil {
-		t = t.compress()
-	}
-	return &PrefixSet{*t, t.size()}
+	t4 := s.tree4.copy()
+	return &PrefixSet{*t, *t4, t.size()}
 }
 
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSetBuilder) String() string {
-	return s.tree.stringImpl("", "", true)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", true),
+		s.tree.stringImpl("", "", true),
+	)
 }
 
 // PrefixSet is a set of [netip.Prefix] values. It is implemented as a binary
@@ -115,28 +124,43 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree tree[bool]
-	size int
+	tree  tree[bool]
+	tree4 tree4[bool]
+	size  int
 }
 
 // Contains returns true if this set includes the exact Prefix provided.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
-	return s.tree.contains(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		return s.tree4.contains(key4FromPrefix(p))
+	} else {
+		return s.tree.contains(keyFromPrefix(p))
+	}
+
 }
 
 // Encompasses returns true if this set includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
-	return s.tree.encompasses(keyFromPrefix(p), false)
+	if p.Addr().Is4() {
+		return s.tree4.encompasses(key4FromPrefix(p), false)
+	} else {
+		return s.tree.encompasses(keyFromPrefix(p), false)
+	}
 }
 
 // EncompassesStrict returns true if this set includes a Prefix which
 // completely encompasses p. The encompassing Prefix must be an ancestor of p,
 // not p itself.
 func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
-	return s.tree.encompasses(keyFromPrefix(p), true)
+	if p.Addr().Is4() {
+		return s.tree4.encompasses(key4FromPrefix(p), true)
+	} else {
+		return s.tree.encompasses(keyFromPrefix(p), true)
+	}
 }
 
+/* HACK
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	return s.tree.overlapsKey(keyFromPrefix(p))
@@ -193,7 +217,8 @@ func (s *PrefixSet) ParentOfStrict(p netip.Prefix) (netip.Prefix, bool) {
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 	t := s.tree.descendantsOf(keyFromPrefix(p), false)
-	return &PrefixSet{*t, t.size()}
+	t4 := s.tree4.descendantsOf(key4FromPrefix(p), false)
+	return &PrefixSet{*t, *t4, t.size()}
 }
 
 // DescendantsOfStrict returns a PrefixSet containing all descendants of p in
@@ -247,10 +272,14 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	})
 	return res
 }
+*/
 
-// String returns a human-readable representation of the s's tree structure.
+// String returns a human-readable representation of s's tree structure.
 func (s *PrefixSet) String() string {
-	return s.tree.stringImpl("", "", true)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.stringImpl("", "", true),
+		s.tree.stringImpl("", "", true),
+	)
 }
 
 // Size returns the number of elements in s.
