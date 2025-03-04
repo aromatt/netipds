@@ -5,7 +5,7 @@
 
 This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
-family by adding two immutable, tree-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
+family by adding two immutable, trie-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
 * `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data with network hierarchy awareness
 * `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways (unions, intersections, etc)
 
@@ -14,7 +14,7 @@ which enables a rich set of efficient queries about prefix containment, hierarch
 and overlap.
 
 ### Goals
-* **Efficiency.** This package aims to provide fast, immutable collection types for IP networks.
+* **Efficiency.** This package aims to provide fast, immutable collection types for IP networks. According to the benchmarks at [iprbench](https://github.com/gaissmai/iprbench), it is one of the fastest and most memory-efficient packages among its peers.
 * **Integration with `net/netip`.** This package is built on the shoulders of `net/netip`, leveraging its types and lessons both under the hood and at interfaces. See this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the history and benefits of `net/netip`.
 * **Completeness.** Most other IP radix tree libraries lack several of the queries provided by `netipds`.
 
@@ -100,3 +100,8 @@ types, and offers additional set operations.
 ### Additional Packages
 See [gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more libraries and
 benchmarks comparing them.
+
+## Pre-1.0 Breaking Changes
+The following versions have breaking API changes:
+* v0.1.9: Removed `Strict` methods, removed `PrefixMapBuilder.Get`, moved `String`
+  methods behind build tag and renamed them, removed `Lazy` mode

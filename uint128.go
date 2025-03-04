@@ -1,8 +1,8 @@
-// Copied with modifications into netipds from net/netip
-
 // Copyright 2020 The Inet.Af AUTHORS. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Copied with modifications into netipds from net/netip
 
 package netipds
 
@@ -65,16 +65,16 @@ func u64CommonPrefixLen(a, b uint64) uint8 {
 	return uint8(bits.LeadingZeros64(a ^ b))
 }
 
+func u32CommonPrefixLen(a, b uint32) uint8 {
+	return uint8(bits.LeadingZeros32(a ^ b))
+}
+
 func (u uint128) commonPrefixLen(v uint128) (n uint8) {
 	if n = u64CommonPrefixLen(u.hi, v.hi); n == 64 {
 		n += u64CommonPrefixLen(u.lo, v.lo)
 	}
 	return
 }
-
-// func (u *uint128) halves() [2]*uint64 {
-// 	return [2]*uint64{&u.hi, &u.lo}
-// }
 
 // bitsSetFrom returns a copy of u with the given bit
 // and all subsequent ones set.
@@ -116,13 +116,4 @@ func (u uint128) shiftLeft(n uint8) uint128 {
 	default:
 		return uint128{}
 	}
-}
-
-// isBitSet returns true if the bit at the given position is set.
-// If bit > 127, returns false.
-func (u uint128) isBitSet(bit uint8) uint8 {
-	if bit < 64 {
-		return uint8((u.hi >> (63 - bit)) & 1)
-	}
-	return uint8((u.lo >> (127 - bit)) & 1)
 }
