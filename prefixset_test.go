@@ -11,29 +11,29 @@ func TestPrefixSetAddContains(t *testing.T) {
 		get  netip.Prefix
 		want bool
 	}{
-		//{pfxs(), pfx("::0/128"), false},
-		//{pfxs("::0/128"), pfx("::0/128"), true},
-		//{pfxs("::0/128"), pfx("::1/128"), false},
-		//{pfxs("::0/128"), pfx("::0/127"), false},
-		//{pfxs("::0/127"), pfx("::0/128"), false},
-		//{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
-		//{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
-		//// 1.2.3.4/32 is encompassed, but not contained
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
-		//{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
+		{pfxs(), pfx("::0/128"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128"), pfx("::0/127"), false},
+		{pfxs("::0/127"), pfx("::0/128"), false},
+		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
+		// encompassed, but not contained
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
+		// exercises tree.newParent
 		{
 			pfxs("128.0.0.0/32", "64.0.0.0/32", "32.0.0.0/32", "16.0.0.0/32"),
-			pfx("0.0.0.0/32"),
-			false,
+			pfx("16.0.0.0/32"),
+			true,
 		},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
 			psb.Add(p)
-			println(psb.String())
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Contains(tt.get); got != tt.want {

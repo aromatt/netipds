@@ -25,20 +25,16 @@ type halfkey struct {
 	len     uint8
 }
 
-func bitsClearedFrom(u uint64, bit uint8) uint64 {
-	// TODO
-	if bit > 64 {
-		bit -= 64
-	}
+func bitsClearedFrom64(u uint64, bit uint8) uint64 {
 	return u & mask64[bit]
 }
 
 func newHalfkey(content uint64, offset uint8, len uint8) halfkey {
 	len64 := len
-	if len64 > 64 {
+	if len > 64 {
 		len64 -= 64
 	}
-	return halfkey{bitsClearedFrom(content, len64), offset, len}
+	return halfkey{bitsClearedFrom64(content, len64), offset, len}
 }
 
 // rooted returns a copy of h with offset set to 0
@@ -46,14 +42,26 @@ func (h halfkey) rooted() halfkey {
 	return halfkey{h.content, 0, h.len}
 }
 
+func (h halfkey) len64() uint8 {
+	if h.len > 64 {
+		return h.len - 64
+	}
+	return h.len
+}
+
+func (h halfkey) offset64() uint8 {
+	if h.offset >= 64 {
+		return h.offset - 64
+	}
+	return h.offset
+}
+
 // String prints the halfkey's content in hex, followed by ",<offset>-<len>".
 // The least significant bit in the output is the bit at position (h.len - 1).
 // Leading zeros are omitted.
 func (h halfkey) String() string {
 	var content string
-	// TODO remove
-	//just := k.content.shiftRight(128 - k.len)
-	just := h.content >> (64 - h.len)
+	just := h.content >> (64 - h.len64())
 	if just == 0 {
 		content = "0"
 	} else {
@@ -94,7 +102,7 @@ func (h *halfkey) Parse(str string) error {
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (h halfkey) StringRel() string {
 	var content string
-	just := (h.content << h.offset) >> (64 - h.len + h.offset)
+	just := (h.content << h.offset64()) >> (64 - h.len64() + h.offset64())
 	if just == 0 {
 		content = "0"
 	} else {
@@ -124,6 +132,9 @@ func isBitSet(u uint64, bit uint8) uint8 {
 }
 
 func (h halfkey) bit(i uint8) bit {
+	if i >= 64 {
+		i -= 64
+	}
 	return bit(h.content >> (63 - i) & 1)
 }
 
@@ -183,7 +194,7 @@ func (h halfkey) keyHalfCommonPrefixLen(k key) (n uint8) {
 //
 // If strict, returns false if h == o.
 func (h halfkey) isPrefixOf(o halfkey, strict bool) bool {
-	if h.len <= o.len && h.content == bitsClearedFrom(o.content, h.len) {
+	if h.len <= o.len && h.content == bitsClearedFrom64(o.content, h.len64()) {
 		return !(strict && h.equalFromRoot(o))
 	}
 	return false
@@ -198,12 +209,10 @@ func (h halfkey) isPrefixOfKeyEnd(k key, strict bool) bool {
 		return false
 	}
 	kHalf := k.content.hi
-	len64 := h.len
 	if h.len > 64 {
 		kHalf = k.content.lo
-		len64 -= 64
 	}
-	if h.content == bitsClearedFrom(kHalf, len64) {
+	if h.content == bitsClearedFrom64(kHalf, h.len64()) {
 		return !(strict && h.content == kHalf && h.len == k.len)
 	}
 	return false

@@ -8,7 +8,7 @@ import (
 //
 // The tree is partitioned depth-wise into halves: "hi" (most-significant 64
 // bits) and "lo" (least-significant 64 bits). Each node owns a "halfkey" which
-// is aligned at offset 0 or 64 in the full key space.
+// is aligned at offset 0 or 64 of the full 128-bit key space.
 type tree[T any] struct {
 	halfkey  halfkey
 	hasEntry bool
@@ -391,9 +391,9 @@ func (t *tree[T]) isEmpty() bool {
 	return t.halfkey.isZero() && t.left == nil && t.right == nil
 }
 
-// newParent returns a new node to own k whose sole child is t (via a bridge
-// node, if necessary). The new parent takes over ownership of t's first bits
-// through k.len, and t.offset is modified accordingly.
+// newParent creates and returns a new parent for t. The new node will have halfkey h
+// and a sole child, t. The new parent takes over ownership of t's first bits
+// through h.len; t.offset is modified accordingly.
 func (t *tree[T]) newParent(h halfkey) *tree[T] {
 	if (t.halfkey.len <= 64) != (h.len <= 64) {
 		panic("t.halfkey and h are in different partitions")
