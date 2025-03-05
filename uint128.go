@@ -65,6 +65,10 @@ func u64CommonPrefixLen(a, b uint64) uint8 {
 	return uint8(bits.LeadingZeros64(a ^ b))
 }
 
+func u32CommonPrefixLen(a, b uint32) uint8 {
+	return uint8(bits.LeadingZeros32(a ^ b))
+}
+
 func (u uint128) commonPrefixLen(v uint128) (n uint8) {
 	if n = u64CommonPrefixLen(u.hi, v.hi); n == 64 {
 		n += u64CommonPrefixLen(u.lo, v.lo)

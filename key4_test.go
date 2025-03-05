@@ -5,12 +5,14 @@ import (
 	"testing"
 )
 
+var k4 = newKey4
+
 func TestKey4FromPrefix(t *testing.T) {
 	tests := []struct {
 		p    netip.Prefix
 		want key4
 	}{
-		{pfx("1.2.3.0/24"), k4(uint64(0x01020300<<32), 0, 24)},
+		{pfx("1.2.3.0/24"), k4(uint32(0x01020300), 0, 24)},
 		// TODO add more
 	}
 	for _, tt := range tests {

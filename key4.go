@@ -17,17 +17,21 @@ import (
 // The content field should not have any bits set beyond len. newKey enforces
 // this.
 type key4 struct {
-	content uint64
+	content uint32
 	offset  uint8
 	len     uint8
 }
 
-func bitsClearedFrom(u uint64, bit uint8) uint64 {
+func bitsClearedFrom64(u uint64, bit uint8) uint64 {
 	return u & mask64[bit]
 }
 
-func newKey4(content uint64, offset uint8, len uint8) key4 {
-	return key4{bitsClearedFrom(content, len), offset, len}
+func bitsClearedFrom32(u uint32, bit uint8) uint32 {
+	return u >> (32 - bit) << (32 - bit)
+}
+
+func newKey4(content uint32, offset uint8, len uint8) key4 {
+	return key4{bitsClearedFrom32(content, len), offset, len}
 }
 
 // rooted returns a copy of h with offset set to 0
@@ -39,9 +43,13 @@ func u64From4(a [4]byte) uint64 {
 	return uint64(a[0])<<56 | uint64(a[1])<<48 | uint64(a[2])<<40 | uint64(a[3])<<32
 }
 
+func u32From4(a [4]byte) uint32 {
+	return uint32(a[0])<<24 | uint32(a[1])<<16 | uint32(a[2])<<8 | uint32(a[3])
+}
+
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key4 {
-	return newKey4(u64From4(p.Addr().As4()), 0, uint8(p.Bits()))
+	return newKey4(u32From4(p.Addr().As4()), 0, uint8(p.Bits()))
 }
 
 // String prints the key4's content in hex, followed by ",<offset>-<len>".
@@ -75,7 +83,7 @@ func (h *key4) Parse(str string) error {
 		return fmt.Errorf("failed to parse key4 '%s': %w", h, err)
 	}
 
-	lo := uint64(0)
+	lo := uint32(0)
 	loStart := 0
 	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &lo); err != nil {
 		return fmt.Errorf("failed to parse key4: '%s', %w", h, err)
@@ -118,12 +126,16 @@ func (h key4) rest(i uint8) key4 {
 }
 
 // TODO remove?
-func isBitSet(u uint64, bit uint8) uint8 {
+func isBitSet64(u uint64, bit uint8) uint8 {
 	return uint8(u >> (63 - bit) & 1)
 }
 
+func isBitSet32(u uint32, bit uint8) uint8 {
+	return uint8(u >> (31 - bit) & 1)
+}
+
 func (h key4) bit(i uint8) bit {
-	return bit(h.content >> (63 - i) & 1)
+	return bit(isBitSet32(h.content, i))
 }
 
 // equalFromRoot reports whether h and o have the same content and len (offsets
@@ -136,27 +148,27 @@ func (h key4) equalFromRoot(o key4) bool {
 // (offsets are ignored).
 //
 // Note: only keys with len <= 64 can be equal to a key4.
-func (h key4) keyEqualFromRoot(k key) bool {
-	return h.len == k.len && h.content == k.content.hi
-}
+//func (h key4) keyEqualFromRoot(k key) bool {
+//	return h.len == k.len && h.content == k.content.hi
+//}
 
 // keyEndEqualFromRoot returns true if h and k have equal len, end in the same
 // partition, equal content in the corresponding half of k.
 // TODO does this obviate keyEqualFromRoot?
-func (h key4) keyEndEqualFromRoot(k key) bool {
-	if h.len != k.len {
-		return false
-	}
-	if h.len <= 64 {
-		return h.content == k.content.hi
-	}
-	return h.content == k.content.lo
-}
+//func (h key4) keyEndEqualFromRoot(k key) bool {
+//	if h.len != k.len {
+//		return false
+//	}
+//	if h.len <= 64 {
+//		return h.content == k.content.hi
+//	}
+//	return h.content == k.content.lo
+//}
 
 // commonPrefixLen returns the length of the common prefix between h and o,
 // truncated to the length of the shorter of the two.
 func (h key4) commonPrefixLen(o key4) (n uint8) {
-	return min(min(o.len, h.len), u64CommonPrefixLen(h.content, o.content))
+	return min(min(o.len, h.len), u32CommonPrefixLen(h.content, o.content))
 }
 
 // keyHalfCommonPrefixLen compares h with the half of k in which h resides, and
@@ -182,7 +194,7 @@ func (h key4) commonPrefixLen(o key4) (n uint8) {
 //
 // If strict, returns false if h == o.
 func (h key4) isPrefixOf(o key4, strict bool) bool {
-	if h.len <= o.len && h.content == bitsClearedFrom(o.content, h.len) {
+	if h.len <= o.len && h.content == bitsClearedFrom32(o.content, h.len) {
 		return !(strict && h.equalFromRoot(o))
 	}
 	return false
@@ -192,21 +204,21 @@ func (h key4) isPrefixOf(o key4, strict bool) bool {
 // half of k up to position h.len.
 //
 // If strict, returns false if h == <k half>.
-func (h key4) isPrefixOfKeyEnd(k key, strict bool) bool {
-	if h.len > k.len {
-		return false
-	}
-	kHalf := k.content.hi
-	len64 := h.len
-	if h.len > 64 {
-		kHalf = k.content.lo
-		len64 -= 64
-	}
-	if h.content == bitsClearedFrom(kHalf, len64) {
-		return !(strict && h.content == kHalf && h.len == k.len)
-	}
-	return false
-}
+//func (h key4) isPrefixOfKeyEnd(k key, strict bool) bool {
+//	if h.len > k.len {
+//		return false
+//	}
+//	kHalf := k.content.hi
+//	len64 := h.len
+//	if h.len > 64 {
+//		kHalf = k.content.lo
+//		len64 -= 64
+//	}
+//	if h.content == bitsClearedFrom(kHalf, len64) {
+//		return !(strict && h.content == kHalf && h.len == k.len)
+//	}
+//	return false
+//}
 
 // isZero reports whether h is the zero key4.
 func (h key4) isZero() bool {
@@ -229,7 +241,7 @@ func (h key4) next(b bit) (ret key4) {
 		ret = key4{
 			// TODO remove
 			//content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
-			content: h.content | (uint64(1) << (64 - h.len - 1)),
+			content: h.content | (uint32(1) << (32 - h.len - 1)),
 			offset:  h.len,
 			len:     h.len + 1,
 		}
