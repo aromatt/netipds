@@ -6,16 +6,16 @@ import (
 )
 
 // halfkey stores up to 64 bits, which represent up to half of a 128-bit key in
-// a partitioned prefix tree. The content field is left-aligned at either bit 0
-// or 64.
+// a partitioned prefix tree.
 //
-// The halfkey's bits are stored in the content field, which is left-aligned at
-// either bit 0 or 64, between offset and len (counting from most-significant
-// toward least-significant).
+// The halfkey's bits are stored in the content field. The content field is
+// always aligned at bit 0 (the "hi" partition) or bit 64 (the "lo" partition).
+// The offset and len fields imply in which partition the halfkey resides.
 //
-// The offset and len fields specify which range of bits within the full
-// 128-bit key are owned by the halfkey. The offset and len must both be in the
-// range [0, 63] or [64, 127].
+// The offset and len fields also specify which range of bits within the full
+// 128-bit key are owned by the halfkey.
+//
+// The offset and len must both be in the range [0, 63] or [64, 127].
 //
 // The content field should not have any bits set beyond len (or len - 64, if
 // len > 64). newHalfkey enforces this.
@@ -87,9 +87,8 @@ func (h *halfkey) Parse(str string) error {
 	return nil
 }
 
-// StringRel prints the portion of h.content from offset to len, as hex,
-// followed by ",<len>-<offset>". The least significant bit in the output is
-// the bit at position (h.len - 1). Leading zeros are omitted.
+// StringRel prints the portion of h.content from h.offset to h.len, as hex,
+// followed by ",<len>-<offset>". Leading zeros are omitted.
 //
 // This representation is lossy in that it hides the first h.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.

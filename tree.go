@@ -233,7 +233,9 @@ func (t *tree[T]) insert(k key, v T) *tree[T] {
 		// TODO: What about this?
 		//   t: 0000
 		//   k: 0000 1
-		if child, ok := t.childOrCreate(k.rest(t.halfkey.len)); ok {
+		kRest := k.rest(t.halfkey.len)
+		//if child, ok := t.childOrCreate(k.rest(t.halfkey.len)); ok {
+		if child, ok := t.childOrCreate(kRest); ok {
 			*child = (*child).insert(k, v)
 		} else {
 			(*child).setValue(v)
