@@ -12,8 +12,8 @@ import (
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree  tree[bool]
-	tree4 tree4[bool]
+	tree  tree[bool, key6]
+	tree4 tree[bool, key4]
 }
 
 // Add adds p to s.
@@ -24,7 +24,7 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4 = *(s.tree4.insert(key4FromPrefix(p), true))
 	} else {
-		s.tree = *(s.tree.insert(keyFromPrefix(p), true))
+		s.tree = *(s.tree.insert(key6FromPrefix(p), true))
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4.remove(key4FromPrefix(p))
 	} else {
-		s.tree.remove(keyFromPrefix(p))
+		s.tree.remove(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4.subtractKey(key4FromPrefix(p))
 	} else {
-		s.tree.subtractKey(keyFromPrefix(p))
+		s.tree.subtractKey(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -124,8 +124,8 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree  tree[bool]
-	tree4 tree4[bool]
+	tree  tree[bool, key6]
+	tree4 tree[bool, key4]
 	size  int
 	size4 int
 }
@@ -135,7 +135,7 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.contains(key4FromPrefix(p))
 	} else {
-		return s.tree.contains(keyFromPrefix(p))
+		return s.tree.contains(key6FromPrefix(p))
 	}
 
 }
@@ -146,7 +146,7 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.encompasses(key4FromPrefix(p), false)
 	} else {
-		return s.tree.encompasses(keyFromPrefix(p), false)
+		return s.tree.encompasses(key6FromPrefix(p), false)
 	}
 }
 
@@ -157,7 +157,7 @@ func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.encompasses(key4FromPrefix(p), true)
 	} else {
-		return s.tree.encompasses(keyFromPrefix(p), true)
+		return s.tree.encompasses(key6FromPrefix(p), true)
 	}
 }
 
