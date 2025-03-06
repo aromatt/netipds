@@ -68,7 +68,7 @@ func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.copy()
 	t4 := m.tree4.copy()
-	return &PrefixMap[T]{*t, *t4, t.size()}
+	return &PrefixMap[T]{*t, *t4, t.size(), t4.size()}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
@@ -86,6 +86,7 @@ type PrefixMap[T any] struct {
 	tree  tree[T]
 	tree4 tree4[T]
 	size  int
+	size4 int
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
@@ -238,5 +239,5 @@ func (s *PrefixMap[T]) String() string {
 
 // Size returns the number of entries in m.
 func (m *PrefixMap[T]) Size() int {
-	return m.size
+	return m.size + m.size4
 }

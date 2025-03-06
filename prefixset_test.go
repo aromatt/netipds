@@ -20,10 +20,17 @@ func TestPrefixSetAddContains(t *testing.T) {
 		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
+
 		// 1.2.3.4/32 is encompassed, but not contained
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 		{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{pfxs("1.2.3.4/32"), pfx("::ffff:1.2.3.4/128"), false},
+		{pfxs("1.2.3.4/32"), pfx("1.2.3.4/32"), true},
+		{pfxs("::ffff:1.2.3.4/128"), pfx("1.2.3.4/32"), false},
+		{pfxs("::ffff:1.2.3.4/128"), pfx("::ffff:1.2.3.4/128"), true},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
@@ -907,7 +914,10 @@ func TestPrefixSetSize(t *testing.T) {
 		{pfxs("::0/128", "8000::/1"), 2},
 		{pfxs("::0/127", "::0/128"), 2},
 		{pfxs("::0/126", "::0/127"), 2},
-		{pfxs("0::0/127", "::0/128", "::1/128"), 3},
+		{pfxs("::0/127", "::0/128", "::1/128"), 3},
+		{pfxs("::0/128", "1.2.3.4/32"), 2},
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{pfxs("1.2.3.4/32", "::ffff:1.2.3.4/128"), 2},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}

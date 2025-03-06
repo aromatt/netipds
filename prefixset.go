@@ -103,7 +103,7 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	t := s.tree.copy()
 	t4 := s.tree4.copy()
-	return &PrefixSet{*t, *t4, t.size()}
+	return &PrefixSet{*t, *t4, t.size(), t4.size()}
 }
 
 // String returns a human-readable representation of s's tree structure.
@@ -127,6 +127,7 @@ type PrefixSet struct {
 	tree  tree[bool]
 	tree4 tree4[bool]
 	size  int
+	size4 int
 }
 
 // Contains returns true if this set includes the exact Prefix provided.
@@ -284,5 +285,5 @@ func (s *PrefixSet) String() string {
 
 // Size returns the number of elements in s.
 func (s *PrefixSet) Size() int {
-	return s.size
+	return s.size + s.size4
 }
