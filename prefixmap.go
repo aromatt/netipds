@@ -13,8 +13,8 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree  tree[T]
-	tree4 tree4[T]
+	tree  tree[T, key6]
+	tree4 tree[T, key4]
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
@@ -22,7 +22,7 @@ func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p))
 	} else {
-		return m.tree.get(keyFromPrefix(p))
+		return m.tree.get(key6FromPrefix(p))
 	}
 }
 
@@ -34,7 +34,7 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if p.Addr().Is4() {
 		m.tree4 = *(m.tree4.insert(key4FromPrefix(p), v))
 	} else {
-		m.tree = *(m.tree.insert(keyFromPrefix(p), v))
+		m.tree = *(m.tree.insert(key6FromPrefix(p), v))
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		m.tree4.remove(key4FromPrefix(p))
 	} else {
-		m.tree.remove(keyFromPrefix(p))
+		m.tree.remove(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -83,8 +83,8 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree  tree[T]
-	tree4 tree4[T]
+	tree  tree[T, key6]
+	tree4 tree[T, key4]
 	size  int
 	size4 int
 }
@@ -94,7 +94,7 @@ func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p))
 	} else {
-		return m.tree.get(keyFromPrefix(p))
+		return m.tree.get(key6FromPrefix(p))
 	}
 }
 
@@ -103,7 +103,7 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.contains(key4FromPrefix(p))
 	} else {
-		return m.tree.contains(keyFromPrefix(p))
+		return m.tree.contains(key6FromPrefix(p))
 	}
 }
 
@@ -113,7 +113,7 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.encompasses(key4FromPrefix(p), false)
 	} else {
-		return m.tree.encompasses(keyFromPrefix(p), false)
+		return m.tree.encompasses(key6FromPrefix(p), false)
 	}
 }
 
@@ -124,7 +124,7 @@ func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.encompasses(key4FromPrefix(p), true)
 	} else {
-		return m.tree.encompasses(keyFromPrefix(p), true)
+		return m.tree.encompasses(key6FromPrefix(p), true)
 	}
 }
 
@@ -184,7 +184,7 @@ func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walk(key{}, func(n *tree[T]) bool {
+	m.tree.walk(key{}, func(n *tree[T, K]) bool {
 		if n.hasEntry {
 			res[n.key.toPrefix()] = n.value
 		}

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var k4 = newKey4
+var k4 = NewKey4
 
 func TestKey4FromPrefix(t *testing.T) {
 	tests := []struct {
@@ -34,7 +34,7 @@ func TestKey4Bit(t *testing.T) {
 		{pfx("0.0.0.1/32"), 31, bitR},
 	}
 	for _, tt := range tests {
-		if got := key4FromPrefix(tt.p).bit(tt.bit); got != tt.want {
+		if got := key4FromPrefix(tt.p).Bit(tt.bit); got != tt.want {
 			t.Errorf("key4FromPrefix(%v).bit(%v) = %q, want %q", tt.p, tt.bit, got, tt.want)
 		}
 	}

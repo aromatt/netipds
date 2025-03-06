@@ -6,50 +6,51 @@ import (
 	"strings"
 )
 
-// key4 stores the string of bits which represent the full path to a node in a
-// prefix tree. The maximum length is 64 bits. These bits are stored in the
-// most-significant bits of the content field.
-//
-// offset stores the starting position of the key segment owned by the node.
-//
-// len measures the full length of the key starting from bit 0.
-//
-// The content field should not have any bits set beyond len. newKey enforces
-// this.
+// key4 is an implementation of Key for 32-bit keys (IPv4).
 type key4 struct {
 	content uint32
 	offset  uint8
 	len     uint8
 }
 
-func bitsClearedFrom64(u uint64, bit uint8) uint64 {
-	return u & mask64[bit]
+func (k key4) Offset() uint8 {
+	return k.offset
+}
+
+func (k key4) Len() uint8 {
+	return k.len
+}
+
+func (k key4) WithOffset(o uint8) key4 {
+	return key4{k.content, o, k.len}
 }
 
 func bitsClearedFrom32(u uint32, bit uint8) uint32 {
 	return u >> (32 - bit) << (32 - bit)
 }
 
-func newKey4(content uint32, offset uint8, len uint8) key4 {
+func NewKey4(content uint32, offset uint8, len uint8) key4 {
 	return key4{bitsClearedFrom32(content, len), offset, len}
 }
 
-// rooted returns a copy of h with offset set to 0
-func (h key4) rooted() key4 {
+// Rooted returns a copy of h with offset set to 0
+func (h key4) Rooted() key4 {
 	return key4{h.content, 0, h.len}
 }
 
-func u64From4(a [4]byte) uint64 {
-	return uint64(a[0])<<56 | uint64(a[1])<<48 | uint64(a[2])<<40 | uint64(a[3])<<32
-}
-
-func u32From4(a [4]byte) uint32 {
-	return uint32(a[0])<<24 | uint32(a[1])<<16 | uint32(a[2])<<8 | uint32(a[3])
-}
+// ToPrefix returns the Prefix represented by k.
+//func (k key4) ToPrefix() netip.Prefix {
+//	var a4 [4]byte
+//	bePutUint32(a4[:], k.content)
+//	addr := netip.AddrFrom4(a4)
+//	bits := int(k.len)
+//	return netip.PrefixFrom(addr.Unmap(), bits)
+//}
 
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key4 {
-	return newKey4(u32From4(p.Addr().As4()), 0, uint8(p.Bits()))
+	a4 := p.Addr().As4()
+	return NewKey4(beUint32(a4[:]), 0, uint8(p.Bits()))
 }
 
 // String prints the key4's content in hex, followed by ",<offset>-<len>".
@@ -58,8 +59,7 @@ func key4FromPrefix(p netip.Prefix) key4 {
 func (h key4) String() string {
 	var content string
 	// TODO remove
-	//just := k.content.shiftRight(128 - k.len)
-	just := h.content >> (64 - h.len)
+	just := h.content >> (32 - h.len)
 	if just == 0 {
 		content = "0"
 	} else {
@@ -83,12 +83,12 @@ func (h *key4) Parse(str string) error {
 		return fmt.Errorf("failed to parse key4 '%s': %w", h, err)
 	}
 
-	lo := uint32(0)
+	u32 := uint32(0)
 	loStart := 0
-	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &lo); err != nil {
+	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &u32); err != nil {
 		return fmt.Errorf("failed to parse key4: '%s', %w", h, err)
 	}
-	h.content = lo << (64 - h.len)
+	h.content = u32 << (32 - h.len)
 	h.offset = 0
 	return nil
 }
@@ -101,7 +101,7 @@ func (h *key4) Parse(str string) error {
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (h key4) StringRel() string {
 	var content string
-	just := (h.content << h.offset) >> (64 - h.len + h.offset)
+	just := (h.content << h.offset) >> (32 - h.len + h.offset)
 	if just == 0 {
 		content = "0"
 	} else {
@@ -110,118 +110,49 @@ func (h key4) StringRel() string {
 	return fmt.Sprintf("%s,%d-%d", content, h.offset, h.len)
 }
 
-// truncated returns a copy of key4 truncated to n bits.
-func (h key4) truncated(n uint8) key4 {
-	return newKey4(h.content, h.offset, n)
+// Truncated returns a copy of key4 truncated to n bits.
+func (h key4) Truncated(n uint8) key4 {
+	return NewKey4(h.content, h.offset, n)
 }
 
-// rest returns a copy of h starting at position i.
+// Rest returns a copy of h starting at position i.
 //
 // Returns the zero key4 if i > h.len or h.isZero().
-func (h key4) rest(i uint8) key4 {
-	if h.isZero() || i > h.len {
+func (h key4) Rest(i uint8) key4 {
+	if h.IsZero() || i > h.len {
 		return key4{}
 	}
-	return newKey4(h.content, i, h.len)
+	return NewKey4(h.content, i, h.len)
 }
 
-// TODO remove?
-func isBitSet64(u uint64, bit uint8) uint8 {
-	return uint8(u >> (63 - bit) & 1)
+func (h key4) Bit(i uint8) bit {
+	return bit(uint8((h.content >> (31 - i)) & 1))
 }
 
-func isBitSet32(u uint32, bit uint8) uint8 {
-	return uint8(u >> (31 - bit) & 1)
-}
-
-func (h key4) bit(i uint8) bit {
-	return bit(isBitSet32(h.content, i))
-}
-
-// equalFromRoot reports whether h and o have the same content and len (offsets
+// EqualFromRoot reports whether h and o have the same content and len (offsets
 // are ignored).
-func (h key4) equalFromRoot(o key4) bool {
+func (h key4) EqualFromRoot(o key4) bool {
 	return h.len == o.len && h.content == o.content
 }
 
-// keyEqualFromRoot reports whether h and k have the same content and len
-// (offsets are ignored).
-//
-// Note: only keys with len <= 64 can be equal to a key4.
-//func (h key4) keyEqualFromRoot(k key) bool {
-//	return h.len == k.len && h.content == k.content.hi
-//}
-
-// keyEndEqualFromRoot returns true if h and k have equal len, end in the same
-// partition, equal content in the corresponding half of k.
-// TODO does this obviate keyEqualFromRoot?
-//func (h key4) keyEndEqualFromRoot(k key) bool {
-//	if h.len != k.len {
-//		return false
-//	}
-//	if h.len <= 64 {
-//		return h.content == k.content.hi
-//	}
-//	return h.content == k.content.lo
-//}
-
-// commonPrefixLen returns the length of the common prefix between h and o,
+// CommonPrefixLen returns the length of the common prefix between h and o,
 // truncated to the length of the shorter of the two.
-func (h key4) commonPrefixLen(o key4) (n uint8) {
+func (h key4) CommonPrefixLen(o key4) (n uint8) {
 	return min(min(o.len, h.len), u32CommonPrefixLen(h.content, o.content))
 }
 
-// keyHalfCommonPrefixLen compares h with the half of k in which h resides, and
-// returns the length of the common prefix between them, truncated to the
-// length of the shorter of the two.
-//
-// Panics if h is in the lo partition but k is only the hi partition, because
-// we don't expect any caller to use this method in that scenario. TODO
-//func (h key4) keyHalfCommonPrefixLen(k key) (n uint8) {
-//	hiPad := uint8(0)
-//	kHalf := k.content.hi
-//	if h.len > 64 {
-//		if k.len <= 64 {
-//			panic("trying to compare prefix of lo key4 with hi full key")
-//		}
-//		kHalf = k.content.lo
-//		hiPad = 64
-//	}
-//	return min(min(k.len, h.len), u64CommonPrefixLen(h.content, kHalf)+hiPad)
-//}
-
-// isPrefixOf reports whether h has the same content as o up to position h.len.
+// IsPrefixOf reports whether h has the same content as o up to position h.len.
 //
 // If strict, returns false if h == o.
-func (h key4) isPrefixOf(o key4, strict bool) bool {
+func (h key4) IsPrefixOf(o key4, strict bool) bool {
 	if h.len <= o.len && h.content == bitsClearedFrom32(o.content, h.len) {
-		return !(strict && h.equalFromRoot(o))
+		return !(strict && h.EqualFromRoot(o))
 	}
 	return false
 }
 
-// isPrefixOfKeyEnd reports whether h has the same content as its counterpart
-// half of k up to position h.len.
-//
-// If strict, returns false if h == <k half>.
-//func (h key4) isPrefixOfKeyEnd(k key, strict bool) bool {
-//	if h.len > k.len {
-//		return false
-//	}
-//	kHalf := k.content.hi
-//	len64 := h.len
-//	if h.len > 64 {
-//		kHalf = k.content.lo
-//		len64 -= 64
-//	}
-//	if h.content == bitsClearedFrom(kHalf, len64) {
-//		return !(strict && h.content == kHalf && h.len == k.len)
-//	}
-//	return false
-//}
-
 // isZero reports whether h is the zero key4.
-func (h key4) isZero() bool {
+func (h key4) IsZero() bool {
 	// Bits beyond len are always ignored, so if h.len == zero, then this
 	// key4 effectively contains no bits.
 	return h.len == 0
@@ -229,7 +160,7 @@ func (h key4) isZero() bool {
 
 // next returns a one-bit key4 just beyond s, set to 1 if b == bitR.
 // TODO should/does this handle partition-crossing?
-func (h key4) next(b bit) (ret key4) {
+func (h key4) Next(b bit) (ret key4) {
 	switch b {
 	case bitL:
 		ret = key4{
@@ -239,8 +170,6 @@ func (h key4) next(b bit) (ret key4) {
 		}
 	case bitR:
 		ret = key4{
-			// TODO remove
-			//content: k.content.or(uint128{0, 1}.shiftLeft(128 - k.len - 1)),
 			content: h.content | (uint32(1) << (32 - h.len - 1)),
 			offset:  h.len,
 			len:     h.len + 1,
