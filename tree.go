@@ -152,43 +152,6 @@ func (t *tree[T, K]) insert(k K, v T) *tree[T, K] {
 	}
 }
 
-// insertLazy inserts value v at key k without path compression.
-func (t *tree[T, K]) insertLazy(k K, v T) *tree[T, K] {
-	switch {
-	// Inserting at t itself
-	case t.key.EqualFromRoot(k):
-		return t.setValue(v)
-	// Inserting at a descendant
-	case t.key.CommonPrefixLen(k) == t.key.Len():
-		bit := k.Bit(t.key.Len())
-		child := t.child(bit)
-		if *child == nil {
-			*child = newTree[T](t.key.Next(bit))
-		}
-		(*child).insertLazy(k, v)
-		return t
-	// Nothing to do
-	default:
-		return t
-	}
-}
-
-// compress performs path compression on tree t.
-func (t *tree[T, K]) compress() *tree[T, K] {
-	switch {
-	case t.left == nil && t.right == nil:
-		return t
-	case t.left == nil:
-		t.right.key.SetOffset(t.key.Offset())
-		return t.right
-	case t.right == nil:
-		t.left.key.SetOffset(t.key.Offset())
-		return t.left
-	default:
-		return t
-	}
-}
-
 // remove removes the exact provided key from the tree, if it exists, and
 // performs path compression.
 func (t *tree[T, K]) remove(k K) *tree[T, K] {
@@ -204,10 +167,10 @@ func (t *tree[T, K]) remove(k K) *tree[T, K] {
 			return nil
 		// Only one child; merge with it
 		case t.left == nil:
-			t.right.key.SetOffset(t.key.Offset())
+			t.right.key = t.right.key.WithOffset(t.key.Offset())
 			return t.right
 		case t.right == nil:
-			t.left.key.SetOffset(t.key.Offset())
+			t.left.key = t.left.key.WithOffset(t.key.Offset())
 			return t.left
 		// t is a shared prefix node, so it can't be removed
 		default:
@@ -287,7 +250,7 @@ func (t *tree[T, K]) isEmpty() bool {
 
 // newParent returns a new node with key k whose sole child is t.
 func (t *tree[T, K]) newParent(k K) *tree[T, K] {
-	t.key.SetOffset(k.Len())
+	t.key = t.key.WithOffset(k.Len())
 	parent := newTree[T](k).setChild(t)
 	return parent
 }
@@ -328,7 +291,7 @@ func (t *tree[T, K]) mergeTree(o *tree[T, K]) *tree[T, K] {
 		tChildFollow := t.child(o.key.Bit(t.key.Len()))
 		if *tChildFollow == nil {
 			*tChildFollow = o.copy()
-			(*tChildFollow).key.SetOffset(t.key.Len())
+			(*tChildFollow).key = (*tChildFollow).key.WithOffset(t.key.Len())
 		} else {
 			*tChildFollow = (*tChildFollow).mergeTree(o)
 		}

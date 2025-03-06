@@ -21,8 +21,8 @@ func (k key6) Len() uint8 {
 	return k.len
 }
 
-func (k key6) SetOffset(o uint8) {
-	k.offset = o
+func (k key6) WithOffset(o uint8) key6 {
+	return key6{k.content, o, k.len}
 }
 
 func NewKey6(content uint128, offset uint8, len uint8) key6 {
@@ -39,24 +39,25 @@ func key6FromPrefix(p netip.Prefix) key6 {
 	addr := p.Addr()
 	// TODO bits could be -1
 	bits := uint8(p.Bits())
+	// TODO we shouldn't need to do this anymore
 	if addr.Is4() {
 		bits = bits + 96
 	}
 	return NewKey6(u128From16(addr.As16()), 0, bits)
 }
 
-// ToPrefix returns the Prefix represented by k.
-func (k key6) ToPrefix() netip.Prefix {
-	var a16 [16]byte
-	bePutUint64(a16[:8], k.content.hi)
-	bePutUint64(a16[8:], k.content.lo)
-	addr := netip.AddrFrom16(a16)
-	bits := int(k.len)
-	if addr.Is4In6() {
-		bits -= 96
-	}
-	return netip.PrefixFrom(addr.Unmap(), bits)
-}
+//// ToPrefix returns the Prefix represented by k.
+//func (k key6) ToPrefix() netip.Prefix {
+//	var a16 [16]byte
+//	bePutUint64(a16[:8], k.content.hi)
+//	bePutUint64(a16[8:], k.content.lo)
+//	addr := netip.AddrFrom16(a16)
+//	bits := int(k.len)
+//	if addr.Is4In6() {
+//		bits -= 96
+//	}
+//	return netip.PrefixFrom(addr.Unmap(), bits)
+//}
 
 // String prints the key's content in hex, followed by "," + k.len. The least
 // significant bit in the output is the bit at position (k.len - 1). Leading

@@ -21,8 +21,8 @@ func (k key4) Len() uint8 {
 	return k.len
 }
 
-func (k key4) SetOffset(o uint8) {
-	k.offset = o
+func (k key4) WithOffset(o uint8) key4 {
+	return key4{k.content, o, k.len}
 }
 
 func bitsClearedFrom32(u uint32, bit uint8) uint32 {
@@ -39,13 +39,13 @@ func (h key4) Rooted() key4 {
 }
 
 // ToPrefix returns the Prefix represented by k.
-func (k key4) ToPrefix() netip.Prefix {
-	var a4 [4]byte
-	bePutUint32(a4[:], k.content)
-	addr := netip.AddrFrom4(a4)
-	bits := int(k.len)
-	return netip.PrefixFrom(addr.Unmap(), bits)
-}
+//func (k key4) ToPrefix() netip.Prefix {
+//	var a4 [4]byte
+//	bePutUint32(a4[:], k.content)
+//	addr := netip.AddrFrom4(a4)
+//	bits := int(k.len)
+//	return netip.PrefixFrom(addr.Unmap(), bits)
+//}
 
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key4 {
@@ -59,8 +59,7 @@ func key4FromPrefix(p netip.Prefix) key4 {
 func (h key4) String() string {
 	var content string
 	// TODO remove
-	//just := k.content.shiftRight(128 - k.len)
-	just := h.content >> (64 - h.len)
+	just := h.content >> (32 - h.len)
 	if just == 0 {
 		content = "0"
 	} else {
@@ -84,12 +83,12 @@ func (h *key4) Parse(str string) error {
 		return fmt.Errorf("failed to parse key4 '%s': %w", h, err)
 	}
 
-	lo := uint32(0)
+	u32 := uint32(0)
 	loStart := 0
-	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &lo); err != nil {
+	if _, err = fmt.Sscanf(contentStr[loStart:], "%x", &u32); err != nil {
 		return fmt.Errorf("failed to parse key4: '%s', %w", h, err)
 	}
-	h.content = lo << (64 - h.len)
+	h.content = u32 << (32 - h.len)
 	h.offset = 0
 	return nil
 }
@@ -102,7 +101,7 @@ func (h *key4) Parse(str string) error {
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (h key4) StringRel() string {
 	var content string
-	just := (h.content << h.offset) >> (64 - h.len + h.offset)
+	just := (h.content << h.offset) >> (32 - h.len + h.offset)
 	if just == 0 {
 		content = "0"
 	} else {
@@ -127,7 +126,7 @@ func (h key4) Rest(i uint8) key4 {
 }
 
 func (h key4) Bit(i uint8) bit {
-	return bit(uint8(h.content >> (31 - i) & 1))
+	return bit(uint8((h.content >> (31 - i)) & 1))
 }
 
 // EqualFromRoot reports whether h and o have the same content and len (offsets

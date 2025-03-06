@@ -1,8 +1,8 @@
 package netipds
 
-import (
-	"net/netip"
-)
+//import (
+//	"net/netip"
+//)
 
 // Key stores the string of bits which represent the full path to a node in a
 // prefix tree.
@@ -10,7 +10,7 @@ type Key[K any] interface {
 	// Offset returns the starting position of the bit range owned by this key.
 	Offset() uint8
 
-	SetOffset(uint8)
+	WithOffset(uint8) K
 
 	// Len returns the ending position of the bit range owned by this key.
 	Len() uint8
@@ -19,7 +19,7 @@ type Key[K any] interface {
 	Rooted() K
 
 	// ToPrefix returns the Prefix represented by the key.
-	ToPrefix() netip.Prefix
+	//ToPrefix() netip.Prefix
 
 	// String prints the key's content in hex, followed by "," + k.len. The least
 	// significant bit in the output is the bit at position (k.len - 1). Leading

@@ -19,12 +19,19 @@ func TestPrefixSetAddContains(t *testing.T) {
 		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
 		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
-		{pfxs("1.2.3.0/24"), pfx("1.2.4.0/24"), false},
+		{pfxs("1.2.3.0/24"), pfx("9.9.9.0/24"), false},
 
-		// 1.2.3.4/32 is encompassed, but not contained
+		// encompassed, but not contained
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 		{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+
+		// exercises tree.newParent
+		{
+			pfxs("128.0.0.0/32", "64.0.0.0/32", "32.0.0.0/32", "16.0.0.0/32"),
+			pfx("16.0.0.0/32"),
+			true,
+		},
 
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{pfxs("1.2.3.4/32"), pfx("::ffff:1.2.3.4/128"), false},
