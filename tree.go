@@ -491,7 +491,7 @@ func (t *tree[T, K]) walk(path K, fn func(*tree[T, K]) bool) {
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
 func (t *tree[T, K]) pathNext(path K) *tree[T, K] {
-	if path.Bit(t.key.Len()) == bitR {
+	if t.key.PathNext(path) == bitR {
 		return t.right
 	}
 	return t.left

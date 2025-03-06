@@ -219,3 +219,7 @@ func (k key6) Next(b bit) (ret key6) {
 	}
 	return
 }
+
+func (k key6) PathNext(path key6) bit {
+	return path.Bit(k.len)
+}
