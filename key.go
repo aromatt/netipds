@@ -36,7 +36,7 @@ type Key[K any] interface {
 	// returns the zero key.
 	Rest(i uint8) K
 
-	// Bit returns the value (as a `bit`) of the big at the provided offset.
+	// Bit returns the value of the bit at the provided offset.
 	Bit(uint8) bit
 
 	// EqualFromRoot reports whether the key and o have the same content and
@@ -59,4 +59,7 @@ type Key[K any] interface {
 	// Next returns a one-bit key just beyond the key's len, set to 1 if b ==
 	// bitR.
 	Next(b bit) K
+
+	// PathNext returns the value of the bit of path just beyond this key's len.
+	PathNext(path K) bit
 }
