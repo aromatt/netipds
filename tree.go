@@ -11,35 +11,35 @@ import (
 // well with netipds's intended usage pattern (build a collection with a
 // builder type, then generate an immutable version). After lazy insertions,
 // the tree can be compressed using the compress() method.
-type tree[T any, K Key[K]] struct {
-	key      K
+type tree[T any, B KeyBits[B]] struct {
+	key      key[B]
 	hasEntry bool
 	value    T
-	left     *tree[T, K]
-	right    *tree[T, K]
+	left     *tree[T, B]
+	right    *tree[T, B]
 }
 
 // newTree returns a new tree with the provided key.
-func newTree[T any, K Key[K]](k K) *tree[T, K] {
-	return &tree[T, K]{key: k}
+func newTree[T any, B KeyBits[B]](k key[B]) *tree[T, B] {
+	return &tree[T, B]{key: k}
 }
 
 // setValue sets t's value to v and returns t.
-func (t *tree[T, K]) setValue(v T) *tree[T, K] {
+func (t *tree[T, B]) setValue(v T) *tree[T, B] {
 	t.value = v
 	t.hasEntry = true
 	return t
 }
 
 // clearValue removes the value from t.
-func (t *tree[T, K]) clearValue() {
+func (t *tree[T, B]) clearValue() {
 	var zeroVal T
 	t.value = zeroVal
 	t.hasEntry = false
 }
 
 // setValueFrom sets t's value to o's value and returns t.
-func (t *tree[T, K]) setValueFrom(o *tree[T, K]) *tree[T, K] {
+func (t *tree[T, B]) setValueFrom(o *tree[T, B]) *tree[T, B] {
 	if o.hasEntry {
 		return t.setValue(o.value)
 	}
@@ -47,7 +47,7 @@ func (t *tree[T, K]) setValueFrom(o *tree[T, K]) *tree[T, K] {
 }
 
 // child returns a pointer to the specified child of t.
-func (t *tree[T, K]) child(b bit) **tree[T, K] {
+func (t *tree[T, B]) child(b bit) **tree[T, B] {
 	if b == bitR {
 		return &t.right
 	}
@@ -55,7 +55,7 @@ func (t *tree[T, K]) child(b bit) **tree[T, K] {
 }
 
 // children returns pointers to t's children.
-func (t *tree[T, K]) children(whichFirst bit) (a **tree[T, K], b **tree[T, K]) {
+func (t *tree[T, B]) children(whichFirst bit) (a **tree[T, B], b **tree[T, B]) {
 	if whichFirst == bitR {
 		return &t.right, &t.left
 	}
@@ -63,9 +63,9 @@ func (t *tree[T, K]) children(whichFirst bit) (a **tree[T, K], b **tree[T, K]) {
 }
 
 // setChild sets one of t's children to n, if it isn't already set, choosing
-// which child based on the bit at n.key.Offset(). A provided nil is ignored.
-func (t *tree[T, K]) setChild(n *tree[T, K]) *tree[T, K] {
-	child := t.child(n.key.Bit(n.key.Offset()))
+// which child based on the bit at n.key.offset. A provided nil is ignored.
+func (t *tree[T, B]) setChild(n *tree[T, B]) *tree[T, B] {
+	child := t.child(n.key.Bit(n.key.offset))
 	if *child == nil && n != nil {
 		*child = n
 	}
@@ -74,7 +74,7 @@ func (t *tree[T, K]) setChild(n *tree[T, K]) *tree[T, K] {
 
 // copy returns a copy of t, creating copies of all of t's descendants in the
 // process.
-func (t *tree[T, K]) copy() *tree[T, K] {
+func (t *tree[T, B]) copy() *tree[T, B] {
 	ret := newTree[T](t.key)
 	if t.left != nil {
 		ret.left = t.left.copy()
@@ -86,7 +86,7 @@ func (t *tree[T, K]) copy() *tree[T, K] {
 	return ret
 }
 
-func (t *tree[T, K]) stringImpl(indent string, pre string, hideVal bool) string {
+func (t *tree[T, B]) stringImpl(indent string, pre string, hideVal bool) string {
 	var ret string
 	if hideVal {
 		ret = fmt.Sprintf("%s%s%s\n", indent, pre, t.key.StringRel())
@@ -102,13 +102,13 @@ func (t *tree[T, K]) stringImpl(indent string, pre string, hideVal bool) string 
 	return ret
 }
 
-func (t *tree[T, K]) String() string {
+func (t *tree[T, B]) String() string {
 	return t.stringImpl("", "", false)
 }
 
 // size returns the number of nodes within t that have values.
 // TODO: keep track of this instead of calculating it lazily
-func (t *tree[T, K]) size() int {
+func (t *tree[T, B]) size() int {
 	size := 0
 	if t.hasEntry {
 		size = 1
@@ -123,7 +123,7 @@ func (t *tree[T, K]) size() int {
 }
 
 // insert inserts value v at key k with path compression.
-func (t *tree[T, K]) insert(k K, v T) *tree[T, K] {
+func (t *tree[T, B]) insert(k key[B], v T) *tree[T, B] {
 	// Inserting at t itself
 	if t.key.EqualFromRoot(k) {
 		return t.setValue(v)
@@ -132,16 +132,16 @@ func (t *tree[T, K]) insert(k K, v T) *tree[T, K] {
 	common := t.key.CommonPrefixLen(k)
 	switch {
 	// Inserting at a descendant; recurse into the appropriate child
-	case common == t.key.Len():
-		child := t.child(k.Bit(t.key.Len()))
+	case common == t.key.len:
+		child := t.child(k.Bit(t.key.len))
 		if *child == nil {
-			*child = newTree[T](k.Rest(t.key.Len())).setValue(v)
+			*child = newTree[T](k.Rest(t.key.len)).setValue(v)
 		}
 		*child = (*child).insert(k, v)
 		return t
 	// Inserting at a prefix of t.key; create a new parent node with t as its
 	// sole child
-	case common == k.Len():
+	case common == k.len:
 		return t.newParent(k).setValue(v)
 	// Neither is a prefix of the other; create a new parent at their common
 	// prefix with children t and its new sibling
@@ -154,7 +154,7 @@ func (t *tree[T, K]) insert(k K, v T) *tree[T, K] {
 
 // remove removes the exact provided key from the tree, if it exists, and
 // performs path compression.
-func (t *tree[T, K]) remove(k K) *tree[T, K] {
+func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 	switch {
 	// Removing t itself
 	case k.EqualFromRoot(t.key):
@@ -167,10 +167,10 @@ func (t *tree[T, K]) remove(k K) *tree[T, K] {
 			return nil
 		// Only one child; merge with it
 		case t.left == nil:
-			t.right.key = t.right.key.WithOffset(t.key.Offset())
+			t.right.key.offset = t.key.offset
 			return t.right
 		case t.right == nil:
-			t.left.key = t.left.key.WithOffset(t.key.Offset())
+			t.left.key.offset = t.key.offset
 			return t.left
 		// t is a shared prefix node, so it can't be removed
 		default:
@@ -178,7 +178,7 @@ func (t *tree[T, K]) remove(k K) *tree[T, K] {
 		}
 	// Removing a descendant of t; recurse into the appropriate child
 	case t.key.IsPrefixOf(k, false):
-		child := t.child(k.Bit(t.key.Len()))
+		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
 			*child = (*child).remove(k)
 		}
@@ -192,16 +192,16 @@ func (t *tree[T, K]) remove(k K) *tree[T, K] {
 // subtractKey removes k and all of its descendants from the tree, leaving the
 // remaining key space behind. If k is a descendant of t, then new nodes may be
 // created to fill in the gaps around k.
-func (t *tree[T, K]) subtractKey(k K) *tree[T, K] {
+func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	// This whole branch is being subtracted; no need to traverse further
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key, false) {
 		return nil
 	}
 	// A child of t is being subtracted
 	if t.key.IsPrefixOf(k, false) {
-		child := t.child(k.Bit(t.key.Len()))
+		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
-			*child = (*child).subtractKey(k.Rest(t.key.Len()))
+			*child = (*child).subtractKey(k.Rest(t.key.len))
 		} else {
 			t.insertHole(k, t.value)
 		}
@@ -220,7 +220,7 @@ func (t *tree[T, K]) subtractKey(k K) *tree[T, K] {
 // "subtracting" a whole key-value entry from another isn't meaningful. So
 // maybe we need two types of trees: value-bearing ones, and others that just
 // have value-less entries.
-func (t *tree[T, K]) subtractTree(o *tree[T, K]) *tree[T, K] {
+func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	if o.hasEntry {
 		// This whole branch is being subtracted; no need to traverse further
 		if o.key.IsPrefixOf(t.key, false) {
@@ -244,13 +244,13 @@ func (t *tree[T, K]) subtractTree(o *tree[T, K]) *tree[T, K] {
 	return t
 }
 
-func (t *tree[T, K]) isEmpty() bool {
+func (t *tree[T, B]) isEmpty() bool {
 	return t.key.IsZero() && t.left == nil && t.right == nil
 }
 
 // newParent returns a new node with key k whose sole child is t.
-func (t *tree[T, K]) newParent(k K) *tree[T, K] {
-	t.key = t.key.WithOffset(k.Len())
+func (t *tree[T, B]) newParent(k key[B]) *tree[T, B] {
+	t.key.offset = (k.len)
 	parent := newTree[T](k).setChild(t)
 	return parent
 }
@@ -259,7 +259,7 @@ func (t *tree[T, K]) newParent(k K) *tree[T, K] {
 //
 // TODO: same problem as subtractTree; only makes sense for PrefixSets.
 // TODO: lots of duplicated code here
-func (t *tree[T, K]) mergeTree(o *tree[T, K]) *tree[T, K] {
+func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 	// If o is empty, then the union is just t
 	if o.isEmpty() {
 		return t
@@ -286,18 +286,18 @@ func (t *tree[T, K]) mergeTree(o *tree[T, K]) *tree[T, K] {
 	common := t.key.CommonPrefixLen(o.key)
 	switch {
 	// t.key is a prefix of o.key
-	case common == t.key.Len():
+	case common == t.key.len:
 		// Traverse t in the direction of o
-		tChildFollow := t.child(o.key.Bit(t.key.Len()))
+		tChildFollow := t.child(o.key.Bit(t.key.len))
 		if *tChildFollow == nil {
 			*tChildFollow = o.copy()
-			(*tChildFollow).key = (*tChildFollow).key.WithOffset(t.key.Len())
+			(*tChildFollow).key.offset = t.key.len
 		} else {
 			*tChildFollow = (*tChildFollow).mergeTree(o)
 		}
 		return t
 	// o.key is a prefix of t.key
-	case common == o.key.Len():
+	case common == o.key.len:
 		// o needs to inserted as a parent of t regardless of whether o has an
 		// entry (if the node exists in the o tree, it will need to be in the
 		// union tree). Insert it and continue traversing from there.
@@ -312,14 +312,14 @@ func (t *tree[T, K]) mergeTree(o *tree[T, K]) *tree[T, K] {
 	}
 }
 
-func (t *tree[T, K]) intersectTreeImpl(
-	o *tree[T, K],
+func (t *tree[T, B]) intersectTreeImpl(
+	o *tree[T, B],
 	tPathHasEntry, oPathHasEntry bool,
-) *tree[T, K] {
+) *tree[T, B] {
 
 	// If o is an empty tree, then any intersection with it is also empty
 	if o.isEmpty() {
-		return &tree[T, K]{}
+		return &tree[T, B]{}
 	}
 
 	if t.key.EqualFromRoot(o.key) {
@@ -358,7 +358,7 @@ func (t *tree[T, K]) intersectTreeImpl(
 	common := t.key.CommonPrefixLen(o.key)
 	switch {
 	// t.key is a prefix of o.key
-	case common == t.key.Len():
+	case common == t.key.len:
 		if t.hasEntry {
 			if !oPathHasEntry {
 				t.clearValue()
@@ -391,7 +391,7 @@ func (t *tree[T, K]) intersectTreeImpl(
 		}
 
 	// o.key is a prefix of t.key
-	case common == o.key.Len():
+	case common == o.key.len:
 		// o forks in the middle of t.key. Similar to above.
 		oChildFollow := o.child(t.key.Bit(common))
 
@@ -419,12 +419,12 @@ func (t *tree[T, K]) intersectTreeImpl(
 // present in one tree and has a parent entry in the other tree.
 //
 // TODO: same problem as subtractTree; only makes sense for PrefixSets.
-func (t *tree[T, K]) intersectTree(o *tree[T, K]) *tree[T, K] {
+func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
 	return t.intersectTreeImpl(o, false, false)
 }
 
 // insertHole removes k and sets t, and all of its descendants, to v.
-func (t *tree[T, K]) insertHole(k K, v T) *tree[T, K] {
+func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 	switch {
 	// Removing t itself (no descendants will receive v)
 	case t.key.EqualFromRoot(k):
@@ -433,7 +433,7 @@ func (t *tree[T, K]) insertHole(k K, v T) *tree[T, K] {
 	case t.key.IsPrefixOf(k, false):
 		t.clearValue()
 		// Create a new sibling to receive v if needed, then continue traversing
-		bit := k.Bit(t.key.Len())
+		bit := k.Bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
 			*sibling = newTree[T](t.key.Next((^bit) & 1)).setValue(v)
@@ -453,10 +453,10 @@ func (t *tree[T, K]) insertHole(k K, v T) *tree[T, K] {
 // children.
 //
 // If fn returns true, then walk stops traversing any deeper.
-func (t *tree[T, K]) walk(path K, fn func(*tree[T, K]) bool) {
+func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 	// Follow provided path directly until it's exhausted
 	n := t
-	for n != nil && n.key.Len() < path.Len() {
+	for n != nil && n.key.len < path.len {
 		if !n.key.IsZero() {
 			if fn(n) {
 				return
@@ -470,7 +470,7 @@ func (t *tree[T, K]) walk(path K, fn func(*tree[T, K]) bool) {
 	}
 
 	// After path is exhausted, visit all children
-	var st stack[*tree[T, K]]
+	var st stack[*tree[T, B]]
 	var stop bool
 	st.Push(n)
 	for !st.IsEmpty() {
@@ -481,7 +481,7 @@ func (t *tree[T, K]) walk(path K, fn func(*tree[T, K]) bool) {
 		if !n.key.IsZero() {
 			stop = fn(n)
 		}
-		if n.key.Len() < 128 && !stop {
+		if n.key.len < 128 && !stop {
 			st.Push(n.right)
 			st.Push(n.left)
 		}
@@ -490,7 +490,7 @@ func (t *tree[T, K]) walk(path K, fn func(*tree[T, K]) bool) {
 
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
-func (t *tree[T, K]) pathNext(path K) *tree[T, K] {
+func (t *tree[T, B]) pathNext(path key[B]) *tree[T, B] {
 	if t.key.PathNext(path) == bitR {
 		return t.right
 	}
@@ -498,9 +498,9 @@ func (t *tree[T, K]) pathNext(path K) *tree[T, K] {
 }
 
 // get returns the value associated with the exact key provided, if it exists.
-func (t *tree[T, K]) get(k K) (val T, ok bool) {
+func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if n.key.Len() >= k.Len() {
+		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
 			}
@@ -511,7 +511,7 @@ func (t *tree[T, K]) get(k K) (val T, ok bool) {
 }
 
 // contains returns true if this tree includes the exact key provided.
-func (t *tree[T, K]) contains(k K) (ret bool) {
+func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
@@ -522,7 +522,7 @@ func (t *tree[T, K]) contains(k K) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
-func (t *tree[T, K]) encompasses(k K, strict bool) (ret bool) {
+func (t *tree[T, B]) encompasses(k key[B], strict bool) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k, strict); ret {
 			break
@@ -533,8 +533,8 @@ func (t *tree[T, K]) encompasses(k K, strict bool) (ret bool) {
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t *tree[T, K]) rootOf(k K, strict bool) (outKey K, val T, ok bool) {
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
+	t.walk(k, func(n *tree[T, B]) bool {
 		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
 			outKey, val, ok = n.key, n.value, true
 			return true
@@ -546,8 +546,8 @@ func (t *tree[T, K]) rootOf(k K, strict bool) (outKey K, val T, ok bool) {
 
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t *tree[T, K]) parentOf(k K, strict bool) (outKey K, val T, ok bool) {
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) parentOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
+	t.walk(k, func(n *tree[T, B]) bool {
 		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
 			outKey, val, ok = n.key, n.value, true
 		}
@@ -560,9 +560,9 @@ func (t *tree[T, K]) parentOf(k K, strict bool) (outKey K, val T, ok bool) {
 // provided key. The key itself will be included if it has an entry in the
 // tree, unless strict == true. descendantsOf returns an empty tree if the
 // provided key is not in the tree.
-func (t *tree[T, K]) descendantsOf(k K, strict bool) (ret *tree[T, K]) {
-	ret = &tree[T, K]{}
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) descendantsOf(k key[B], strict bool) (ret *tree[T, B]) {
+	ret = &tree[T, B]{}
+	t.walk(k, func(n *tree[T, B]) bool {
 		if k.IsPrefixOf(n.key, false) {
 			ret.key = n.key.Rooted()
 			ret.left = n.left
@@ -581,9 +581,9 @@ func (t *tree[T, K]) descendantsOf(k K, strict bool) (ret *tree[T, K]) {
 // key. The key itself will be included if it has an entry in the tree, unless
 // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
 // the tree.
-func (t *tree[T, K]) ancestorsOf(k K, strict bool) (ret *tree[T, K]) {
-	ret = &tree[T, K]{}
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) ancestorsOf(k key[B], strict bool) (ret *tree[T, B]) {
+	ret = &tree[T, B]{}
+	t.walk(k, func(n *tree[T, B]) bool {
 		if !n.key.IsPrefixOf(k, false) {
 			return true
 		}
@@ -599,10 +599,10 @@ func (t *tree[T, K]) ancestorsOf(k K, strict bool) (ret *tree[T, K]) {
 //
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
-func (t *tree[T, K]) filter(o *tree[bool, K]) {
-	remove := make([]K, 0)
-	var k K
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) filter(o *tree[bool, B]) {
+	remove := make([]key[B], 0)
+	var k key[B]
+	t.walk(k, func(n *tree[T, B]) bool {
 		if !o.encompasses(n.key, false) {
 			remove = append(remove, n.key)
 		}
@@ -618,10 +618,10 @@ func (t *tree[T, K]) filter(o *tree[bool, K]) {
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
-func (t *tree[T, K]) filterCopy(o *tree[bool, K]) *tree[T, K] {
-	ret := &tree[T, K]{}
-	var k K
-	t.walk(k, func(n *tree[T, K]) bool {
+func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
+	ret := &tree[T, B]{}
+	var k key[B]
+	t.walk(k, func(n *tree[T, B]) bool {
 		if n.hasEntry && o.encompasses(n.key, false) {
 			ret = ret.insert(n.key, n.value)
 		}
@@ -631,9 +631,9 @@ func (t *tree[T, K]) filterCopy(o *tree[bool, K]) *tree[T, K] {
 }
 
 // overlapsKey reports whether any key in t overlaps k.
-func (t *tree[T, K]) overlapsKey(k K) bool {
+func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 	var ret bool
-	t.walk(k, func(n *tree[T, K]) bool {
+	t.walk(k, func(n *tree[T, B]) bool {
 		if !n.hasEntry {
 			return false
 		}
