@@ -125,8 +125,12 @@ func (h key4) Rest(i uint8) key4 {
 	return NewKey4(h.content, i, h.len)
 }
 
+func isBitSet32(u uint32, bit uint8) uint8 {
+	return uint8(u >> (31 - bit) & 1)
+}
+
 func (h key4) Bit(i uint8) bit {
-	return bit(uint8((h.content >> (31 - i)) & 1))
+	return bit(isBitSet32(h.content, i))
 }
 
 // EqualFromRoot reports whether h and o have the same content and len (offsets
