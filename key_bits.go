@@ -58,37 +58,35 @@ func (k keyBits4) String() string {
 	return fmt.Sprintf("%x", k.bits)
 }
 
-type keyBits6 struct {
-	bits uint128
-}
+type keyBits6 = uint128
 
 func (k keyBits6) IsZero() bool {
-	return k.bits.isZero()
+	return k.isZero()
 }
 
 func (k keyBits6) BitsClearedFrom(bit uint8) keyBits6 {
-	return keyBits6{k.bits.bitsClearedFrom(bit)}
+	return k.bitsClearedFrom(bit)
 }
 
 func (k keyBits6) Bit(i uint8) bit {
-	return bit(k.bits.isBitSet(i))
+	return bit(k.isBitSet(i))
 }
 
 func (k keyBits6) BitBool(i uint8) bool {
-	return k.bits.isBitSetBool(i)
+	return k.isBitSetBool(i)
 }
 
 func (k keyBits6) CommonPrefixLen(o keyBits6) uint8 {
-	return min(min(128, 128), k.bits.commonPrefixLen(o.bits))
+	return min(min(128, 128), k.commonPrefixLen(o))
 }
 
 func (k keyBits6) WithBitSet(i uint8) keyBits6 {
-	return keyBits6{k.bits.or(uint128{0, 1}.shiftLeft(127 - i))}
+	return k.or(uint128{0, 1}.shiftLeft(127 - i))
 }
 
 // TODO
 func (k keyBits6) Justify(o, l uint8) keyBits6 {
-	return keyBits6{k.bits.shiftLeft(o).shiftRight(128 - l + o)}
+	return k.shiftLeft(o).shiftRight(128 - l + o)
 }
 
 func (k keyBits6) String() string {
@@ -96,13 +94,13 @@ func (k keyBits6) String() string {
 	if k.IsZero() {
 		return "0"
 	}
-	if k.bits.hi > 0 {
-		content = fmt.Sprintf("%x", k.bits.hi)
+	if k.hi > 0 {
+		content = fmt.Sprintf("%x", k.hi)
 	}
-	if k.bits.lo > 0 {
-		if k.bits.hi > 0 {
+	if k.lo > 0 {
+		if k.hi > 0 {
 		} else {
-			content = fmt.Sprintf("%s%x", content, k.bits.lo)
+			content = fmt.Sprintf("%s%x", content, k.lo)
 		}
 	}
 	return fmt.Sprintf("%s", content)
