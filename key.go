@@ -97,5 +97,5 @@ func key6FromPrefix(p netip.Prefix) key[keyBits6] {
 	if addr.Is4() {
 		len = len + 96
 	}
-	return NewKey(keyBits6{u128From16(addr.As16())}, 0, len)
+	return NewKey(u128From16(addr.As16()), 0, len)
 }
