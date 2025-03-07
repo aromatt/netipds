@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-type KeyBits[T any] interface {
+type KeyBits[T comparable] interface {
+	comparable
 	IsZero() bool
 	BitsClearedFrom(uint8) T
 	Bit(uint8) bit
-	Equal(T) bool
 	CommonPrefixLen(T) uint8
 	// TODO For use by Next()
 	WithBitSet(uint8) T
@@ -31,10 +31,6 @@ func (k keyBits4) BitsClearedFrom(bit uint8) keyBits4 {
 
 func (k keyBits4) Bit(i uint8) bit {
 	return bit(k.bits >> (31 - i) & 1)
-}
-
-func (k keyBits4) Equal(o keyBits4) bool {
-	return k.bits == o.bits
 }
 
 func (k keyBits4) CommonPrefixLen(o keyBits4) uint8 {
@@ -71,10 +67,6 @@ func (k keyBits6) BitsClearedFrom(bit uint8) keyBits6 {
 
 func (k keyBits6) Bit(i uint8) bit {
 	return bit(k.bits.isBitSet(i))
-}
-
-func (k keyBits6) Equal(o keyBits6) bool {
-	return k.bits == o.bits
 }
 
 func (k keyBits6) CommonPrefixLen(o keyBits6) uint8 {
