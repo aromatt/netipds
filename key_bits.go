@@ -35,7 +35,7 @@ func (k keyBits4) Bit(i uint8) bit {
 }
 
 func (k keyBits4) BitBool(i uint8) bool {
-	return k.bits>>(31-i)&1 == 1
+	return k.bits&(1<<(31-i)) != 0
 }
 
 func (k keyBits4) CommonPrefixLen(o keyBits4) uint8 {

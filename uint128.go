@@ -136,7 +136,7 @@ func (u uint128) isBitSet(bit uint8) bit {
 // If bit > 127, returns false.
 func (u uint128) isBitSetBool(bit uint8) bool {
 	if bit < 64 {
-		return (u.hi>>(63-bit))&1 == 1
+		return u.hi&1<<(63-bit) != 0
 	}
-	return (u.lo>>(127-bit))&1 == 1
+	return u.lo&1<<(127-bit) != 0
 }
