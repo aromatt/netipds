@@ -16,6 +16,7 @@ type KeyBits[T comparable] interface {
 	// TODO For use by StringRel()
 	Justify(uint8, uint8) T
 	String() string
+	To128() uint128
 }
 
 type keyBits4 struct {
@@ -56,6 +57,10 @@ func (k keyBits4) String() string {
 		return "0"
 	}
 	return fmt.Sprintf("%x", k.bits)
+}
+
+func (k keyBits4) To128() uint128 {
+	return uint128{uint64(k.bits) << 32, 0}
 }
 
 type keyBits6 = uint128
@@ -108,4 +113,8 @@ func (k keyBits6) String() string {
 		}
 	}
 	return fmt.Sprintf("%s", content)
+}
+
+func (k keyBits6) To128() uint128 {
+	return k
 }

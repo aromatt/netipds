@@ -497,9 +497,19 @@ func (t *tree[T, B]) pathNext(path key[B]) *tree[T, B] {
 	return t.left
 }
 
+// pathNext returns the child of t which is next in the traversal of the
+// specified path.
+func (t *tree[T, B]) pathNext128(path uint128) *tree[T, B] {
+	if path.BitBool(t.key.len) {
+		return t.right
+	}
+	return t.left
+}
+
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
-	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+	k128 := k.content.To128()
+	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
 		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
@@ -512,7 +522,8 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
-	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+	k128 := k.content.To128()
+	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -523,7 +534,8 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
-	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+	k128 := k.content.To128()
+	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
@@ -534,7 +546,8 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
-	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+	k128 := k.content.To128()
+	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
 		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
 			break
 		}
