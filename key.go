@@ -52,11 +52,15 @@ func (k key[B]) Truncated(n uint8) key[B] {
 	return NewKey(k.content, k.offset, n)
 }
 
-func (k key[B]) IsPrefixOf(o key[B], strict bool) bool {
+func (k key[B]) IsPrefixOf(o key[B]) bool {
 	if k.len > o.len {
 		return false
 	}
-	if strict && k.len == o.len {
+	return k.content == o.content.BitsClearedFrom(k.len)
+}
+
+func (k key[B]) IsPrefixOfStrict(o key[B]) bool {
+	if k.len >= o.len {
 		return false
 	}
 	return k.content == o.content.BitsClearedFrom(k.len)

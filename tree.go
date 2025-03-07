@@ -177,7 +177,7 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 			return t
 		}
 	// Removing a descendant of t; recurse into the appropriate child
-	case t.key.IsPrefixOf(k, false):
+	case t.key.IsPrefixOf(k):
 		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
 			*child = (*child).remove(k)
@@ -194,11 +194,11 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 // created to fill in the gaps around k.
 func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	// This whole branch is being subtracted; no need to traverse further
-	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key, false) {
+	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
 		return nil
 	}
 	// A child of t is being subtracted
-	if t.key.IsPrefixOf(k, false) {
+	if t.key.IsPrefixOf(k) {
 		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
 			*child = (*child).subtractKey(k.Rest(t.key.len))
@@ -223,11 +223,11 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	if o.hasEntry {
 		// This whole branch is being subtracted; no need to traverse further
-		if o.key.IsPrefixOf(t.key, false) {
+		if o.key.IsPrefixOf(t.key) {
 			return nil
 		}
 		// A descendant of t is being subtracted
-		if t.key.IsPrefixOf(o.key, false) {
+		if t.key.IsPrefixOf(o.key) {
 			t.insertHole(o.key, t.value)
 		}
 	}
@@ -430,7 +430,7 @@ func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 	case t.key.EqualFromRoot(k):
 		return nil
 	// k is a descendant of t; start digging a hole to k
-	case t.key.IsPrefixOf(k, false):
+	case t.key.IsPrefixOf(k):
 		t.clearValue()
 		// Create a new sibling to receive v if needed, then continue traversing
 		bit := k.Bit(t.key.len)
@@ -522,114 +522,131 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
-func (t *tree[T, B]) encompasses(k key[B], strict bool) (ret bool) {
+func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
-		if ret = n.hasEntry && n.key.IsPrefixOf(k, strict); ret {
+		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
 	}
 	return
 }
 
-// rootOf returns the shortest-prefix ancestor of the key provided, if any.
-// If strict == true, the key itself is not considered.
-func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
-	t.walk(k, func(n *tree[T, B]) bool {
-		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
-			outKey, val, ok = n.key, n.value, true
-			return true
+// encompasses returns true if this tree includes a key which completely
+// encompasses the provided key.
+func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
+	for n := t.pathNext(k); n != nil; n = n.pathNext(k) {
+		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
+			break
 		}
-		return false
-	})
-	return
-}
-
-// parentOf returns the longest-prefix ancestor of the key provided, if any.
-// If strict == true, the key itself is not considered.
-func (t *tree[T, B]) parentOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
-	t.walk(k, func(n *tree[T, B]) bool {
-		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
-			outKey, val, ok = n.key, n.value, true
-		}
-		return false
-	})
-	return
-}
-
-// descendantsOf returns the sub-tree containing all descendants of the
-// provided key. The key itself will be included if it has an entry in the
-// tree, unless strict == true. descendantsOf returns an empty tree if the
-// provided key is not in the tree.
-func (t *tree[T, B]) descendantsOf(k key[B], strict bool) (ret *tree[T, B]) {
-	ret = &tree[T, B]{}
-	t.walk(k, func(n *tree[T, B]) bool {
-		if k.IsPrefixOf(n.key, false) {
-			ret.key = n.key.Rooted()
-			ret.left = n.left
-			ret.right = n.right
-			if !(strict && n.key.EqualFromRoot(k)) {
-				ret.setValueFrom(n)
-			}
-			return true
-		}
-		return false
-	})
-	return
-}
-
-// ancestorsOf returns the sub-tree containing all ancestors of the provided
-// key. The key itself will be included if it has an entry in the tree, unless
-// strict == true. ancestorsOf returns an empty tree if key has no ancestors in
-// the tree.
-func (t *tree[T, B]) ancestorsOf(k key[B], strict bool) (ret *tree[T, B]) {
-	ret = &tree[T, B]{}
-	t.walk(k, func(n *tree[T, B]) bool {
-		if !n.key.IsPrefixOf(k, false) {
-			return true
-		}
-		if n.hasEntry && !(strict && n.key.EqualFromRoot(k)) {
-			ret.insert(n.key, n.value)
-		}
-		return false
-	})
-	return
-}
-
-// filter updates t to include only the keys encompassed by o.
-//
-// TODO: I think this can be done more efficiently by walking t and o
-// at the same time.
-func (t *tree[T, B]) filter(o *tree[bool, B]) {
-	remove := make([]key[B], 0)
-	var k key[B]
-	t.walk(k, func(n *tree[T, B]) bool {
-		if !o.encompasses(n.key, false) {
-			remove = append(remove, n.key)
-		}
-		return false
-	})
-	for _, k := range remove {
-		t.remove(k)
 	}
+	return
 }
 
-// filterCopy returns a recursive copy of t that includes only keys that are
-// encompassed by o.
-// TODO: I think this can be done more efficiently by walking t and o
-// at the same time.
-// TODO: does it make sense to have both this method and filter()?
-func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
-	ret := &tree[T, B]{}
-	var k key[B]
-	t.walk(k, func(n *tree[T, B]) bool {
-		if n.hasEntry && o.encompasses(n.key, false) {
-			ret = ret.insert(n.key, n.value)
-		}
-		return false
-	})
-	return ret
-}
-
+// // rootOf returns the shortest-prefix ancestor of the key provided, if any.
+// // If strict == true, the key itself is not considered.
+//
+//	func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if n.hasEntry && n.key.IsPrefixOf(k, strict) {
+//				outKey, val, ok = n.key, n.value, true
+//				return true
+//			}
+//			return false
+//		})
+//		return
+//	}
+//
+// // parentOf returns the longest-prefix ancestor of the key provided, if any.
+// // If strict == true, the key itself is not considered.
+//
+//	func (t *tree[T, B]) parentOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if n.hasEntry && n.key.IsPrefixOf(k, strict) {
+//				outKey, val, ok = n.key, n.value, true
+//			}
+//			return false
+//		})
+//		return
+//	}
+//
+// // descendantsOf returns the sub-tree containing all descendants of the
+// // provided key. The key itself will be included if it has an entry in the
+// // tree, unless strict == true. descendantsOf returns an empty tree if the
+// // provided key is not in the tree.
+//
+//	func (t *tree[T, B]) descendantsOf(k key[B], strict bool) (ret *tree[T, B]) {
+//		ret = &tree[T, B]{}
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if k.IsPrefixOf(n.key, false) {
+//				ret.key = n.key.Rooted()
+//				ret.left = n.left
+//				ret.right = n.right
+//				if !(strict && n.key.EqualFromRoot(k)) {
+//					ret.setValueFrom(n)
+//				}
+//				return true
+//			}
+//			return false
+//		})
+//		return
+//	}
+//
+// // ancestorsOf returns the sub-tree containing all ancestors of the provided
+// // key. The key itself will be included if it has an entry in the tree, unless
+// // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
+// // the tree.
+//
+//	func (t *tree[T, B]) ancestorsOf(k key[B], strict bool) (ret *tree[T, B]) {
+//		ret = &tree[T, B]{}
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if !n.key.IsPrefixOf(k, false) {
+//				return true
+//			}
+//			if n.hasEntry && !(strict && n.key.EqualFromRoot(k)) {
+//				ret.insert(n.key, n.value)
+//			}
+//			return false
+//		})
+//		return
+//	}
+//
+// // filter updates t to include only the keys encompassed by o.
+// //
+// // TODO: I think this can be done more efficiently by walking t and o
+// // at the same time.
+//
+//	func (t *tree[T, B]) filter(o *tree[bool, B]) {
+//		remove := make([]key[B], 0)
+//		var k key[B]
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if !o.encompasses(n.key, false) {
+//				remove = append(remove, n.key)
+//			}
+//			return false
+//		})
+//		for _, k := range remove {
+//			t.remove(k)
+//		}
+//	}
+//
+// // filterCopy returns a recursive copy of t that includes only keys that are
+// // encompassed by o.
+// // TODO: I think this can be done more efficiently by walking t and o
+// // at the same time.
+// // TODO: does it make sense to have both this method and filter()?
+//
+//	func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
+//		ret := &tree[T, B]{}
+//		var k key[B]
+//		t.walk(k, func(n *tree[T, B]) bool {
+//			if n.hasEntry && o.encompasses(n.key, false) {
+//				ret = ret.insert(n.key, n.value)
+//			}
+//			return false
+//		})
+//		return ret
+//	}
+//
 // overlapsKey reports whether any key in t overlaps k.
 func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 	var ret bool
@@ -637,7 +654,7 @@ func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 		if !n.hasEntry {
 			return false
 		}
-		if n.key.IsPrefixOf(k, false) || k.IsPrefixOf(n.key, false) {
+		if n.key.IsPrefixOf(k) || k.IsPrefixOf(n.key) {
 			ret = true
 			return true
 		}
