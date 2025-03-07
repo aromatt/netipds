@@ -12,8 +12,8 @@ import (
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree  tree[bool, key6]
-	tree4 tree[bool, key4]
+	tree  tree[bool, keyBits6]
+	tree4 tree[bool, keyBits4]
 }
 
 // Add adds p to s.
@@ -124,8 +124,8 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree  tree[bool, key6]
-	tree4 tree[bool, key4]
+	tree  tree[bool, keyBits6]
+	tree4 tree[bool, keyBits4]
 	size  int
 	size4 int
 }

@@ -13,8 +13,8 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree  tree[T, key6]
-	tree4 tree[T, key4]
+	tree  tree[T, keyBits6]
+	tree4 tree[T, keyBits4]
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
@@ -83,8 +83,8 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree  tree[T, key6]
-	tree4 tree[T, key4]
+	tree  tree[T, keyBits6]
+	tree4 tree[T, keyBits4]
 	size  int
 	size4 int
 }

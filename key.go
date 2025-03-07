@@ -1,61 +1,97 @@
 package netipds
 
-// Key stores the string of bits which represent the full path to a node in a
-// prefix tree.
-type Key[K any] interface {
-	// Offset returns the starting position of the bit range owned by this key.
-	Offset() uint8
+import (
+	"fmt"
+	"net/netip"
+)
 
-	WithOffset(uint8) K
+type key[B KeyBits[B]] struct {
+	len     uint8
+	offset  uint8
+	content B
+}
 
-	// Len returns the ending position of the bit range owned by this key.
-	Len() uint8
+func NewKey[B KeyBits[B]](content B, offset, len uint8) key[B] {
+	return key[B]{len, offset, content.BitsClearedFrom(len)}
+}
 
-	// Rooted returns a copy of key with offset set to 0.
-	Rooted() K
+func (k key[B]) Bit(i uint8) bit {
+	return k.content.Bit(i)
+}
 
-	// ToPrefix returns the Prefix represented by the key.
-	//ToPrefix() netip.Prefix
+// StringRel prints the portion of h.content from offset to len, as hex,
+// followed by ",<len>-<offset>". The least significant bit in the output is
+// the bit at position (h.len - 1). Leading zeros are omitted.
+//
+// This representation is lossy in that it hides the first h.offset bits, but
+// it's helpful for debugging in the context of a pretty-printed tree.
+func (k key[B]) StringRel() string {
+	return fmt.Sprintf("%s,%d-%d", k.content.Justify(k.offset, k.len), k.offset, k.len)
+}
 
-	// String prints the key's content in hex, followed by "," + k.len. The least
-	// significant bit in the output is the bit at position (k.len - 1). Leading
-	// zeros are omitted.
-	String() string
+func (k key[B]) EqualFromRoot(o key[B]) bool {
+	return k.len == o.len && k.content.Equal(o.content)
+}
 
-	// TODO
-	StringRel() string
+func (k key[B]) CommonPrefixLen(o key[B]) uint8 {
+	return min(min(o.len, k.len), k.content.CommonPrefixLen(o.content))
+}
 
-	// Truncated returns a copy of key truncated to n bits.
-	Truncated(uint8) K
+func (k key[B]) Rest(i uint8) key[B] {
+	if k.IsZero() || i > k.len {
+		return key[B]{}
+	}
+	return NewKey(k.content, i, k.len)
+}
 
-	// Rest returns a copy of the key starting at position i. if i > k.len,
-	// returns the zero key.
-	Rest(i uint8) K
+func (k key[B]) IsZero() bool {
+	return k.len == 0
+}
 
-	// Bit returns the value of the bit at the provided offset.
-	Bit(uint8) bit
+func (k key[B]) Truncated(n uint8) key[B] {
+	return NewKey(k.content, k.offset, n)
+}
 
-	// EqualFromRoot reports whether the key and o have the same content and
-	// len (offsets are ignored).
-	EqualFromRoot(o K) bool
+func (k key[B]) IsPrefixOf(o key[B], strict bool) bool {
+	if k.len > o.len {
+		return false
+	}
+	if strict && k.len == o.len {
+		return false
+	}
+	return k.content.Equal(o.content.BitsClearedFrom(k.len))
+}
 
-	// CommonPrefixLen returns the length of the common prefix between the key
-	// and o, truncated to the length of the shorter of the two.
-	CommonPrefixLen(o K) uint8
+func (k key[B]) Next(b bit) key[B] {
+	content := k.content
+	if b == bitR {
+		content = content.WithBitSet(k.len)
+	}
+	return NewKey(content, k.offset, k.len+1)
+}
 
-	// IsPrefixOf reports whether the key has the same content as o up to
-	// position k.len.
-	//
-	// If strict, returns false if the key == o.
-	IsPrefixOf(o K, strict bool) bool
+func (k key[B]) PathNext(path key[B]) bit {
+	return path.Bit(k.len)
+}
 
-	// IsZero reports whether k is the zero key.
-	IsZero() bool
+func (k key[B]) Rooted() key[B] {
+	return NewKey(k.content, 0, k.len)
+}
 
-	// Next returns a one-bit key just beyond the key's len, set to 1 if b ==
-	// bitR.
-	Next(b bit) K
+// key4FromPrefix returns the key that represents the provided Prefix.
+func key4FromPrefix(p netip.Prefix) key[keyBits4] {
+	a4 := p.Addr().As4()
+	return NewKey(keyBits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
+}
 
-	// PathNext returns the value of the bit of path just beyond this key's len.
-	PathNext(path K) bit
+// key6FromPrefix returns the key that represents the provided Prefix.
+func key6FromPrefix(p netip.Prefix) key[keyBits6] {
+	addr := p.Addr()
+	// TODO len could be -1
+	len := uint8(p.Bits())
+	// TODO we shouldn't need to do this anymore
+	if addr.Is4() {
+		len = len + 96
+	}
+	return NewKey(keyBits6{u128From16(addr.As16())}, 0, len)
 }
