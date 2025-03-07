@@ -5,9 +5,9 @@ package netipds
 //	"testing"
 //)
 
-func k6(content uint128, offset, len uint8) key[keyBits6] {
-	return key[keyBits6]{len, offset, content}
-}
+//func k6(content uint128, offset, len uint8) key[keyBits6] {
+//	return key[keyBits6]{len, offset, content}
+//}
 
 //func TestKeyString(t *testing.T) {
 //	tests := []struct {
