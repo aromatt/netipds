@@ -30,7 +30,7 @@ func (k key[B]) StringRel() string {
 }
 
 func (k key[B]) EqualFromRoot(o key[B]) bool {
-	return k.len == o.len && k.content.Equal(o.content)
+	return k.len == o.len && k.content == o.content
 }
 
 func (k key[B]) CommonPrefixLen(o key[B]) uint8 {
@@ -59,7 +59,7 @@ func (k key[B]) IsPrefixOf(o key[B], strict bool) bool {
 	if strict && k.len == o.len {
 		return false
 	}
-	return k.content.Equal(o.content.BitsClearedFrom(k.len))
+	return k.content == o.content.BitsClearedFrom(k.len)
 }
 
 func (k key[B]) Next(b bit) key[B] {
