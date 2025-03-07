@@ -8,9 +8,9 @@ import (
 
 // key6 is an implementation of Key for 128-bit keys (IPv6).
 type key6 struct {
-	content uint128
-	offset  uint8
 	len     uint8
+	offset  uint8
+	content uint128
 }
 
 func (k key6) Offset() uint8 {
@@ -22,16 +22,16 @@ func (k key6) Len() uint8 {
 }
 
 func (k key6) WithOffset(o uint8) key6 {
-	return key6{k.content, o, k.len}
+	return key6{k.len, o, k.content}
 }
 
 func NewKey6(content uint128, offset uint8, len uint8) key6 {
-	return key6{content.bitsClearedFrom(len), offset, len}
+	return key6{len, offset, content.bitsClearedFrom(len)}
 }
 
 // Rooted returns a copy of key with offset set to 0
 func (k key6) Rooted() key6 {
-	return key6{k.content, 0, k.len}
+	return key6{k.len, 0, k.content}
 }
 
 // key6FromPrefix returns the key that represents the provided Prefix.

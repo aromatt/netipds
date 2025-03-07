@@ -8,9 +8,9 @@ import (
 
 // key4 is an implementation of Key for 32-bit keys (IPv4).
 type key4 struct {
-	content uint32
-	offset  uint8
 	len     uint8
+	offset  uint8
+	content uint32
 }
 
 func (k key4) Offset() uint8 {
@@ -22,7 +22,7 @@ func (k key4) Len() uint8 {
 }
 
 func (k key4) WithOffset(o uint8) key4 {
-	return key4{k.content, o, k.len}
+	return key4{k.len, o, k.content}
 }
 
 func bitsClearedFrom32(u uint32, bit uint8) uint32 {
@@ -30,12 +30,12 @@ func bitsClearedFrom32(u uint32, bit uint8) uint32 {
 }
 
 func NewKey4(content uint32, offset uint8, len uint8) key4 {
-	return key4{bitsClearedFrom32(content, len), offset, len}
+	return key4{len, offset, bitsClearedFrom32(content, len)}
 }
 
 // Rooted returns a copy of h with offset set to 0
 func (h key4) Rooted() key4 {
-	return key4{h.content, 0, h.len}
+	return key4{h.len, 0, h.content}
 }
 
 // ToPrefix returns the Prefix represented by k.

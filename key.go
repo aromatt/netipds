@@ -1,9 +1,5 @@
 package netipds
 
-//import (
-//	"net/netip"
-//)
-
 // Key stores the string of bits which represent the full path to a node in a
 // prefix tree.
 type Key[K any] interface {
