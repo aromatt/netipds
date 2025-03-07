@@ -48,10 +48,10 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 }
 
 // Filter removes all Prefixes that are not encompassed by o from s.
-func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
-	s.tree.filter(&o.tree)
-	s.tree4.filter(&o.tree4)
-}
+//func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
+//	s.tree.filter(&o.tree)
+//	s.tree4.filter(&o.tree4)
+//}
 
 // SubtractPrefix modifies s so that p and all of its descendants are removed,
 // leaving behind any remaining portions of affected Prefixes. This may add
@@ -144,9 +144,9 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 // encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return s.tree4.encompasses(key4FromPrefix(p), false)
+		return s.tree4.encompasses(key4FromPrefix(p))
 	} else {
-		return s.tree.encompasses(key6FromPrefix(p), false)
+		return s.tree.encompasses(key6FromPrefix(p))
 	}
 }
 
@@ -155,9 +155,9 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 // not p itself.
 func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return s.tree4.encompasses(key4FromPrefix(p), true)
+		return s.tree4.encompassesStrict(key4FromPrefix(p))
 	} else {
-		return s.tree.encompasses(key6FromPrefix(p), true)
+		return s.tree.encompassesStrict(key6FromPrefix(p))
 	}
 }
 

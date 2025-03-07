@@ -57,10 +57,10 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 }
 
 // Filter removes all Prefixes that are not encompassed by s from m.
-func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
-	m.tree.filter(&s.tree)
-	m.tree4.filter(&s.tree4)
-}
+//func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
+//	m.tree.filter(&s.tree)
+//	m.tree4.filter(&s.tree4)
+//}
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
@@ -111,9 +111,9 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 // encompasses p. The encompassing Prefix may be p itself.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.encompasses(key4FromPrefix(p), false)
+		return m.tree4.encompasses(key4FromPrefix(p))
 	} else {
-		return m.tree.encompasses(key6FromPrefix(p), false)
+		return m.tree.encompasses(key6FromPrefix(p))
 	}
 }
 
@@ -122,9 +122,9 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 // not p itself.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.encompasses(key4FromPrefix(p), true)
+		return m.tree4.encompassesStrict(key4FromPrefix(p))
 	} else {
-		return m.tree.encompasses(key6FromPrefix(p), true)
+		return m.tree.encompassesStrict(key6FromPrefix(p))
 	}
 }
 
