@@ -821,12 +821,22 @@ func (t treeCursor[T]) Contains(k key) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 func (t treeCursor[T]) Encompasses(k key, strict bool) (ret bool) {
-	for t, pathOk := t.pathNext(k); pathOk; t, pathOk = t.pathNext(k) {
-		if ret = t.HasEntry() && t.Key().isPrefixOf(k, strict); ret {
+	//for t, pathOk := t.pathNext(k); pathOk; t, pathOk = t.pathNext(k) {
+	//	if ret = t.HasEntry() && t.Key().isPrefixOf(k, strict); ret {
+	//		break
+	//	}
+	//}
+	//return
+	n := t.tree.childAt(t.node, k.bit(t.tree.keys[t.node].len))
+	for n != absent {
+		if t.tree.entries[n] && t.tree.keys[n].isPrefixOf(k, strict) {
+			ret = true
 			break
 		}
+		n = t.tree.childAt(n, k.bit(t.tree.keys[n].len))
 	}
 	return
+
 }
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
