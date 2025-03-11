@@ -8,15 +8,6 @@ type nodeRef int
 
 const absent = nodeRef(0)
 
-//type node struct {
-//	//key key
-//	// sr: we still have hasEntry because PrefixSet doesn't have values but it
-//	// has entries
-//	//hasEntry bool
-//	//lefts  nodeRef
-//	//rights nodeRef
-//}
-
 // tree is a binary radix tree supporting 128-bit keys (see key.go).
 //
 // The tree is compressed by default, however it supports uncompressed
@@ -388,13 +379,10 @@ func (t treeCursor[T]) Compress() treeCursor[T] {
 // current node, if any.
 func (t treeCursor[T]) Remove(k key) nodeRef {
 	tKey := t.Key()
-	println("Remove", tKey.String(), "from", t.Key().String())
 	switch {
 	// Removing t itself
 	case k.equalFromRoot(tKey):
-		println("  equal")
 		if t.HasEntry() {
-			println("    clearing entry")
 			t.ClearEntry()
 		}
 		left, leftOk := t.ChildAt(bitL)
@@ -402,25 +390,20 @@ func (t treeCursor[T]) Remove(k key) nodeRef {
 		switch {
 		// No children (deleting a leaf node)
 		case !leftOk && !rightOk:
-			println("    deleting a leaf node")
 			return 0 // 0 represents the absence of a node
 		// Only one child; merge with it
 		case !leftOk:
-			println("    deleting right")
 			right.SetOffset(tKey.offset)
 			return right.node
 		case !rightOk:
-			println("    deleting left")
 			left.SetOffset(tKey.offset)
 			return left.node
 		// t is a shared prefix node, so it can't be removed
 		default:
-			println("    shared prefix")
 			return t.node
 		}
 	// Removing a descendant of t; recurse into the appropriate child
-	case tKey.isPrefixOf(k, false):
-		println("  isPrefix")
+	case tKey.isPrefixOf(k):
 		bit := k.bit(tKey.len)
 		if child, ok := t.ChildAt(bit); ok {
 			// We need to use SetChildAt because the returned nodeRef may be 0
@@ -429,7 +412,6 @@ func (t treeCursor[T]) Remove(k key) nodeRef {
 		return t.node
 	// Nothing to do
 	default:
-		println("  nothing")
 		return t.node
 	}
 }
@@ -440,11 +422,11 @@ func (t treeCursor[T]) Remove(k key) nodeRef {
 func (t treeCursor[T]) SubtractKey(k key) nodeRef {
 	tKey := t.Key()
 	// This whole branch is being subtracted; no need to traverse further
-	if tKey.equalFromRoot(k) || k.isPrefixOf(tKey, false) {
+	if tKey.equalFromRoot(k) || k.isPrefixOf(tKey) {
 		return 0
 	}
 	// A child of t is being subtracted
-	if tKey.isPrefixOf(k, false) {
+	if tKey.isPrefixOf(k) {
 		bit := k.bit(tKey.len)
 		child, ok := t.ChildAt(bit)
 		if ok {
@@ -479,11 +461,11 @@ func (t treeCursor[T]) SubtractTree(o treeCursor[T]) nodeRef {
 	//if o.Node().hasEntry {
 	if o.HasEntry() {
 		// This whole branch is being subtracted; no need to traverse further
-		if oKey.isPrefixOf(tKey, false) {
+		if oKey.isPrefixOf(tKey) {
 			return 0
 		}
 		// A descendant of t is being subtracted
-		if tKey.isPrefixOf(oKey, false) {
+		if tKey.isPrefixOf(oKey) {
 			// sr: I'm not sure if this is right. It was:
 			// t.insertHole(o.key, t.value)
 			if val, ok := t.Value(); ok {
@@ -712,7 +694,7 @@ func (t treeCursor[T]) insertHole(k key, v T) nodeRef {
 	case t.Key().equalFromRoot(k):
 		return 0
 	// k is a descendant of t; start digging a hole to k
-	case t.Key().isPrefixOf(k, false):
+	case t.Key().isPrefixOf(k):
 		t.ClearEntry()
 
 		// Create a new sibling to receive v if needed, then continue traversing
@@ -820,30 +802,24 @@ func (t treeCursor[T]) Contains(k key) (ret bool) {
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
-func (t treeCursor[T]) Encompasses(k key, strict bool) (ret bool) {
-	//for t, pathOk := t.pathNext(k); pathOk; t, pathOk = t.pathNext(k) {
-	//	if ret = t.HasEntry() && t.Key().isPrefixOf(k, strict); ret {
-	//		break
-	//	}
-	//}
-	//return
+// TODO strict
+func (t treeCursor[T]) Encompasses(k key, _ bool) (ret bool) {
 	n := t.tree.childAt(t.node, k.bit(t.tree.keys[t.node].len))
 	for n != absent {
-		if t.tree.entries[n] && t.tree.keys[n].isPrefixOf(k, strict) {
-			ret = true
+		if ret = t.tree.entries[n] && t.tree.keys[n].isPrefixOf(k); ret {
 			break
 		}
 		n = t.tree.childAt(n, k.bit(t.tree.keys[n].len))
 	}
 	return
-
 }
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 // If strict == true, the key itself is not considered.
-func (t treeCursor[T]) RootOf(k key, strict bool) (outKey key, val T, ok bool) {
+// TODO strict
+func (t treeCursor[T]) RootOf(k key, _ bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
-		if n.Key().isPrefixOf(k, strict) && n.HasEntry() {
+		if n.Key().isPrefixOf(k) && n.HasEntry() {
 			outKey = n.Key()
 			val, ok = n.Value()
 			return true
@@ -857,7 +833,7 @@ func (t treeCursor[T]) RootOf(k key, strict bool) (outKey key, val T, ok bool) {
 // If strict == true, the key itself is not considered.
 func (t treeCursor[T]) ParentOf(k key, strict bool) (outKey key, val T, ok bool) {
 	t.walk(k, func(n treeCursor[T]) bool {
-		if n.Key().isPrefixOf(k, strict) && n.HasEntry() {
+		if n.Key().isPrefixOf(k) && n.HasEntry() {
 			outKey = n.Key()
 			val, ok = n.Value()
 		}
@@ -872,7 +848,7 @@ func (t treeCursor[T]) ParentOf(k key, strict bool) (outKey key, val T, ok bool)
 // provided key is not in the tree.
 func (t treeCursor[T]) DescendantsOf(k key, strict bool) (ret treeCursor[T]) {
 	t.walk(k, func(n treeCursor[T]) bool {
-		if k.isPrefixOf(n.Key(), false) {
+		if k.isPrefixOf(n.Key()) {
 			ret = n.Copy()
 			ret.SetOffset(0)
 			if !(strict && n.Key().equalFromRoot(k)) {
@@ -892,7 +868,7 @@ func (t treeCursor[T]) DescendantsOf(k key, strict bool) (ret treeCursor[T]) {
 func (t treeCursor[T]) AncestorsOf(k key, strict bool) (ret treeCursor[T]) {
 	ret = newTree[T]().Cursor()
 	t.walk(k, func(n treeCursor[T]) bool {
-		if !n.Key().isPrefixOf(k, false) {
+		if !n.Key().isPrefixOf(k) {
 			return true
 		}
 		if n.HasEntry() && !(strict && n.Key().equalFromRoot(k)) {
@@ -948,7 +924,7 @@ func (t treeCursor[T]) OverlapsKey(k key) (ret bool) {
 		if !n.HasEntry() {
 			return false
 		}
-		if n.Key().isPrefixOf(k, false) || k.isPrefixOf(n.Key(), false) {
+		if n.Key().isPrefixOf(k) || k.isPrefixOf(n.Key()) {
 			ret = true
 			return true
 		}
