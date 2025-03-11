@@ -747,7 +747,7 @@ func (t treeCursor[T]) insertHole(k key, v T) nodeRef {
 func (t treeCursor[T]) walk(path key, fn func(treeCursor[T]) bool) {
 	// Follow provided path directly until it's exhausted
 	var ok bool
-	for ok = true; ok; t, ok = t.pathNext(path) {
+	for ok = true; ok && t.Key().len < path.len; t, ok = t.pathNext(path) {
 		if !t.Key().isZero() {
 			if fn(t) {
 				return
@@ -755,7 +755,7 @@ func (t treeCursor[T]) walk(path key, fn func(treeCursor[T]) bool) {
 		}
 	}
 
-	if !ok {
+	if t.IsEmpty() {
 		return
 	}
 
@@ -789,7 +789,7 @@ func (t treeCursor[T]) pathNext(path key) (treeCursor[T], bool) {
 // get returns the value associated with the exact key provided, if it exists.
 // TODO this is only applicable to value-bearing trees
 func (t treeCursor[T]) Get(k key) (val T, ok bool) {
-	for pathOk := true; pathOk; t, pathOk = t.pathNext(k) {
+	for t, pathOk := t.pathNext(k); pathOk; t, pathOk = t.pathNext(k) {
 		tKey := t.Key()
 		if !tKey.isZero() && tKey.len >= k.len {
 			if tKey.equalFromRoot(k) && t.HasEntry() {
@@ -803,7 +803,7 @@ func (t treeCursor[T]) Get(k key) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t treeCursor[T]) Contains(k key) (ret bool) {
-	for pathOk := true; pathOk; t, pathOk = t.pathNext(k) {
+	for t, pathOk := t.pathNext(k); pathOk; t, pathOk = t.pathNext(k) {
 		tKey := t.Key()
 		if !tKey.isZero() {
 			if ret = (tKey.equalFromRoot(k) && t.HasEntry()); ret {

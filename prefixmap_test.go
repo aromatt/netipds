@@ -46,29 +46,29 @@ func TestPrefixMapGet(t *testing.T) {
 		want bool
 	}{
 		{pfxs(), pfx("::0/128"), false},
-		//{pfxs("::0/128"), pfx("::0/128"), true},
-		//{pfxs("::1/128"), pfx("::1/128"), true},
-		//{pfxs("::2/128"), pfx("::2/128"), true},
-		//{pfxs("::2/127"), pfx("::2/127"), true},
-		//{pfxs("::/128", "::1/128"), pfx("::1/128"), true},
-		//{pfxs("::/128", "::1/128", "::2/127"), pfx("::1/128"), true},
-		//{pfxs("::/128", "::1/128", "::2/127", "::3/127"), pfx("::1/128"), true},
-		//{pfxs("::/128"), pfx("::/0"), false},
+		{pfxs("::0/128"), pfx("::0/128"), true},
+		{pfxs("::1/128"), pfx("::1/128"), true},
+		{pfxs("::2/128"), pfx("::2/128"), true},
+		{pfxs("::2/127"), pfx("::2/127"), true},
+		{pfxs("::/128", "::1/128"), pfx("::1/128"), true},
+		{pfxs("::/128", "::1/128", "::2/127"), pfx("::1/128"), true},
+		{pfxs("::/128", "::1/128", "::2/127", "::3/127"), pfx("::1/128"), true},
+		{pfxs("::/128"), pfx("::/0"), false},
 
-		//// Make sure we can't get a prefix that has a node but no entry
-		//{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
+		// Make sure we can't get a prefix that has a node but no entry
+		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
 
-		//// Make sure parent/child insert order doesn't matter
-		//{pfxs("::0/127", "::0/128"), pfx("::0/127"), true},
-		//{pfxs("::0/128", "::0/127"), pfx("::0/127"), true},
-		//{pfxs("::0/128", "::0/127", "::1/128"), pfx("::0/127"), true},
+		// Make sure parent/child insert order doesn't matter
+		{pfxs("::0/127", "::0/128"), pfx("::0/127"), true},
+		{pfxs("::0/128", "::0/127"), pfx("::0/127"), true},
+		{pfxs("::0/128", "::0/127", "::1/128"), pfx("::0/127"), true},
 
-		//// TODO: should we allow ::/0 to be used as a key?
-		//{pfxs("::/0"), pfx("::/0"), false},
+		// TODO: should we allow ::/0 to be used as a key?
+		{pfxs("::/0"), pfx("::/0"), false},
 
-		//// IPv4
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		// IPv4
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
 	}
 	for _, tt := range tests {
 		pmb := NewPrefixMapBuilder[bool]()
@@ -280,6 +280,7 @@ func TestPrefixMapToMap(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
+		println(pmb.String())
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
 }

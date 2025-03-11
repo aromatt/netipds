@@ -70,7 +70,7 @@ func TestPrefixSetEncompasses(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -99,7 +99,7 @@ func TestPrefixSetEncompassesStrict(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -133,7 +133,7 @@ func TestPrefixSetRootOf(t *testing.T) {
 		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -171,7 +171,7 @@ func TestPrefixSetRootOfStrict(t *testing.T) {
 		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -206,7 +206,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), pfx("1.2.3.0/32"), true},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -244,7 +244,7 @@ func TestPrefixSetParentOfStrict(t *testing.T) {
 		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), netip.Prefix{}, false},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -340,7 +340,7 @@ func TestPrefixSetDescendantsOf(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -435,7 +435,7 @@ func TestPrefixSetDescendantsOfStrict(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -517,7 +517,7 @@ func TestPrefixSetAncestorsOf(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -601,7 +601,7 @@ func TestPrefixSetAncestorsOfStrict(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -630,7 +630,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 		{pfxs("::0/128", "::2/128"), pfx("::3/128"), false},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -679,7 +679,7 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
@@ -711,11 +711,11 @@ func TestPrefixSetSubtract(t *testing.T) {
 		{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
 		}
-		subPsb := &PrefixSetBuilder{}
+		subPsb := NewPrefixSetBuilder()
 		for _, p := range tt.subtract {
 			subPsb.Add(p)
 		}
@@ -753,11 +753,11 @@ func TestPrefixSetIntersect(t *testing.T) {
 		{pfxs("1.2.3.0/24"), pfxs("1.2.0.0/32"), pfxs()},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range x {
 			psb.Add(p)
 		}
-		intersectPsb := &PrefixSetBuilder{}
+		intersectPsb := NewPrefixSetBuilder()
 		for _, p := range y {
 			intersectPsb.Add(p)
 		}
@@ -810,11 +810,11 @@ func TestPrefixSetMerge(t *testing.T) {
 		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range x {
 			psb.Add(p)
 		}
-		unionPsb := &PrefixSetBuilder{}
+		unionPsb := NewPrefixSetBuilder()
 		for _, p := range y {
 			unionPsb.Add(p)
 		}
@@ -840,7 +840,7 @@ func TestPrefixSetRemove(t *testing.T) {
 		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.add {
 			psb.Add(p)
 		}
@@ -868,11 +868,11 @@ func TestPrefixSetFilter(t *testing.T) {
 		{pfxs("::0/128", "::2/128"), pfxs("::0/127"), pfxs("::0/128")},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.add {
 			psb.Add(p)
 		}
-		filterPsb := &PrefixSetBuilder{}
+		filterPsb := NewPrefixSetBuilder()
 		for _, p := range tt.filter {
 			filterPsb.Add(p)
 		}
@@ -897,7 +897,7 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 		{pfxs("1.2.3.0/24", "1.2.3.4/32"), pfxs("1.2.3.0/24")},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.add {
 			psb.Add(p)
 		}
@@ -920,7 +920,7 @@ func TestPrefixSetSize(t *testing.T) {
 		{pfxs("0::0/127", "::0/128", "::1/128"), 3},
 	}
 	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
+		psb := NewPrefixSetBuilder()
 		for _, p := range tt.add {
 			psb.Add(p)
 		}
