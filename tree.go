@@ -8,15 +8,6 @@ type nodeRef int
 
 const absent = nodeRef(0)
 
-//type node struct {
-//	//key key
-//	// sr: we still have hasEntry because PrefixSet doesn't have values but it
-//	// has entries
-//	//hasEntry bool
-//	//lefts  nodeRef
-//	//rights nodeRef
-//}
-
 // tree is a binary radix tree supporting 128-bit keys (see key.go).
 //
 // The tree is compressed by default, however it supports uncompressed
@@ -388,13 +379,10 @@ func (t treeCursor[T]) Compress() treeCursor[T] {
 // current node, if any.
 func (t treeCursor[T]) Remove(k key) nodeRef {
 	tKey := t.Key()
-	println("Remove", tKey.String(), "from", t.Key().String())
 	switch {
 	// Removing t itself
 	case k.equalFromRoot(tKey):
-		println("  equal")
 		if t.HasEntry() {
-			println("    clearing entry")
 			t.ClearEntry()
 		}
 		left, leftOk := t.ChildAt(bitL)
@@ -402,25 +390,20 @@ func (t treeCursor[T]) Remove(k key) nodeRef {
 		switch {
 		// No children (deleting a leaf node)
 		case !leftOk && !rightOk:
-			println("    deleting a leaf node")
 			return 0 // 0 represents the absence of a node
 		// Only one child; merge with it
 		case !leftOk:
-			println("    deleting right")
 			right.SetOffset(tKey.offset)
 			return right.node
 		case !rightOk:
-			println("    deleting left")
 			left.SetOffset(tKey.offset)
 			return left.node
 		// t is a shared prefix node, so it can't be removed
 		default:
-			println("    shared prefix")
 			return t.node
 		}
 	// Removing a descendant of t; recurse into the appropriate child
 	case tKey.isPrefixOf(k):
-		println("  isPrefix")
 		bit := k.bit(tKey.len)
 		if child, ok := t.ChildAt(bit); ok {
 			// We need to use SetChildAt because the returned nodeRef may be 0
@@ -429,7 +412,6 @@ func (t treeCursor[T]) Remove(k key) nodeRef {
 		return t.node
 	// Nothing to do
 	default:
-		println("  nothing")
 		return t.node
 	}
 }
