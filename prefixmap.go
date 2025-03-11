@@ -21,6 +21,12 @@ type PrefixMapBuilder[T any] struct {
 	tree tree[T]
 }
 
+func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
+	return &PrefixMapBuilder[T]{
+		tree: *newTree[T](),
+	}
+}
+
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
 	return m.tree.Cursor().Get(keyFromPrefix(p))
