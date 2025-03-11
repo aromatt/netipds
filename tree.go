@@ -6,6 +6,8 @@ import (
 
 type nodeRef int
 
+const root = nodeRef(0)
+
 type node struct {
 	key key
 	// sr: we still have hasEntry because PrefixSet doesn't have values but it
@@ -69,8 +71,6 @@ func (t *tree[T]) setValueFrom(n, o nodeRef) {
 
 // childAt returns the index of the child of n specified by b.
 func (t *tree[T]) childAt(n nodeRef, b bit) nodeRef {
-	//nd := t.nodes[n]
-	//return nd.left + (nd.right-nd.left)*nodeRef(b)
 	if b == bitR {
 		return t.nodes[n].right
 	}
@@ -101,7 +101,7 @@ func (t *tree[T]) setChildAt(b bit, n, o nodeRef) {
 //
 // If o == nodeRef(0), setChild does nothing.
 func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
-	if o == 0 {
+	if o == root {
 		return o
 	}
 	oKey := t.nodes[o].key
@@ -112,7 +112,7 @@ func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
 
 // TODO document
 func (t *tree[T]) Cursor() treeCursor[T] {
-	return treeCursor[T]{t, 0}
+	return treeCursor[T]{t, root}
 }
 
 // String returns a string representation of t, showing its structure and
@@ -170,10 +170,10 @@ func (t treeCursor[T]) Value() (T, bool) {
 // current node. If the child doesn't exist, ChildAt returns (t, false).
 func (t treeCursor[T]) ChildAt(b bit) (treeCursor[T], bool) {
 	child := t.tree.childAt(t.node, b)
-	if child == 0 {
-		return t, false
-	}
-	return treeCursor[T]{t.tree, child}, true
+	//if child == root {
+	//	return t, false
+	//}
+	return treeCursor[T]{t.tree, child}, child != root
 }
 
 // NewChild adds a new node with key k as a child of the current node and
