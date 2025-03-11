@@ -29,10 +29,6 @@ type tree[T any] struct {
 
 	// Values are indexed by the node's index in the nodes slice.
 	values map[nodeRef]T
-
-	// pos is the position of a cursor in the tree.
-	// This is used for  traversal methods.
-	pos nodeRef
 }
 
 // newNode creates a new node in t with the provided key.
@@ -47,7 +43,6 @@ func newTree[T any]() *tree[T] {
 	return &tree[T]{
 		nodes:  []node{{}},
 		values: map[nodeRef]T{},
-		pos:    1,
 	}
 }
 
