@@ -110,7 +110,7 @@ func TestKeyIsPrefixOf(t *testing.T) {
 		{k(uint128{1 << 63, 0}, 0, 1), k(uint128{0, 1}, 0, 128), false},
 	}
 	for _, tt := range tests {
-		if got := tt.a.isPrefixOf(tt.b, false); got != tt.want {
+		if got := tt.a.isPrefixOf(tt.b); got != tt.want {
 			t.Errorf("%v.isPrefixOf(%v) = %v, want %v", tt.a, tt.b, got, tt.want)
 		}
 	}

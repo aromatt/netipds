@@ -201,11 +201,15 @@ func (k key) commonPrefixLen(o key) (n uint8) {
 // isPrefixOf reports whether k has the same content as o up to position k.len.
 //
 // If strict, returns false if k == o.
-func (k key) isPrefixOf(o key, strict bool) bool {
-	if k.len <= o.len && k.content == o.content.bitsClearedFrom(k.len) {
-		return !(strict && k.equalFromRoot(o))
-	}
-	return false
+func (k key) isPrefixOfStrict(o key) bool {
+	return k.len < o.len && k.content == o.content.bitsClearedFrom(k.len)
+}
+
+// isPrefixOfStrict reports whether k has the same content as o up to position k.len.
+//
+// If strict, returns false if k == o.
+func (k key) isPrefixOf(o key) bool {
+	return k.len <= o.len && k.content == o.content.bitsClearedFrom(k.len)
 }
 
 // isZero reports whether k is the zero key.
