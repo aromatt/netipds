@@ -1,7 +1,6 @@
 package netipds
 
 import (
-	"fmt"
 	"net/netip"
 	"testing"
 )
@@ -14,21 +13,40 @@ func TestPrefixSetAddContains(t *testing.T) {
 	}{
 		{pfxs(), pfx("::0/128"), false},
 		{pfxs("::0/128"), pfx("::0/128"), true},
-		//{pfxs("::0/128"), pfx("::1/128"), false},
-		//{pfxs("::0/128"), pfx("::0/127"), false},
-		//{pfxs("::0/127"), pfx("::0/128"), false},
-		//{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
-		//{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
-		//{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		{pfxs("::0/128"), pfx("::1/128"), false},
+		{pfxs("::0/128"), pfx("::0/127"), false},
+		{pfxs("::0/127"), pfx("::0/128"), false},
+		{pfxs("::0/127", "::0/128"), pfx("::0/128"), true},
+		{pfxs("::0/127", "::1/128"), pfx("::1/128"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
+		{pfxs("1.2.3.0/24"), pfx("9.9.9.0/24"), false},
+
+		// encompassed, but not contained
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+		{pfxs("0.0.0.0/1", "128.0.0.0/1"), pfx("128.0.0.0/1"), true},
+		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), false},
+
+		// exercises new-parent-insertion
+		{
+			pfxs("0.0.0.8/32", "0.0.0.4/32", "0.0.0.2/32", "0.0.0.1/32"),
+			pfx("0.0.0.1/32"),
+			true,
+		},
+
+		//// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		//{pfxs("1.2.3.4/32"), pfx("::ffff:1.2.3.4/128"), false},
+		//{pfxs("1.2.3.4/32"), pfx("1.2.3.4/32"), true},
+		//{pfxs("::ffff:1.2.3.4/128"), pfx("1.2.3.4/32"), false},
+		//{pfxs("::ffff:1.2.3.4/128"), pfx("::ffff:1.2.3.4/128"), true},
 	}
 	for _, tt := range tests {
 		psb := NewPrefixSetBuilder()
 		for _, p := range tt.set {
 			psb.Add(p)
+			println("after inserting", p.String(), "\npsb:", psb.tree.String())
 		}
-		fmt.Printf("psb: %s\n", psb.tree.String())
 		ps := psb.PrefixSet()
+		println("ps:", ps.tree.String())
 		if got := ps.Contains(tt.get); got != tt.want {
 			t.Errorf("ps.Contains(%s) = %v, want %v", tt.get, got, tt.want)
 		}

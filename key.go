@@ -31,6 +31,10 @@ func (k key) rooted() key {
 	return key{k.content, 0, k.len}
 }
 
+func (k key) withOffset(o uint8) key {
+	return key{k.content, o, k.len}
+}
+
 // keyFromPrefix returns the key that represents the provided Prefix.
 func keyFromPrefix(p netip.Prefix) key {
 	addr := p.Addr()

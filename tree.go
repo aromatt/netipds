@@ -39,7 +39,7 @@ type tree[T any] struct {
 func (t *tree[T]) newNode(k key) nodeRef {
 	n := node{key: k}
 	t.nodes = append(t.nodes, n)
-	return nodeRef(len(t.nodes))
+	return nodeRef(len(t.nodes) - 1)
 }
 
 // newTree returns a new tree.
@@ -54,6 +54,7 @@ func newTree[T any]() *tree[T] {
 // setValue sets n's value to v and returns n.
 func (t *tree[T]) setValue(n nodeRef, v T) nodeRef {
 	t.values[n] = v
+	t.nodes[n].hasEntry = true
 	return n
 }
 
@@ -94,29 +95,23 @@ func (t *tree[T]) childAt(n nodeRef, b bit) nodeRef {
 func (t *tree[T]) setChildAt(b bit, n, o nodeRef) {
 	if b == bitR {
 		t.nodes[n].right = o
+		return
 	}
 	t.nodes[n].left = o
 }
 
-// setChild sets o as the appropriate child of n if the child spot isn't
-// already taken, choosing which child position based on the bit at the
-// beginning of o's key segment (i.e. at key.offset).
+// setChild sets o as the appropriate child of n, choosing which child position
+// based on the bit at the beginning of o's key segment (i.e. at key.offset).
 //
-// A provided nodeRef(0) is ignored.
-//
-// TODO: method names are confusing re: whether they move the cursor or not
-// TODO: if the spot was already taken, should it return n? The pointer-based
-// version always returned t.
+// If o == nodeRef(0), setChild does nothing.
 func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
 	if o == 0 {
 		return o
 	}
 	oKey := t.nodes[o].key
 	b := oKey.bit(oKey.offset)
-	if t.childAt(n, b) == 0 {
-		t.setChildAt(b, n, o)
-	}
-	return o
+	t.setChildAt(b, n, o)
+	return n
 }
 
 // TODO document
@@ -185,10 +180,29 @@ func (t treeCursor[T]) ChildAt(b bit) (treeCursor[T], bool) {
 	return treeCursor[T]{t.tree, child}, true
 }
 
+// NewChild adds a new node with key k as a child of the current node and
+// returns a cursor positioned at the new node.
+func (t treeCursor[T]) NewChild(k key) treeCursor[T] {
+	child := t.newNode(k)
+	t.SetChild(child)
+	return treeCursor[T]{t.tree, child}
+}
+
 // NewChildAt creates a zero-valued node as the child (selected by b) of the
 // current node.
 func (t treeCursor[T]) NewChildAt(b bit) treeCursor[T] {
-	return t.SetChild(t.newNode(key{}))
+	child := t.newNode(key{})
+	t.SetChildAt(b, child)
+	return treeCursor[T]{t.tree, child}
+}
+
+// NewParent creates a new node having k as its key and the current node as its
+// sole child, and returns a cursor pointing to this new node.
+func (t treeCursor[T]) NewParent(k key) treeCursor[T] {
+	t.SetOffset(k.len)
+	parent := t.newNode(k)
+	t.tree.setChild(parent, t.node)
+	return treeCursor[T]{t.tree, parent}
 }
 
 // SetNode replaces the node referred to by the cursor with the provided one.
@@ -197,26 +211,15 @@ func (t treeCursor[T]) SetNode(n node) treeCursor[T] {
 	return t
 }
 
-// SetChild sets o as the appropriate child of the current node, if the spot
-// isn't already taken, and returns a cursor positioned at the new node.
-//
-// TODO: the only function that uses the return value of this is
-// NewChildAt, which is only used by CopyFrom.
-func (t treeCursor[T]) SetChild(o nodeRef) treeCursor[T] {
-	return treeCursor[T]{t.tree, t.tree.setChild(t.node, o)}
+// SetChild sets o as the appropriate child of the current node.
+func (t treeCursor[T]) SetChild(o nodeRef) {
+	t.tree.setChild(t.node, o)
 }
 
 // SetChildAt sets o as the child of the current node selected by b.
 func (t treeCursor[T]) SetChildAt(b bit, o nodeRef) treeCursor[T] {
 	t.setChildAt(b, t.node, o)
 	return t
-}
-
-// AddChild adds a new node with key k as a child of the current node, if the
-// spot isn't already taken, and returns a cursor positioned at the new node.
-// If the spot is already taken, AddChild does nothing and returns t.
-func (t treeCursor[T]) AddChild(k key) treeCursor[T] {
-	return treeCursor[T]{t.tree, t.tree.setChild(t.node, t.newNode(k))}
 }
 
 // SetValue updates the value of the current node.
@@ -235,6 +238,7 @@ func (t treeCursor[T]) SetValueFrom(o treeCursor[T]) treeCursor[T] {
 
 // SetOffset sets the current node's offset to the provided value.
 func (t treeCursor[T]) SetOffset(offset uint8) treeCursor[T] {
+	//t.tree.nodes[t.node].key = t.tree.nodes[t.node].key.withOffset(offset) //.offset = offset
 	t.tree.nodes[t.node].key.offset = offset
 	return t
 }
@@ -287,27 +291,20 @@ func (t treeCursor[T]) Copy() treeCursor[T] {
 }
 
 // CopyFrom copies o to t.
+// TODO: is it ok if this overwrites? yes.
 func (t treeCursor[T]) CopyFrom(o treeCursor[T]) treeCursor[T] {
 	s := stack[tc2[T]]{}
 	s.Push(tc2[T]{o, t})
 	for !s.IsEmpty() {
 		c := s.Pop()
 		src, dst := c[0], c[1]
-		srcN := src.Node()
-		dst.SetNode(node{key: srcN.key, hasEntry: srcN.hasEntry})
-		// TODO: adjust this if we support a value-less tree
-		if val, ok := src.Value(); ok {
-			dst.SetValue(val)
-		}
+		//srcN := src.Node()
+		//dst.SetNode(node{key: srcN.key, hasEntry: srcN.hasEntry})
+		dst.SetNode(node{key: src.Key()})
+		dst.SetValueFrom(src)
 		for _, bit := range eachBit {
 			if srcChild, srcOk := src.ChildAt(bit); srcOk {
-				dstChild, dstOk := dst.ChildAt(bit)
-				// TODO can we just use AddChild? it only adds the child if the
-				// spot isn't taken yet.
-				if !dstOk {
-					dstChild = dst.NewChildAt(bit)
-				}
-				s.Push(tc2[T]{srcChild, dstChild})
+				s.Push(tc2[T]{srcChild, dst.NewChildAt(bit)})
 			}
 		}
 	}
@@ -316,6 +313,11 @@ func (t treeCursor[T]) CopyFrom(o treeCursor[T]) treeCursor[T] {
 
 // Insert inserts value v at key k with path compression and moves the cursor
 // to the inserted node.
+// TODO: Perhaps Insert and other recursive methods should just return nodeRefs.
+// It's very common to access the node field immediately.
+// Alternatively, maybe SetChild should accept a treeCursor or there should be
+// a SetChildFrom, but that seems silly if we don't often use the cursor
+// returned by these methods.
 func (t treeCursor[T]) Insert(k key, v T) treeCursor[T] {
 	tKey := t.Key()
 	// Inserting at the current node itself
@@ -329,19 +331,20 @@ func (t treeCursor[T]) Insert(k key, v T) treeCursor[T] {
 	case com == tKey.len:
 		child, ok := t.ChildAt(k.bit(tKey.len))
 		if !ok {
-			child = t.AddChild(k.rest(tKey.len)).SetValue(v)
+			child = t.NewChild(k.rest(tKey.len)).SetValue(v)
 		}
-		child.Insert(k, v)
+		child = child.Insert(k, v)
+		t.SetChild(child.node)
 		return t
 	// Inserting at a prefix of tKey; create a new parent node with t as its
 	// sole child
 	case com == k.len:
-		return t.InsertParent(k).SetValue(v)
+		return t.NewParent(k).SetValue(v)
 	// Neither is a prefix of the other; create a new parent at their common
 	// prefix with children t and its new sibling
 	default:
-		parent := t.InsertParent(tKey.trunc(com))
-		parent.AddChild(k.rest(com)).SetValue(v)
+		parent := t.NewParent(tKey.trunc(com))
+		parent.NewChild(k.rest(com)).SetValue(v)
 		return parent
 	}
 }
@@ -358,7 +361,7 @@ func (t treeCursor[T]) InsertLazy(k key, v T) treeCursor[T] {
 		bit := k.bit(tKey.len)
 		child, ok := t.ChildAt(bit)
 		if !ok {
-			child = t.AddChild(tKey.next(bit))
+			child = t.NewChild(tKey.next(bit))
 		}
 		child.InsertLazy(k, v)
 		return t
@@ -506,14 +509,6 @@ func (t treeCursor[T]) SubtractTree(o treeCursor[T]) nodeRef {
 	return t.node
 }
 
-// InsertParent inserts a new node with key k as the parent of the current node
-// and returns a cursor pointing to the new parent.
-func (t treeCursor[T]) InsertParent(k key) treeCursor[T] {
-	// TODO t.nodes[t.node].key.offset = k.len
-	t.SetOffset(k.len)
-	return treeCursor[T]{t.tree, t.tree.setChild(t.newNode(k), t.node)}
-}
-
 // IsEmpty reports whether the tree is empty.
 func (t treeCursor[T]) IsEmpty() bool {
 	n := t.Node()
@@ -563,13 +558,13 @@ func (t treeCursor[T]) MergeTree(o treeCursor[T]) treeCursor[T] {
 		// o needs to inserted as a parent of t regardless of whether o has an
 		// entry (if the node exists in the o tree, it will need to be in the
 		// union tree). Insert it and continue traversing from there.
-		return t.InsertParent(oKey).SetValueFrom(o).MergeTree(o)
+		return t.NewParent(oKey).SetValueFrom(o).MergeTree(o)
 	// Neither is a prefix of the other
 	default:
 		// Insert a new parent above t, and create a new sibling for t having
 		// o's key and value.
-		parent := t.InsertParent(tKey.trunc(com))
-		parent.AddChild(oKey.rest(com)).SetValueFrom(o)
+		parent := t.NewParent(tKey.trunc(com))
+		parent.NewChild(oKey.rest(com)).SetValueFrom(o)
 		return parent
 	}
 }
@@ -722,7 +717,7 @@ func (t treeCursor[T]) insertHole(k key, v T) nodeRef {
 		_, siblingOk := t.ChildAt(inv(bit))
 		if !siblingOk {
 			//*sibling = newTree[T](t.key.next((^bit) & 1)).setValue(v)
-			t.AddChild(tKey.next(inv(bit))).SetValue(v)
+			t.NewChild(tKey.next(inv(bit))).SetValue(v)
 		}
 		//*child = newTree[T](t.key.next(bit)).insertHole(k, v)
 		t.SetChild(child.insertHole(k, v))
@@ -785,8 +780,8 @@ func (t treeCursor[T]) walk(path key, fn func(treeCursor[T]) bool) {
 	}
 }
 
-// pathNext returns the child of t which is next in the traversal of the
-// specified path.
+// pathNext returns a cursor pointing to the child of t which is next in the
+// traversal of the specified path.
 func (t treeCursor[T]) pathNext(path key) (treeCursor[T], bool) {
 	return t.ChildAt(path.bit(t.Key().len))
 }
