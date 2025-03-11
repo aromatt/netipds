@@ -70,10 +70,8 @@ func (t *tree[T]) setValueFrom(n, o nodeRef) {
 
 // childAt returns the index of the child of n specified by b.
 func (t *tree[T]) childAt(n nodeRef, b bit) nodeRef {
-	if b == bitR {
-		return t.nodes[n].right
-	}
-	return t.nodes[n].left
+	nd := t.nodes[n]
+	return nd.left + (nd.right-nd.left)*nodeRef(b)
 }
 
 // children returns the indices of n's children in the order indicated by
