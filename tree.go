@@ -8,13 +8,6 @@ type nodeRef int
 
 const absent = nodeRef(0)
 
-type node struct {
-	key      key
-	left     nodeRef
-	right    nodeRef
-	hasEntry bool
-}
-
 // tree is a binary radix tree supporting 128-bit keys (see key.go).
 //
 // The tree is compressed by default, however it supports uncompressed
@@ -25,11 +18,11 @@ type node struct {
 type tree[T any] struct {
 	// Index 0 is occupied by the root node, and is also used as a sentinel
 	// nodeRef for child nodes to indicate the absence of a child.
-	nodes []node
-	//keys    []key
-	//lefts   []nodeRef
-	//rights  []nodeRef
-	//entries []bool
+	//nodes []node
+	keys    []key
+	lefts   []nodeRef
+	rights  []nodeRef
+	entries []bool
 
 	// Values are indexed by the node's index in the nodes slice.
 	values map[nodeRef]T
@@ -37,46 +30,52 @@ type tree[T any] struct {
 
 // newNode creates a new node in t with the provided key.
 func (t *tree[T]) newNode(k key) nodeRef {
-	t.nodes = append(t.nodes, node{key: k})
-	return nodeRef(len(t.nodes) - 1)
+	t.keys = append(t.keys, k)
+	t.lefts = append(t.lefts, absent)
+	t.rights = append(t.rights, absent)
+	t.entries = append(t.entries, false)
+	return nodeRef(len(t.keys) - 1)
 }
 
 // newTree returns a new tree.
 func newTree[T any]() *tree[T] {
 	return &tree[T]{
-		nodes:  []node{{}},
-		values: map[nodeRef]T{},
+		keys:    []key{{}},
+		lefts:   []nodeRef{absent},
+		rights:  []nodeRef{absent},
+		entries: []bool{false},
+		values:  map[nodeRef]T{},
 	}
 }
 
 // setValue sets n's value to v and returns n.
 func (t *tree[T]) setValue(n nodeRef, v T) nodeRef {
 	t.values[n] = v
-	t.nodes[n].hasEntry = true
+	t.entries[n] = true
 	return n
 }
 
 // clearEntry removes the entry and value from t.
 func (t *tree[T]) clearEntry(n nodeRef) {
-	t.nodes[n].hasEntry = false
+	t.entries[n] = false
 	delete(t.values, n)
 }
 
 // childAt returns the index of the child of n specified by b.
 func (t *tree[T]) childAt(n nodeRef, b bit) nodeRef {
 	if b == bitR {
-		return t.nodes[n].right
+		return t.rights[n]
 	}
-	return t.nodes[n].left
+	return t.lefts[n]
 }
 
 // setChildAt assigns o as the child of n specified by b.
 func (t *tree[T]) setChildAt(b bit, n, o nodeRef) {
 	if b == bitR {
-		t.nodes[n].right = o
+		t.rights[n] = o
 		return
 	}
-	t.nodes[n].left = o
+	t.lefts[n] = o
 }
 
 // setChild sets o as the appropriate child of n, choosing which child position
@@ -87,7 +86,7 @@ func (t *tree[T]) setChild(n, o nodeRef) nodeRef {
 	if o == absent {
 		return o
 	}
-	oKey := t.nodes[o].key
+	oKey := t.keys[o]
 	b := oKey.bit(oKey.offset)
 	t.setChildAt(b, n, o)
 	return n
@@ -125,17 +124,13 @@ type treeCursor[T any] struct {
 // tc2 is used for traversing two trees simultaneously.
 type tc2[T any] [2]treeCursor[T]
 
-func (t treeCursor[T]) Node() node {
-	return t.nodes[t.node]
-}
-
 // Key returns the key of the current node.
 func (t treeCursor[T]) Key() key {
-	return t.nodes[t.node].key
+	return t.keys[t.node]
 }
 
 func (t treeCursor[T]) HasEntry() bool {
-	return t.nodes[t.node].hasEntry
+	return t.entries[t.node]
 }
 
 func (t treeCursor[T]) ClearEntry() treeCursor[T] {
@@ -185,14 +180,18 @@ func (t treeCursor[T]) NewParent(k key) treeCursor[T] {
 }
 
 // SetNode replaces the node referred to by the cursor with the provided one.
-func (t treeCursor[T]) SetNode(n node) treeCursor[T] {
-	t.nodes[t.node] = n
-	return t
-}
+//func (t treeCursor[T]) SetNode(n node) treeCursor[T] {
+//	t.nodes[t.node] = n
+//	return t
+//}
 
-// DeleteNode removes the current node from the tree.
+// DeleteNode removes the current node from the tree and returns a reference to
+// the node that replaces it.
 func (t treeCursor[T]) DeleteNode() {
-	t.nodes[t.node] = node{}
+	t.keys[t.node] = key{}
+	t.lefts[t.node] = absent
+	t.rights[t.node] = absent
+	t.entries[t.node] = false
 	delete(t.values, t.node)
 }
 
@@ -223,8 +222,7 @@ func (t treeCursor[T]) SetValueFrom(o treeCursor[T]) treeCursor[T] {
 
 // SetOffset sets the current node's offset to the provided value.
 func (t treeCursor[T]) SetOffset(offset uint8) treeCursor[T] {
-	//t.keys[t.node] = t.keys[t.node].withOffset(offset)
-	t.nodes[t.node].key = t.nodes[t.node].key.withOffset(offset)
+	t.keys[t.node] = t.keys[t.node].withOffset(offset)
 	return t
 }
 
@@ -283,7 +281,10 @@ func (t treeCursor[T]) CopyFrom(o treeCursor[T]) treeCursor[T] {
 	for !s.IsEmpty() {
 		c := s.Pop()
 		src, dst := c[0], c[1]
-		dst.SetNode(src.nodes[src.node])
+		//srcN := src.Node()
+		//dst.SetNode(node{key: srcN.key, hasEntry: srcN.hasEntry})
+		//dst.SetNode(node{key: src.Key()})
+		dst.keys[dst.node] = src.keys[src.node]
 		dst.SetValueFrom(src)
 		for _, bit := range eachBit {
 			if srcChild, srcOk := src.ChildAt(bit); srcOk {
@@ -439,8 +440,7 @@ func (t treeCursor[T]) SubtractKey(k key) nodeRef {
 			}
 		}
 		// TODO: is this just IsEmpty?
-		tn := t.Node()
-		if tn.right == 0 && tn.left == 0 && !tn.hasEntry {
+		if t.rights[t.node] == 0 && t.lefts[t.node] == 0 && !t.HasEntry() {
 			return 0
 		}
 	}
@@ -495,8 +495,9 @@ func (t treeCursor[T]) SubtractTree(o treeCursor[T]) nodeRef {
 
 // IsEmpty reports whether the tree is empty.
 func (t treeCursor[T]) IsEmpty() bool {
-	n := t.Node()
-	return n.key.isZero() && n.left == 0 && n.right == 0
+	//n := t.Node()
+	//return n.key.isZero() && n.left == 0 && n.right == 0
+	return t.Key().isZero() && t.lefts[t.node] == absent && t.rights[t.node] == absent
 }
 
 // MergeTree modifies t so that it is the union of the entries of t and o.
@@ -803,13 +804,12 @@ func (t treeCursor[T]) Contains(k key) (ret bool) {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[T]) Encompasses(k key, _ bool) (ret bool) {
-	n := t.tree.childAt(t.node, k.bit(t.Key().len))
+	n := t.tree.childAt(t.node, k.bit(t.tree.keys[t.node].len))
 	for n != absent {
-		nn := t.tree.nodes[n]
-		if ret = nn.hasEntry && nn.key.isPrefixOf(k); ret {
+		if ret = t.tree.entries[n] && t.tree.keys[n].isPrefixOf(k); ret {
 			break
 		}
-		n = t.tree.childAt(n, k.bit(nn.key.len))
+		n = t.tree.childAt(n, k.bit(t.tree.keys[n].len))
 	}
 	return
 }
