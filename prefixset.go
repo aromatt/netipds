@@ -18,12 +18,12 @@ import (
 // improve performance when building large PrefixSets.
 type PrefixSetBuilder struct {
 	Lazy bool
-	tree tree[bool]
+	tree treeReadWriter[bool]
 }
 
 func NewPrefixSetBuilder() *PrefixSetBuilder {
 	return &PrefixSetBuilder{
-		tree: *newTree[bool](),
+		tree: NewUnorderedTree[bool](),
 	}
 }
 
@@ -104,7 +104,7 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	if s.Lazy {
 		t.Cursor().Compress()
 	}
-	return &PrefixSet{*t, t.Cursor().Size()}
+	return &PrefixSet{t, t.Cursor().Size()}
 }
 
 // String returns a human-readable representation of s's tree structure.
@@ -122,7 +122,7 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree tree[bool]
+	tree treeReader[bool]
 	size int
 }
 
@@ -200,28 +200,28 @@ func (s *PrefixSet) ParentOfStrict(p netip.Prefix) (netip.Prefix, bool) {
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 	t := s.tree.Cursor().DescendantsOf(keyFromPrefix(p), false)
-	return &PrefixSet{*t.tree, t.Size()}
+	return &PrefixSet{t.tree, t.Size()}
 }
 
 // DescendantsOfStrict returns a PrefixSet containing all descendants of p in
 // s, excluding p itself.
 func (s *PrefixSet) DescendantsOfStrict(p netip.Prefix) *PrefixSet {
 	t := s.tree.Cursor().DescendantsOf(keyFromPrefix(p), true)
-	return &PrefixSet{*t.tree, t.Size()}
+	return &PrefixSet{t.tree, t.Size()}
 }
 
 // AncestorsOf returns a PrefixSet containing all ancestors of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
 	t := s.tree.Cursor().AncestorsOf(keyFromPrefix(p), false)
-	return &PrefixSet{*t.tree, t.Size()}
+	return &PrefixSet{t.tree, t.Size()}
 }
 
 // AncestorsOfStrict returns a PrefixSet containing all ancestors of p in s,
 // excluding p itself.
 func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
 	t := s.tree.Cursor().AncestorsOf(keyFromPrefix(p), true)
-	return &PrefixSet{*t.tree, t.Size()}
+	return &PrefixSet{t.tree, t.Size()}
 }
 
 // Prefixes returns a slice of all Prefixes in s.
