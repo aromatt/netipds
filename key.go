@@ -100,12 +100,5 @@ func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 
 // key6FromPrefix returns the key that represents the provided Prefix.
 func key6FromPrefix(p netip.Prefix) key[keyBits6] {
-	addr := p.Addr()
-	// TODO len could be -1
-	len := uint8(p.Bits())
-	// TODO we shouldn't need to do this anymore
-	if addr.Is4() {
-		len = len + 96
-	}
-	return NewKey(u128From16(addr.As16()), 0, len)
+	return NewKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
 }
