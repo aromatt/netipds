@@ -88,7 +88,7 @@ func (k key[B]) Rooted() key[B] {
 	return NewKey(k.content, 0, k.seg.len)
 }
 
-func (k key[B]) To128() key[uint128] {
+func (k key[B]) To128() key[keyBits6] {
 	return key[uint128]{seg: k.seg, content: k.content.To128()}
 }
 
