@@ -9,12 +9,6 @@ type nodeRef int
 const absent = nodeRef(0)
 
 // tree is a binary radix tree supporting 128-bit keys (see key.go).
-//
-// The tree is compressed by default, however it supports uncompressed
-// insertion via insertLazy(). This can be much faster than insert() and works
-// well with netipds's intended usage pattern (build a collection with a
-// builder type, then generate an immutable version). After lazy insertions,
-// the tree can be compressed using the compress() method.
 type tree[B KeyBits[B], T any] struct {
 	// Index 0 is occupied by the root node, and is also used as a sentinel
 	// nodeRef for child nodes to indicate the absence of a child.
@@ -362,47 +356,6 @@ func (t treeCursor[B, T]) Insert(k key[B], v T) treeCursor[B, T] {
 		parent := t.NewParent(tKey.Truncated(com))
 		parent.NewChild(k.Rest(com)).SetValue(v)
 		return parent
-	}
-}
-
-// InsertLazy inserts value v at key k without path compression.
-func (t treeCursor[B, T]) InsertLazy(k key[B], v T) treeCursor[B, T] {
-	tKey := t.Key()
-	switch {
-	// Inserting at t itself
-	case tKey.EqualFromRoot(k):
-		return t.SetValue(v)
-	// Inserting at a descendant
-	case tKey.CommonPrefixLen(k) == tKey.seg.len:
-		bit := k.Bit(tKey.seg.len)
-		child, ok := t.ChildAt(bit)
-		if !ok {
-			child = t.NewChild(tKey.Next(bit))
-		}
-		child.InsertLazy(k, v)
-		return t
-	// Nothing to do
-	default:
-		return t
-	}
-}
-
-// Compress performs path compression on tree t.
-// TODO: test this, I don't think it was correct before the slice refactor
-func (t treeCursor[B, T]) Compress() treeCursor[B, T] {
-	left, leftOk := t.ChildAt(bitL)
-	right, rightOk := t.ChildAt(bitR)
-	switch {
-	case !leftOk && !rightOk:
-		return t
-	case leftOk:
-		right.SetOffset(t.Key().seg.offset)
-		return right.Compress()
-	case rightOk:
-		left.SetOffset(t.Key().seg.offset)
-		return left.Compress()
-	default:
-		return t
 	}
 }
 
