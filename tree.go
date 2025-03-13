@@ -789,16 +789,15 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
-	k128 := k.To128()
+	b128 := k.content.To128()
 	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
-	n := childAtBool(t.left, t.right, t.node, k128.content.BitBool(t.tree.key[t.node].seg.len))
+	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.key[t.node].seg.len))
 	for n != absent {
-		nKey := t.tree.key[n].To128()
-		if ret = t.tree.entry[n] && nKey.IsPrefixOf(k128); ret {
+		if ret = t.tree.entry[n] && t.tree.key[n].IsPrefixOf(k); ret {
 			break
 		}
 		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
-		n = childAtBool(t.left, t.right, n, k128.content.BitBool(nKey.seg.len))
+		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.key[n].seg.len))
 	}
 	return
 }
