@@ -38,13 +38,13 @@ func (t *tree[T]) newNode(k key) nodeRef {
 }
 
 // newTree returns a new tree.
-func newTree[T any]() *tree[T] {
+func newTree[T any](nodesCap int, valuesCap int) *tree[T] {
 	return &tree[T]{
-		keys:    []key{{}},
-		lefts:   []nodeRef{absent},
-		rights:  []nodeRef{absent},
-		entries: []bool{false},
-		values:  map[nodeRef]T{},
+		keys:    append(make([]key, nodesCap), key{}),
+		lefts:   append(make([]nodeRef, nodesCap), absent),
+		rights:  append(make([]nodeRef, nodesCap), absent),
+		entries: append(make([]bool, nodesCap), false),
+		values:  make(map[nodeRef]T, valuesCap),
 	}
 }
 
@@ -270,7 +270,7 @@ func (t treeCursor[T]) Size() (size int) {
 // values map (for the copy, not the original): unreachable nodes and their
 // values are not copied.
 func (t treeCursor[T]) Copy() treeCursor[T] {
-	return newTree[T]().Cursor().CopyFrom(t)
+	return newTree[T](len(t.keys), len(t.values)).Cursor().CopyFrom(t)
 }
 
 // CopyFrom copies o to t.
@@ -866,7 +866,7 @@ func (t treeCursor[T]) DescendantsOf(k key, strict bool) (ret treeCursor[T]) {
 // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
 // the tree.
 func (t treeCursor[T]) AncestorsOf(k key, strict bool) (ret treeCursor[T]) {
-	ret = newTree[T]().Cursor()
+	ret = newTree[T](1, 1).Cursor()
 	t.walk(k, func(n treeCursor[T]) bool {
 		if !n.Key().isPrefixOf(k) {
 			return true
@@ -905,7 +905,7 @@ func (t treeCursor[T]) Filter(o treeCursor[bool]) {
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
 func (t treeCursor[T]) FilterCopy(o treeCursor[bool]) treeCursor[T] {
-	ret := newTree[T]().Cursor()
+	ret := newTree[T](1, 1).Cursor()
 	t.walk(key{}, func(n treeCursor[T]) bool {
 		if n.HasEntry() && o.Encompasses(n.Key(), false) {
 			// TODO always expect ok == true if hasEntry == true

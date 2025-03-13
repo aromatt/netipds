@@ -23,7 +23,7 @@ type PrefixSetBuilder struct {
 
 func NewPrefixSetBuilder() *PrefixSetBuilder {
 	return &PrefixSetBuilder{
-		tree: *newTree[bool](),
+		tree: *newTree[bool](1, 1),
 	}
 }
 

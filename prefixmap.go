@@ -23,7 +23,7 @@ type PrefixMapBuilder[T any] struct {
 
 func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
 	return &PrefixMapBuilder[T]{
-		tree: *newTree[T](),
+		tree: *newTree[T](1, 1),
 	}
 }
 
