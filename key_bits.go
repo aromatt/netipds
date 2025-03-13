@@ -5,19 +5,20 @@ import (
 	"math/bits"
 )
 
-type KeyBits[T comparable] interface {
+type KeyBits[B comparable] interface {
 	comparable
 	IsZero() bool
-	BitsClearedFrom(uint8) T
+	BitsClearedFrom(uint8) B
 	Bit(uint8) bit
 	BitBool(uint8) bool
-	CommonPrefixLen(T) uint8
+	CommonPrefixLen(B) uint8
 	// TODO For use by Next()
-	WithBitSet(uint8) T
+	WithBitSet(uint8) B
 	// TODO For use by StringRel()
-	Justify(uint8, uint8) T
+	Justify(uint8, uint8) B
 	String() string
 	To128() uint128
+	EqualPrefix(B, uint8) bool
 }
 
 type keyBits4 struct {
@@ -62,6 +63,10 @@ func (k keyBits4) String() string {
 
 func (k keyBits4) To128() uint128 {
 	return uint128{uint64(k.bits) << 32, 0}
+}
+
+func (k keyBits4) EqualPrefix(o keyBits4, len uint8) bool {
+	return k == o.BitsClearedFrom(len)
 }
 
 type keyBits6 = uint128
@@ -118,4 +123,8 @@ func (k keyBits6) String() string {
 
 func (k keyBits6) To128() uint128 {
 	return k
+}
+
+func (k keyBits6) EqualPrefix(o keyBits6, len uint8) bool {
+	return k == o.BitsClearedFrom(len)
 }
