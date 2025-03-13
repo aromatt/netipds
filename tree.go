@@ -794,9 +794,9 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 	return
 }
 
-//func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
-//	return t.bits[n] == k.content.BitsClearedFrom(t.seg[n].len)
-//}
+func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
+	return t.bits[n].EqualPrefix(k.content, t.seg[n].len)
+}
 
 func (t *tree[B, T]) shorter(n nodeRef, k key[B]) bool {
 	return t.seg[n].len < k.seg.len
@@ -814,7 +814,7 @@ func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
 	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.seg[t.node].len))
 	for n != absent {
-		if ret = t.tree.entry[n] && t.tree.shorterOrEq(n, k) && t.tree.bits[n] == k.content.BitsClearedFrom(t.tree.seg[n].len); ret {
+		if ret = t.tree.entry[n] && t.tree.shorterOrEq(n, k) && t.tree.equalPrefix(n, k); ret {
 			break
 		}
 		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
@@ -831,7 +831,7 @@ func (t treeCursor[B, T]) EncompassesStrict(k key[B]) (ret bool) {
 	//n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
 	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.seg[t.node].len))
 	for n != absent {
-		if ret = t.tree.entry[n] && t.tree.shorter(n, k) && t.tree.bits[n] == k.content.BitsClearedFrom(t.tree.seg[n].len); ret {
+		if ret = t.tree.entry[n] && t.tree.shorter(n, k) && t.tree.equalPrefix(n, k); ret {
 			break
 		}
 		//n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
