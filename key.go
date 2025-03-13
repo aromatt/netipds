@@ -16,7 +16,7 @@ type key[B KeyBits[B]] struct {
 }
 
 func NewKey[B KeyBits[B]](b B, offset, len uint8) key[B] {
-	return key[B]{seg{offset, len}, b.BitsClearedFrom(len)}
+	return key[B]{seg{offset, len}, b}
 }
 
 func (k key[B]) Bit(i uint8) bit {
@@ -55,7 +55,7 @@ func (k key[B]) IsZero() bool {
 }
 
 func (k key[B]) Truncated(n uint8) key[B] {
-	return NewKey(k.content, k.seg.offset, n)
+	return NewKey(k.content.BitsClearedFrom(n), k.seg.offset, n)
 }
 
 func (k key[B]) IsPrefixOf(o key[B]) bool {
