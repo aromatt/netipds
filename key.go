@@ -88,6 +88,10 @@ func (k key[B]) Rooted() key[B] {
 	return NewKey(k.content, 0, k.seg.len)
 }
 
+func (k key[B]) To128() key[uint128] {
+	return key[uint128]{seg: k.seg, content: k.content.To128()}
+}
+
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 	a4 := p.Addr().As4()

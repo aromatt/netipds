@@ -797,17 +797,6 @@ func (t treeCursor[B, T]) pathNext(path key[B]) (treeCursor[B, T], bool) {
 	return t.ChildAt(path.Bit(t.Key().seg.len))
 }
 
-// TODO
-// pathNext returns the child of t which is next in the traversal of the
-// specified path.
-func (t treeCursor[T, B]) pathNext128(path uint128) (treeCursor[T, B], bool) {
-	return t.ChildAtBool(path.BitBool(t.Key().seg.len))
-	//if path.BitBool(t.Key().seg.len) {
-	//	return t.right[t.node]
-	//}
-	//return t.left[t.node]
-}
-
 // get returns the value associated with the exact key provided, if it exists.
 // TODO this is only applicable to value-bearing trees
 func (t treeCursor[B, T]) Get(k key[B]) (val T, ok bool) {
@@ -840,12 +829,13 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
-	n := t.tree.childAt(t.node, k.Bit(t.tree.key[t.node].seg.len))
+	k128 := k.To128()
+	n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.key[n].IsPrefixOf(k); ret {
 			break
 		}
-		n = t.tree.childAt(n, k.Bit(t.tree.key[n].seg.len))
+		n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
 	}
 	return
 }
@@ -854,12 +844,13 @@ func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[B, T]) EncompassesStrict(k key[B]) (ret bool) {
-	n := t.tree.childAt(t.node, k.Bit(t.tree.key[t.node].seg.len))
+	k128 := k.To128()
+	n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.key[n].IsPrefixOfStrict(k); ret {
 			break
 		}
-		n = t.tree.childAt(n, k.Bit(t.tree.key[n].seg.len))
+		n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
 	}
 	return
 }
