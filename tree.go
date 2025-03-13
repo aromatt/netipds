@@ -85,6 +85,13 @@ func (t *tree[B, T]) childAtBool(n nodeRef, b bool) nodeRef {
 	return t.left[n]
 }
 
+func childAtBool(left, right nodeRef, b bool) nodeRef {
+	if b {
+		return right
+	}
+	return left
+}
+
 // setChildAt assigns o as the child of n specified by b.
 func (t *tree[B, T]) setChildAt(b bit, n, o nodeRef) {
 	if b == bitR {
@@ -830,12 +837,14 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 // TODO strict
 func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 	b128 := k.content.To128()
-	n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
+	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
+	n := childAtBool(t.left[t.node], t.right[t.node], b128.BitBool(t.tree.key[t.node].seg.len))
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.key[n].IsPrefixOf(k); ret {
 			break
 		}
-		n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
+		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
+		n = childAtBool(t.left[n], t.right[n], b128.BitBool(t.tree.key[n].seg.len))
 	}
 	return
 }
@@ -844,13 +853,15 @@ func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[B, T]) EncompassesStrict(k key[B]) (ret bool) {
-	k128 := k.To128()
-	n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
+	b128 := k.content.To128()
+	//n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
+	n := childAtBool(t.left[t.node], t.right[t.node], b128.BitBool(t.tree.key[t.node].seg.len))
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.key[n].IsPrefixOfStrict(k); ret {
 			break
 		}
-		n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
+		//n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
+		n = childAtBool(t.left[n], t.right[n], b128.BitBool(t.tree.key[n].seg.len))
 	}
 	return
 }
