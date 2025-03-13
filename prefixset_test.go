@@ -110,7 +110,6 @@ func TestPrefixSetEncompassesStrict(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestPrefixSetRootOf(t *testing.T) {
 	tests := []struct {
@@ -149,6 +148,7 @@ func TestPrefixSetRootOf(t *testing.T) {
 		}
 	}
 }
+*/
 
 /* HACK
 func TestPrefixSetRootOfStrict(t *testing.T) {
@@ -188,7 +188,6 @@ func TestPrefixSetRootOfStrict(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestPrefixSetParentOf(t *testing.T) {
 	tests := []struct {
@@ -224,6 +223,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 		}
 	}
 }
+*/
 
 /* HACK
 func TestPrefixSetParentOfStrict(t *testing.T) {

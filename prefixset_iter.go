@@ -2,6 +2,7 @@
 
 package netipds
 
+/* HACK
 import (
 	"iter"
 	"net/netip"
@@ -39,3 +40,4 @@ func (s *PrefixSet) AllCompact() iter.Seq[netip.Prefix] {
 		})
 	}
 }
+*/

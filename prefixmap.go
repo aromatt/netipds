@@ -12,24 +12,25 @@ import (
 //
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
-//
-// If Lazy == true, then path compression is delayed until a PrefixMap is
-// created. The builder itself remains uncompressed. Lazy mode can dramatically
-// reduce the time required to build a large PrefixMap.
 type PrefixMapBuilder[T any] struct {
-	Lazy bool
-	tree tree[T]
+	tree  tree[keyBits6, T]
+	tree4 tree[keyBits4, T]
 }
 
 func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
 	return &PrefixMapBuilder[T]{
-		tree: *newTree[T](1, 1),
+		tree:  *newTree[keyBits6, T](1, 1),
+		tree4: *newTree[keyBits4, T](1, 1),
 	}
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
-	return m.tree.Cursor().Get(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		return m.tree4.Cursor().Get(key4FromPrefix(p))
+	} else {
+		return m.tree.Cursor().Get(key6FromPrefix(p))
+	}
 }
 
 // Set associates v with p.
@@ -37,11 +38,10 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	// TODO so should m.tree just be a *tree[T]?
-	if m.Lazy {
-		m.tree.Cursor().InsertLazy(keyFromPrefix(p), v)
+	if p.Addr().Is4() {
+		m.tree4.Cursor().Insert(key4FromPrefix(p), v)
 	} else {
-		m.tree.Cursor().Insert(keyFromPrefix(p), v)
+		m.tree.Cursor().Insert(key6FromPrefix(p), v)
 	}
 	return nil
 }
@@ -55,28 +55,34 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
-	m.tree.Cursor().Remove(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		m.tree4.Cursor().Remove(key4FromPrefix(p))
+	} else {
+		m.tree.Cursor().Remove(key6FromPrefix(p))
+	}
 	return nil
 }
 
 // Filter removes all Prefixes that are not encompassed by s from m.
-func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
-	m.tree.Cursor().Filter(s.tree.Cursor())
-}
+//func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
+//	m.tree.filter(&s.tree)
+//	m.tree4.filter(&s.tree4)
+//}
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.Copy()
-	if m.Lazy {
-		t.Cursor().Compress()
-	}
-	return &PrefixMap[T]{*t, t.Cursor().Size()}
+	t4 := m.tree4.Copy()
+	return &PrefixMap[T]{*t, *t4, t.Cursor().Size(), t4.Cursor().Size()}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
-	return s.tree.Cursor().stringImpl("", "", false)
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.Cursor().stringImpl("", "", false),
+		s.tree.Cursor().stringImpl("", "", false),
+	)
 }
 
 // PrefixMap is a map of [netip.Prefix] to T. It is implemented as a binary
@@ -84,43 +90,62 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree tree[T]
-	size int
+	tree  tree[keyBits6, T]
+	tree4 tree[keyBits4, T]
+	size  int
+	size4 int
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
-	return m.tree.Cursor().Get(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		return m.tree4.Cursor().Get(key4FromPrefix(p))
+	} else {
+		return m.tree.Cursor().Get(key6FromPrefix(p))
+	}
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
 func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
-	return m.tree.Cursor().Contains(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		return m.tree4.Cursor().Contains(key4FromPrefix(p))
+	} else {
+		return m.tree.Cursor().Contains(key6FromPrefix(p))
+	}
 }
 
 // Encompasses returns true if this map includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
-	return m.tree.Cursor().Encompasses(keyFromPrefix(p), false)
+	if p.Addr().Is4() {
+		return m.tree4.Cursor().Encompasses(key4FromPrefix(p))
+	} else {
+		return m.tree.Cursor().Encompasses(key6FromPrefix(p))
+	}
 }
 
 // EncompassesStrict returns true if this map includes a Prefix which
 // completely encompasses p. The encompassing Prefix must be an ancestor of p,
 // not p itself.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
-	return m.tree.Cursor().Encompasses(keyFromPrefix(p), true)
+	if p.Addr().Is4() {
+		return m.tree4.Cursor().EncompassesStrict(key4FromPrefix(p))
+	} else {
+		return m.tree.Cursor().EncompassesStrict(key6FromPrefix(p))
+	}
 }
 
+/* HACK
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
-	return m.tree.Cursor().OverlapsKey(keyFromPrefix(p))
+	return m.tree.overlapsKey(keyFromPrefix(p))
 }
 
 func (m *PrefixMap[T]) rootOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	label, val, ok := m.tree.Cursor().RootOf(keyFromPrefix(p), strict)
+	label, val, ok := m.tree.rootOf(keyFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
@@ -143,7 +168,7 @@ func (m *PrefixMap[T]) parentOf(
 	p netip.Prefix,
 	strict bool,
 ) (outPfx netip.Prefix, val T, ok bool) {
-	key, val, ok := m.tree.Cursor().ParentOf(keyFromPrefix(p), strict)
+	key, val, ok := m.tree.parentOf(keyFromPrefix(p), strict)
 	if !ok {
 		return outPfx, val, false
 	}
@@ -166,12 +191,9 @@ func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.Cursor().walk(key{}, func(n treeCursor[T]) bool {
-		if n.HasEntry() {
-			// sr: TODO
-			if val, ok := n.Value(); ok {
-				res[n.Key().toPrefix()] = val
-			}
+	m.tree.walk(key{}, func(n *tree[T, K]) bool {
+		if n.hasEntry {
+			res[n.key.toPrefix()] = n.value
 		}
 		return false
 	})
@@ -181,44 +203,48 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.Cursor().DescendantsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t.tree, t.Size()}
+	t := m.tree.descendantsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // DescendantsOfStrict returns a PrefixMap containing all descendants of p in
 // m, excluding p itself.
 func (m *PrefixMap[T]) DescendantsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.Cursor().DescendantsOf(keyFromPrefix(p), true)
-	return &PrefixMap[T]{*t.tree, t.Size()}
+	t := m.tree.descendantsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.Cursor().AncestorsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t.tree, t.Size()}
+	t := m.tree.ancestorsOf(keyFromPrefix(p), false)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // AncestorsOfStrict returns a PrefixMap containing all ancestors of p in m,
 // excluding p itself.
 func (m *PrefixMap[T]) AncestorsOfStrict(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.Cursor().AncestorsOf(keyFromPrefix(p), true)
-	return &PrefixMap[T]{*t.tree, t.Size()}
+	t := m.tree.ancestorsOf(keyFromPrefix(p), true)
+	return &PrefixMap[T]{*t, t.size()}
 }
 
 // Filter returns a new PrefixMap containing the entries of m that are
 // encompassed by s.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
-	t := m.tree.Cursor().FilterCopy(s.tree.Cursor())
-	return &PrefixMap[T]{*t.tree, t.Size()}
+	t := m.tree.filterCopy(&s.tree)
+	return &PrefixMap[T]{*t, t.size()}
 }
+*/
 
 // String returns a human-readable representation of m's tree structure.
-func (m *PrefixMap[T]) String() string {
-	return m.tree.Cursor().stringImpl("", "", false)
+func (s *PrefixMap[T]) String() string {
+	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
+		s.tree4.Cursor().stringImpl("", "", false),
+		s.tree.Cursor().stringImpl("", "", false),
+	)
 }
 
 // Size returns the number of entries in m.
 func (m *PrefixMap[T]) Size() int {
-	return m.size
+	return m.size + m.size4
 }
