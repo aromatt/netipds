@@ -6,7 +6,7 @@ package netipds
 //)
 
 func k6(content uint128, offset, len uint8) key[keyBits6] {
-	return key[keyBits6]{seg{offset, len}, content}
+	return key[keyBits6]{len, offset, content}
 }
 
 //func TestKeyString(t *testing.T) {

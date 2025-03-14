@@ -5,18 +5,14 @@ import (
 	"net/netip"
 )
 
-type seg struct {
-	offset uint8
-	len    uint8
-}
-
 type key[B KeyBits[B]] struct {
-	seg     seg
+	len     uint8
+	offset  uint8
 	content B
 }
 
 func NewKey[B KeyBits[B]](b B, offset, len uint8) key[B] {
-	return key[B]{seg{offset, len}, b}
+	return key[B]{len, offset, b}
 }
 
 func (k key[B]) Bit(i uint8) bit {
@@ -31,65 +27,65 @@ func (k key[B]) Bit(i uint8) bit {
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (k key[B]) StringRel() string {
 	return fmt.Sprintf("%s,%d-%d",
-		k.content.Justify(k.seg.offset, k.seg.len),
-		k.seg.offset, k.seg.len)
+		k.content.Justify(k.offset, k.len),
+		k.offset, k.len)
 }
 
 func (k key[B]) EqualFromRoot(o key[B]) bool {
-	return k.seg.len == o.seg.len && k.content == o.content
+	return k.len == o.len && k.content == o.content
 }
 
 func (k key[B]) CommonPrefixLen(o key[B]) uint8 {
-	return min(min(o.seg.len, k.seg.len), k.content.CommonPrefixLen(o.content))
+	return min(min(o.len, k.len), k.content.CommonPrefixLen(o.content))
 }
 
 func (k key[B]) Rest(i uint8) key[B] {
-	if k.IsZero() || i > k.seg.len {
+	if k.IsZero() || i > k.len {
 		return key[B]{}
 	}
-	return NewKey(k.content, i, k.seg.len)
+	return NewKey(k.content, i, k.len)
 }
 
 func (k key[B]) IsZero() bool {
-	return k.seg.len == 0
+	return k.len == 0
 }
 
 func (k key[B]) Truncated(n uint8) key[B] {
-	return NewKey(k.content.BitsClearedFrom(n), k.seg.offset, n)
+	return NewKey(k.content.BitsClearedFrom(n), k.offset, n)
 }
 
 func (k key[B]) IsPrefixOf(o key[B]) bool {
-	if k.seg.len > o.seg.len {
+	if k.len > o.len {
 		return false
 	}
-	return k.content == o.content.BitsClearedFrom(k.seg.len)
+	return k.content == o.content.BitsClearedFrom(k.len)
 }
 
 func (k key[B]) IsPrefixOfStrict(o key[B]) bool {
-	if k.seg.len >= o.seg.len {
+	if k.len >= o.len {
 		return false
 	}
-	return k.content == o.content.BitsClearedFrom(k.seg.len)
+	return k.content == o.content.BitsClearedFrom(k.len)
 }
 
 func (k key[B]) Next(b bit) key[B] {
 	content := k.content
 	if b == bitR {
-		content = content.WithBitSet(k.seg.len)
+		content = content.WithBitSet(k.len)
 	}
-	return NewKey(content, k.seg.offset, k.seg.len+1)
+	return NewKey(content, k.offset, k.len+1)
 }
 
 func (k key[B]) PathNext(path key[B]) bit {
-	return path.Bit(k.seg.len)
+	return path.Bit(k.len)
 }
 
 func (k key[B]) Rooted() key[B] {
-	return NewKey(k.content, 0, k.seg.len)
+	return NewKey(k.content, 0, k.len)
 }
 
 func (k key[B]) To128() key[keyBits6] {
-	return key[uint128]{seg: k.seg, content: k.content.To128()}
+	return key[uint128]{k.len, k.offset, k.content.To128()}
 }
 
 // key4FromPrefix returns the key that represents the provided Prefix.

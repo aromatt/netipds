@@ -6,7 +6,7 @@ import (
 )
 
 func k4(content uint32, offset, len uint8) key[keyBits4] {
-	return key[keyBits4]{seg{offset, len}, keyBits4{content}}
+	return key[keyBits4]{len, offset, keyBits4{content}}
 }
 
 func TestKey4FromPrefix(t *testing.T) {
