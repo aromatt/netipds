@@ -29,9 +29,9 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.Cursor().Insert(key4FromPrefix4(p), true)
+		s.tree4.Cursor().Insert(key4FromPrefix(p), true)
 	} else {
-		s.tree.Cursor().Insert(key6FromPrefix6(p), true)
+		s.tree.Cursor().Insert(key6FromPrefix(p), true)
 	}
 	return nil
 }
@@ -47,9 +47,9 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.Cursor().Remove(key4FromPrefix4(p))
+		s.tree4.Cursor().Remove(key4FromPrefix(p))
 	} else {
-		s.tree.Cursor().Remove(key6FromPrefix6(p))
+		s.tree.Cursor().Remove(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -71,9 +71,9 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.Cursor().SubtractKey(key4FromPrefix4(p))
+		s.tree4.Cursor().SubtractKey(key4FromPrefix(p))
 	} else {
-		s.tree.Cursor().SubtractKey(key6FromPrefix6(p))
+		s.tree.Cursor().SubtractKey(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -140,9 +140,9 @@ type PrefixSet struct {
 // Contains returns true if this set includes the exact Prefix provided.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return s.tree4.Cursor().Contains(key4FromPrefix4(p))
+		return s.tree4.Cursor().Contains(key4FromPrefix(p))
 	} else {
-		return s.tree.Cursor().Contains(key6FromPrefix6(p))
+		return s.tree.Cursor().Contains(key6FromPrefix(p))
 	}
 
 }
@@ -151,9 +151,9 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 // encompasses p. The encompassing Prefix may be p itself.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return s.tree4.Cursor().Encompasses(key6FromPrefix4(p))
+		return s.tree4.Cursor().Encompasses(key4FromPrefix(p))
 	} else {
-		return s.tree.Cursor().Encompasses(key6FromPrefix6(p))
+		return s.tree.Cursor().Encompasses(key6FromPrefix(p))
 	}
 }
 
@@ -162,9 +162,9 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 // not p itself.
 func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return s.tree4.Cursor().EncompassesStrict(key6FromPrefix4(p))
+		return s.tree4.Cursor().EncompassesStrict(key4FromPrefix(p))
 	} else {
-		return s.tree.Cursor().EncompassesStrict(key6FromPrefix6(p))
+		return s.tree.Cursor().EncompassesStrict(key6FromPrefix(p))
 	}
 }
 

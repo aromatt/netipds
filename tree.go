@@ -800,20 +800,23 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 	return
 }
 
-func (t *tree[B, T]) equalPrefix(n nodeRef, k key[uint128]) bool {
+func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
 	return t.bits[n].EqualPrefix(k.content, t.len[n])
 }
 
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 // TODO strict
-func (t treeCursor[B, T]) Encompasses(k key[uint128]) (ret bool) {
-	n := childAtBool(t.left, t.right, t.node, k.content.BitBool(t.tree.len[t.node]))
+func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
+	b128 := k.content.To128()
+	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
+	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len[t.node]))
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.len[n] <= k.len && t.tree.equalPrefix(n, k); ret {
 			break
 		}
-		n = childAtBool(t.left, t.right, n, k.content.BitBool(t.tree.len[n]))
+		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
+		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len[n]))
 	}
 	return
 }
@@ -821,7 +824,7 @@ func (t treeCursor[B, T]) Encompasses(k key[uint128]) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses the provided key.
 // TODO strict
-func (t treeCursor[B, T]) EncompassesStrict(k key[uint128]) (ret bool) {
+func (t treeCursor[B, T]) EncompassesStrict(k key[B]) (ret bool) {
 	b128 := k.content.To128()
 	//n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
 	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len[t.node]))
@@ -911,7 +914,7 @@ func (t treeCursor[B, T]) Filter(o treeCursor[B, bool]) {
 	remove := make([]key[B], 0)
 	var k key[B]
 	t.walk(k, func(n treeCursor[B, T]) bool {
-		if !o.Encompasses(n.Key().To128()) { // TODO
+		if !o.Encompasses(n.Key()) {
 			remove = append(remove, n.Key())
 		}
 		return false
@@ -930,7 +933,7 @@ func (t treeCursor[B, T]) FilterCopy(o treeCursor[B, bool]) treeCursor[B, T] {
 	ret := newTree[B, T](1, 1).Cursor()
 	var k key[B]
 	t.walk(k, func(n treeCursor[B, T]) bool {
-		if n.HasEntry() && o.Encompasses(n.Key().To128()) { // TODO
+		if n.HasEntry() && o.Encompasses(n.Key()) {
 			// TODO always expect ok == true if hasEntry == true
 			if val, ok := n.Value(); ok {
 				ret = ret.Insert(n.Key(), val)

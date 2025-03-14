@@ -18,7 +18,7 @@ type KeyBits[B comparable] interface {
 	Justify(uint8, uint8) B
 	String() string
 	To128() uint128
-	EqualPrefix(keyBits6, uint8) bool
+	EqualPrefix(B, uint8) bool
 }
 
 type keyBits4 struct {
@@ -65,9 +65,8 @@ func (k keyBits4) To128() uint128 {
 	return uint128{uint64(k.bits) << 32, 0}
 }
 
-func (k keyBits4) EqualPrefix(o keyBits6, len uint8) bool {
-	// TODO
-	return k.bits>>(32-len) == uint32(o.hi>>(64-len))
+func (k keyBits4) EqualPrefix(o keyBits4, len uint8) bool {
+	return k == o.BitsClearedFrom(len)
 }
 
 type keyBits6 = uint128

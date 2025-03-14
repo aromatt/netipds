@@ -88,18 +88,13 @@ func (k key[B]) To128() key[keyBits6] {
 	return key[uint128]{k.len, k.offset, k.content.To128()}
 }
 
-// key4FromPrefix4 returns the key that represents the provided Prefix.
-func key4FromPrefix4(p netip.Prefix) key[keyBits4] {
+// key4FromPrefix returns the key that represents the provided Prefix.
+func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 	a4 := p.Addr().As4()
 	return NewKey(keyBits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
 }
 
-// TODO
-func key6FromPrefix4(p netip.Prefix) key[keyBits6] {
-	return NewKey(u128From16(p.Addr().As16()).shiftLeft(96), 0, uint8(p.Bits()))
-}
-
-// key6FromPrefix6 returns the key that represents the provided Prefix.
-func key6FromPrefix6(p netip.Prefix) key[keyBits6] {
+// key6FromPrefix returns the key that represents the provided Prefix.
+func key6FromPrefix(p netip.Prefix) key[keyBits6] {
 	return NewKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
 }

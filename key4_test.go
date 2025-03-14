@@ -18,7 +18,7 @@ func TestKey4FromPrefix(t *testing.T) {
 		// TODO add more
 	}
 	for _, tt := range tests {
-		if got := key4FromPrefix4(tt.p); got != tt.want {
+		if got := key4FromPrefix(tt.p); got != tt.want {
 			t.Errorf("key4FromPrefix(%v) = %v, want %v", tt.p, got, tt.want)
 		}
 	}
@@ -36,7 +36,7 @@ func TestKey4Bit(t *testing.T) {
 		{pfx("0.0.0.1/32"), 31, bitR},
 	}
 	for _, tt := range tests {
-		if got := key4FromPrefix4(tt.p).Bit(tt.bit); got != tt.want {
+		if got := key4FromPrefix(tt.p).Bit(tt.bit); got != tt.want {
 			t.Errorf("key4FromPrefix(%v).bit(%v) = %q, want %q", tt.p, tt.bit, got, tt.want)
 		}
 	}
