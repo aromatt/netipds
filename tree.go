@@ -808,19 +808,12 @@ func (t *tree[B, T]) equalPrefix(n nodeRef, k key[uint128]) bool {
 // encompasses the provided key.
 // TODO strict
 func (t treeCursor[B, T]) Encompasses(k key[uint128]) (ret bool) {
-	b := k.content.BitBool(t.tree.len[t.node])
-	n := childAtBool(t.left, t.right, t.node, b)
+	n := childAtBool(t.left, t.right, t.node, k.content.BitBool(t.tree.len[t.node]))
 	for n != absent {
-		if t.tree.entry[n] {
-			if t.tree.len[n] <= k.len {
-				if t.tree.equalPrefix(n, k) {
-					ret = true
-					break
-				}
-			}
+		if ret = t.tree.entry[n] && t.tree.len[n] <= k.len && t.tree.equalPrefix(n, k); ret {
+			break
 		}
-		b = k.content.BitBool(t.tree.len[n])
-		n = childAtBool(t.left, t.right, n, b)
+		n = childAtBool(t.left, t.right, n, k.content.BitBool(t.tree.len[n]))
 	}
 	return
 }
