@@ -27,9 +27,9 @@ func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().Get(key4FromPrefix(p))
+		return m.tree4.Cursor().Get(key4FromPrefix4(p))
 	} else {
-		return m.tree.Cursor().Get(key6FromPrefix(p))
+		return m.tree.Cursor().Get(key6FromPrefix6(p))
 	}
 }
 
@@ -39,9 +39,9 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4.Cursor().Insert(key4FromPrefix(p), v)
+		m.tree4.Cursor().Insert(key4FromPrefix4(p), v)
 	} else {
-		m.tree.Cursor().Insert(key6FromPrefix(p), v)
+		m.tree.Cursor().Insert(key6FromPrefix6(p), v)
 	}
 	return nil
 }
@@ -56,9 +56,9 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4.Cursor().Remove(key4FromPrefix(p))
+		m.tree4.Cursor().Remove(key4FromPrefix4(p))
 	} else {
-		m.tree.Cursor().Remove(key6FromPrefix(p))
+		m.tree.Cursor().Remove(key6FromPrefix6(p))
 	}
 	return nil
 }
@@ -99,18 +99,18 @@ type PrefixMap[T any] struct {
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().Get(key4FromPrefix(p))
+		return m.tree4.Cursor().Get(key4FromPrefix4(p))
 	} else {
-		return m.tree.Cursor().Get(key6FromPrefix(p))
+		return m.tree.Cursor().Get(key6FromPrefix6(p))
 	}
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
 func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().Contains(key4FromPrefix(p))
+		return m.tree4.Cursor().Contains(key4FromPrefix4(p))
 	} else {
-		return m.tree.Cursor().Contains(key6FromPrefix(p))
+		return m.tree.Cursor().Contains(key6FromPrefix6(p))
 	}
 }
 
@@ -118,9 +118,9 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 // encompasses p. The encompassing Prefix may be p itself.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().Encompasses(key4FromPrefix(p))
+		return m.tree4.Cursor().Encompasses(key6FromPrefix4(p))
 	} else {
-		return m.tree.Cursor().Encompasses(key6FromPrefix(p))
+		return m.tree.Cursor().Encompasses(key6FromPrefix6(p))
 	}
 }
 
@@ -129,9 +129,9 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 // not p itself.
 func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().EncompassesStrict(key4FromPrefix(p))
+		return m.tree4.Cursor().EncompassesStrict(key6FromPrefix4(p))
 	} else {
-		return m.tree.Cursor().EncompassesStrict(key6FromPrefix(p))
+		return m.tree.Cursor().EncompassesStrict(key6FromPrefix6(p))
 	}
 }
 
