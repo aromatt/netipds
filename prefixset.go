@@ -116,8 +116,8 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSetBuilder) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.Cursor().stringImpl("", "", true),
-		s.tree.Cursor().stringImpl("", "", true),
+		s.tree4.Cursor().stringImpl("", ""),
+		s.tree.Cursor().stringImpl("", ""),
 	)
 }
 
@@ -285,8 +285,8 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSet) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.Cursor().stringImpl("", "", true),
-		s.tree.Cursor().stringImpl("", "", true),
+		s.tree4.Cursor().stringImpl("", ""),
+		s.tree.Cursor().stringImpl("", ""),
 	)
 }
 

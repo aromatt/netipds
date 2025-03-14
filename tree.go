@@ -7,28 +7,35 @@ import (
 type nodeRef int
 
 const absent = nodeRef(0)
-const entryMask = 0x80
-const offsetMask = 0x7F
+const noEntryMask = 0x80
+const lenMask = 0x7f
 
 // tree is a binary radix tree supporting 128-bit keys (see key.go).
 type tree[B KeyBits[B], T any] struct {
 	// Index 0 is occupied by the root node, and is also used as a sentinel
 	// nodeRef for child nodes to indicate the absence of a child.
-	bits  []B
-	len   []uint8
-	eo    []uint8 // MSB is entry bit, the rest is offset
-	left  []nodeRef
-	right []nodeRef
+	bits   []B
+	lentry []uint8 // MSB is "no entry" bit, the rest is len - 1
+	offset []uint8
+	left   []nodeRef
+	right  []nodeRef
 
 	// Values are indexed by the node's index in the nodes slice.
 	value map[nodeRef]T
 }
 
+func lentry(len uint8, hasEntry bool) uint8 {
+	if hasEntry {
+		return len
+	}
+	return len | noEntryMask
+}
+
 // newNode creates a new node in t with the provided key.
 func (t *tree[B, T]) newNode(k key[B]) nodeRef {
 	t.bits = append(t.bits, k.content)
-	t.len = append(t.len, k.len)
-	t.eo = append(t.eo, k.offset)
+	t.lentry = append(t.lentry, lentry(k.len-1, false))
+	t.offset = append(t.offset, k.offset)
 	t.left = append(t.left, absent)
 	t.right = append(t.right, absent)
 	return nodeRef(len(t.bits) - 1)
@@ -37,35 +44,35 @@ func (t *tree[B, T]) newNode(k key[B]) nodeRef {
 // newTree returns a new tree.
 func newTree[B KeyBits[B], T any](nodesCap int, valuesCap int) *tree[B, T] {
 	t := &tree[B, T]{
-		bits:  make([]B, nodesCap),
-		len:   make([]uint8, nodesCap),
-		eo:    make([]uint8, nodesCap),
-		left:  make([]nodeRef, nodesCap),
-		right: make([]nodeRef, nodesCap),
-		value: make(map[nodeRef]T, valuesCap),
+		bits:   make([]B, 0, nodesCap),
+		lentry: make([]uint8, 0, nodesCap),
+		offset: make([]uint8, 0, nodesCap),
+		left:   make([]nodeRef, 0, nodesCap),
+		right:  make([]nodeRef, 0, nodesCap),
+		value:  make(map[nodeRef]T, valuesCap),
 	}
 	t.newNode(key[B]{})
 	return t
 }
 
 func (t *tree[B, T]) hasEntry(n nodeRef) bool {
-	return t.eo[n]&(entryMask) != 0
+	return t.lentry[n]&(noEntryMask) == 0
 }
 
-func (t *tree[B, T]) offset(n nodeRef) uint8 {
-	return t.eo[n] & (offsetMask)
+func (t *tree[B, T]) len(n nodeRef) uint8 {
+	return (t.lentry[n] & lenMask) + 1
 }
 
 // setValue sets n's value to v and returns n.
 func (t *tree[B, T]) setValue(n nodeRef, v T) nodeRef {
 	t.value[n] = v
-	t.eo[n] |= entryMask
+	t.lentry[n] &^= noEntryMask
 	return n
 }
 
 // clearEntry removes the entry and value from t.
 func (t *tree[B, T]) clearEntry(n nodeRef) {
-	t.eo[n] &^= entryMask
+	t.lentry[n] |= noEntryMask
 	delete(t.value, n)
 }
 
@@ -111,7 +118,7 @@ func (t *tree[B, T]) setChild(n, o nodeRef) nodeRef {
 	}
 	//oKey := t.key[o]
 	//b := oKey.Bit(oKey.seg.offset)
-	t.setChildAt(t.bits[o].Bit(t.offset(o)), n, o)
+	t.setChildAt(t.bits[o].Bit(t.offset[o]), n, o)
 	//t.setChildAt(b, n, o)
 	return n
 }
@@ -124,7 +131,7 @@ func (t *tree[B, T]) Cursor() treeCursor[B, T] {
 // String returns a string representation of t, showing its structure and
 // values.
 func (t *tree[B, T]) String() string {
-	return t.Cursor().stringImpl("", "", false)
+	return t.Cursor().stringImpl("", "")
 }
 
 // Copy returns a copy of t.
@@ -150,7 +157,10 @@ type tc2[B KeyBits[B], T any] [2]treeCursor[B, T]
 
 // Key returns the key of the current node.
 func (t treeCursor[B, T]) Key() key[B] {
-	return key[B]{t.len[t.node], t.offset(t.node), t.bits[t.node]}
+	if t.node == absent {
+		return key[B]{}
+	}
+	return key[B]{t.len(t.node), t.offset[t.node], t.bits[t.node]}
 }
 
 func (t treeCursor[B, T]) HasEntry() bool {
@@ -227,8 +237,8 @@ func emptyBits[B KeyBits[B]]() B {
 func (t treeCursor[B, T]) DeleteNode() {
 	//t.key[t.node] = key[B]{}
 	t.bits[t.node] = emptyBits[B]()
-	t.len[t.node] = 0
-	t.eo[t.node] = 0
+	t.lentry[t.node] = 0
+	t.offset[t.node] = 0
 	t.left[t.node] = absent
 	t.right[t.node] = absent
 	delete(t.value, t.node)
@@ -261,26 +271,26 @@ func (t treeCursor[B, T]) SetValueFrom(o treeCursor[B, T]) treeCursor[B, T] {
 
 // SetOffset sets the current node's offset to the provided value.
 func (t treeCursor[B, T]) SetOffset(offset uint8) treeCursor[B, T] {
-	t.eo[t.node] = t.eo[t.node]&entryMask | offset
+	t.offset[t.node] = offset
 	return t
 }
 
 // TODO: get rid of hideVal if possible
 // TODO: if hideVal, still distinguish entries from non-entries
-func (t treeCursor[B, T]) stringImpl(indent string, pre string, hideVal bool) string {
+func (t treeCursor[B, T]) stringImpl(indent string, pre string) string {
 	var ret string
 	nk := t.Key()
-	if hideVal || !t.HasEntry() {
+	if !t.HasEntry() {
 		ret = fmt.Sprintf("%s%s%s\n", indent, pre, nk.StringRel())
 	} else {
 		ret = fmt.Sprintf("%s%s%s: %v\n", indent, pre, nk.StringRel(),
 			t.tree.value[t.node])
 	}
 	if left, ok := t.ChildAt(bitL); ok {
-		ret += left.stringImpl(indent+"  ", "L:", hideVal)
+		ret += left.stringImpl(indent+"  ", "L:")
 	}
 	if right, ok := t.ChildAt(bitR); ok {
-		ret += right.stringImpl(indent+"  ", "R:", hideVal)
+		ret += right.stringImpl(indent+"  ", "R:")
 	}
 	return ret
 }
@@ -321,8 +331,8 @@ func (t treeCursor[B, T]) CopyFrom(o treeCursor[B, T]) treeCursor[B, T] {
 		c := s.Pop()
 		src, dst := c[0], c[1]
 		dst.tree.bits[dst.node] = src.tree.bits[src.node]
-		dst.tree.len[dst.node] = src.tree.len[src.node]
-		dst.tree.eo[dst.node] = src.tree.eo[src.node]
+		dst.tree.lentry[dst.node] = src.tree.lentry[src.node]
+		dst.tree.offset[dst.node] = src.tree.offset[src.node]
 		dst.SetValueFrom(src)
 		for _, bit := range eachBit {
 			if srcChild, srcOk := src.ChildAt(bit); srcOk {
@@ -351,6 +361,7 @@ func (t treeCursor[B, T]) Insert(k key[B], v T) treeCursor[B, T] {
 	switch {
 	// Inserting at a descendant; recurse into the appropriate child
 	case com == tKey.len:
+		//println("inserting at a child")
 		child, ok := t.ChildAt(k.Bit(tKey.len))
 		if !ok {
 			child = t.NewChild(k.Rest(tKey.len)).SetValue(v)
@@ -361,10 +372,12 @@ func (t treeCursor[B, T]) Insert(k key[B], v T) treeCursor[B, T] {
 	// Inserting at a prefix of tKey; create a new parent node with t as its
 	// sole child
 	case com == k.len:
+		//println("inserting at a prefix")
 		return t.NewParent(k).SetValue(v)
 	// Neither is a prefix of the other; create a new parent at their common
 	// prefix with children t and its new sibling
 	default:
+		//println("neither is a prefix of the other")
 		parent := t.NewParent(tKey.Truncated(com))
 		parent.NewChild(k.Rest(com)).SetValue(v)
 		return parent
@@ -492,9 +505,7 @@ func (t treeCursor[B, T]) SubtractTree(o treeCursor[B, T]) nodeRef {
 
 // IsEmpty reports whether the tree is empty.
 func (t treeCursor[B, T]) IsEmpty() bool {
-	//n := t.Node()
-	//return n.key.IsZero() && n.left == 0 && n.right == 0
-	return t.Key().IsZero() && t.left[t.node] == absent && t.right[t.node] == absent
+	return t.node == absent && t.left[t.node] == absent && t.right[t.node] == absent
 }
 
 // MergeTree modifies t so that it is the union of the entries of t and o.
@@ -731,7 +742,7 @@ func (t treeCursor[B, T]) walk(path key[B], fn func(treeCursor[B, T]) bool) {
 	// Follow provided path directly until it's exhausted
 	var ok bool
 	for ok = true; ok && t.Key().len < path.len; t, ok = t.pathNext(path) {
-		if !t.Key().IsZero() {
+		if t.node != absent {
 			if fn(t) {
 				return
 			}
@@ -749,7 +760,7 @@ func (t treeCursor[B, T]) walk(path key[B], fn func(treeCursor[B, T]) bool) {
 	for !st.IsEmpty() {
 		stop = false
 		t = st.Pop()
-		if !t.Key().IsZero() {
+		if t.node != absent {
 			stop = fn(t)
 		}
 		// TODO 32
@@ -799,7 +810,7 @@ func (t treeCursor[B, T]) Contains(k key[B]) (ret bool) {
 }
 
 func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
-	return t.bits[n].EqualPrefix(k.content, t.len[n])
+	return t.bits[n].EqualPrefix(k.content, t.len(n))
 }
 
 // encompasses returns true if this tree includes a key which completely
@@ -808,13 +819,13 @@ func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
 func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 	b128 := k.content.To128()
 	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
-	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len[t.node]))
+	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len(t.node)))
 	for n != absent {
-		if ret = t.tree.hasEntry(n) && t.tree.len[n] <= k.len && t.tree.equalPrefix(n, k); ret {
+		if ret = t.tree.lentry[n] <= k.len-1 && t.tree.equalPrefix(n, k); ret {
 			break
 		}
 		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
-		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len[n]))
+		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len(n)))
 	}
 	return
 }
@@ -825,13 +836,13 @@ func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 func (t treeCursor[B, T]) EncompassesStrict(k key[B]) (ret bool) {
 	b128 := k.content.To128()
 	//n := t.tree.childAt(t.node, k128.Bit(t.tree.key[t.node].seg.len))
-	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len[t.node]))
+	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len(t.node)))
 	for n != absent {
-		if ret = t.tree.hasEntry(n) && t.tree.len[n] < k.len && t.tree.equalPrefix(n, k); ret {
+		if ret = t.tree.lentry[n] < k.len-1 && t.tree.equalPrefix(n, k) && t.tree.hasEntry(n); ret {
 			break
 		}
 		//n = t.tree.childAt(n, k128.Bit(t.tree.key[n].seg.len))
-		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len[n]))
+		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len(n)))
 	}
 	return
 }

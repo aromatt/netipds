@@ -26,7 +26,7 @@ func (k key[B]) Bit(i uint8) bit {
 // This representation is lossy in that it hides the first h.offset bits, but
 // it's helpful for debugging in the context of a pretty-printed tree.
 func (k key[B]) StringRel() string {
-	return fmt.Sprintf("%s,%d-%d",
+	return fmt.Sprintf("%s [%d:%d]",
 		k.content.Justify(k.offset, k.len),
 		k.offset, k.len)
 }

@@ -80,8 +80,8 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 
 func (s *PrefixMapBuilder[T]) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.Cursor().stringImpl("", "", false),
-		s.tree.Cursor().stringImpl("", "", false),
+		s.tree4.Cursor().stringImpl("", ""),
+		s.tree.Cursor().stringImpl("", ""),
 	)
 }
 
@@ -239,8 +239,8 @@ func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 // String returns a human-readable representation of m's tree structure.
 func (s *PrefixMap[T]) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.Cursor().stringImpl("", "", false),
-		s.tree.Cursor().stringImpl("", "", false),
+		s.tree4.Cursor().stringImpl("", ""),
+		s.tree.Cursor().stringImpl("", ""),
 	)
 }
 
