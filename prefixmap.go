@@ -20,9 +20,9 @@ type PrefixMapBuilder[T any] struct {
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
-		return m.tree4.get(key4FromPrefix(p))
+		return m.tree4.get(key4FromPrefix(p.Masked()))
 	} else {
-		return m.tree.get(key6FromPrefix(p))
+		return m.tree.get(key6FromPrefix(p.Masked()))
 	}
 }
 
@@ -32,9 +32,9 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4 = *(m.tree4.insert(key4FromPrefix(p), v))
+		m.tree4 = *(m.tree4.insert(key4FromPrefix(p.Masked()), v))
 	} else {
-		m.tree = *(m.tree.insert(key6FromPrefix(p), v))
+		m.tree = *(m.tree.insert(key6FromPrefix(p.Masked()), v))
 	}
 	return nil
 }
@@ -49,9 +49,9 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4.remove(key4FromPrefix(p))
+		m.tree4.remove(key4FromPrefix(p.Masked()))
 	} else {
-		m.tree.remove(key6FromPrefix(p))
+		m.tree.remove(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }

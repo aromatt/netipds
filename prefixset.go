@@ -22,9 +22,9 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4 = *(s.tree4.insert(key4FromPrefix(p), true))
+		s.tree4 = *(s.tree4.insert(key4FromPrefix(p.Masked()), true))
 	} else {
-		s.tree = *(s.tree.insert(key6FromPrefix(p), true))
+		s.tree = *(s.tree.insert(key6FromPrefix(p.Masked()), true))
 	}
 	return nil
 }
@@ -40,9 +40,9 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.remove(key4FromPrefix(p))
+		s.tree4.remove(key4FromPrefix(p.Masked()))
 	} else {
-		s.tree.remove(key6FromPrefix(p))
+		s.tree.remove(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
@@ -64,9 +64,9 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.subtractKey(key4FromPrefix(p))
+		s.tree4.subtractKey(key4FromPrefix(p.Masked()))
 	} else {
-		s.tree.subtractKey(key6FromPrefix(p))
+		s.tree.subtractKey(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
