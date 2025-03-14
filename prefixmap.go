@@ -118,10 +118,38 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 // encompasses p. The encompassing Prefix may be p itself.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
-		return m.tree4.Cursor().Encompasses(key6FromPrefix4(p))
+		k := key6FromPrefix4(p)
+		b := k.content.BitBool(0)
+		n := childAtBool(m.tree4.left, m.tree4.right, 0, b)
+		for n != absent {
+			if m.tree4.entry[n] {
+				if m.tree4.len[n] <= k.len {
+					nLen := m.tree4.len[n]
+					if m.tree4.bits[n].bits>>(32-nLen) == uint32(k.content.hi>>(64-nLen)) {
+						return true
+					}
+				}
+			}
+			b = k.content.BitBool(m.tree4.len[n])
+			n = childAtBool(m.tree4.left, m.tree4.right, n, b)
+		}
 	} else {
-		return m.tree.Cursor().Encompasses(key6FromPrefix6(p))
+		k := key6FromPrefix6(p)
+		b := k.content.BitBool(0)
+		n := childAtBool(m.tree.left, m.tree.right, 0, b)
+		for n != absent {
+			if m.tree.entry[n] {
+				if m.tree.len[n] <= k.len {
+					if m.tree.bits[n] == k.content.BitsClearedFrom(m.tree.len[n]) {
+						return true
+					}
+				}
+			}
+			b = k.content.BitBool(m.tree.len[n])
+			n = childAtBool(m.tree.left, m.tree.right, n, b)
+		}
 	}
+	return false
 }
 
 // EncompassesStrict returns true if this map includes a Prefix which
