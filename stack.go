@@ -1,7 +1,7 @@
 package netipds
 
-// stack is used for depth-first traversals without recursion or heap
-// allocation.
+// stack is used for depth-first traversals without recursion.
+// TODO: does this allocate? should we care?
 type stack[T any] struct {
 	data [128]T
 	// top starts at 0, so it is the index of the next available slot.

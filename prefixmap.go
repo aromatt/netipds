@@ -19,8 +19,8 @@ type PrefixMapBuilder[T any] struct {
 
 func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
 	return &PrefixMapBuilder[T]{
-		tree:  *newTree[keyBits6, T](1, 1),
-		tree4: *newTree[keyBits4, T](1, 1),
+		tree:  *newTree[keyBits6, T](),
+		tree4: *newTree[keyBits4, T](),
 	}
 }
 

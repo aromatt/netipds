@@ -18,8 +18,8 @@ type PrefixSetBuilder struct {
 
 func NewPrefixSetBuilder() *PrefixSetBuilder {
 	return &PrefixSetBuilder{
-		tree:  *newTree[keyBits6, bool](1, 1),
-		tree4: *newTree[keyBits4, bool](1, 1),
+		tree:  *newTree[keyBits6, bool](),
+		tree4: *newTree[keyBits4, bool](),
 	}
 }
 

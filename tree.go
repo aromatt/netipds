@@ -14,12 +14,13 @@ type tree[B KeyBits[B], T any] struct {
 	// nodeRef for child nodes to indicate the absence of a child.
 	//nodes []node
 	//key []key[B]
-	bits   []B
-	len    []uint8
-	offset []uint8
-	left   []nodeRef
-	right  []nodeRef
-	entry  []bool // TODO could store this bit in offset
+	bits    []B
+	len     []uint8
+	offset  []uint8
+	left    []nodeRef
+	right   []nodeRef
+	entry   []bool // TODO could store this bit in offset
+	ordered bool
 
 	// Values are indexed by the node's index in the nodes slice.
 	value map[nodeRef]T
@@ -27,8 +28,6 @@ type tree[B KeyBits[B], T any] struct {
 
 // newNode creates a new node in t with the provided key.
 func (t *tree[B, T]) newNode(k key[B]) nodeRef {
-	//t.key = append(t.key, k)
-	//func (t *tree[B, T]) newNode(b B, s seg) nodeRef {
 	t.bits = append(t.bits, k.content)
 	t.len = append(t.len, k.len)
 	t.offset = append(t.offset, k.offset)
@@ -39,18 +38,32 @@ func (t *tree[B, T]) newNode(k key[B]) nodeRef {
 }
 
 // newTree returns a new tree.
-func newTree[B KeyBits[B], T any](nodesCap int, valuesCap int) *tree[B, T] {
+func newTree[B KeyBits[B], T any]() *tree[B, T] {
+	return newSizedTree[B, T](1, 1)
+}
+
+// newSizedTree returns a new tree.
+func newSizedTree[B KeyBits[B], T any](numNodes int, numValues int) *tree[B, T] {
 	t := &tree[B, T]{
-		bits:   make([]B, nodesCap),
-		len:    make([]uint8, nodesCap),
-		offset: make([]uint8, nodesCap),
-		left:   make([]nodeRef, nodesCap),
-		right:  make([]nodeRef, nodesCap),
-		entry:  make([]bool, nodesCap),
-		value:  make(map[nodeRef]T, valuesCap),
+		bits:   make([]B, numNodes),
+		len:    make([]uint8, numNodes),
+		offset: make([]uint8, numNodes),
+		left:   make([]nodeRef, numNodes),
+		right:  make([]nodeRef, numNodes),
+		entry:  make([]bool, numNodes),
+		value:  make(map[nodeRef]T, numValues),
 	}
-	t.newNode(key[B]{})
+	t.setNode(0, key[B]{})
 	return t
+}
+
+func (t *tree[B, T]) setNode(n nodeRef, k key[B]) {
+	t.bits[n] = k.content
+	t.len[n] = k.len
+	t.offset[n] = k.offset
+	t.left[n] = absent
+	t.right[n] = absent
+	t.entry[n] = false
 }
 
 // setValue sets n's value to v and returns n.
@@ -68,6 +81,18 @@ func (t *tree[B, T]) clearEntry(n nodeRef) {
 
 // childAt returns the index of the child of n specified by b.
 func (t *tree[B, T]) childAt(n nodeRef, b bit) nodeRef {
+	if t.ordered {
+		var ret nodeRef
+		if b == bitR {
+			ret = n*2 + 2
+		} else {
+			ret = n*2 + 1
+		}
+		if ret >= nodeRef(len(t.bits)) {
+			return absent
+		}
+		return ret
+	}
 	if b == bitR {
 		return t.right[n]
 	}
@@ -87,6 +112,19 @@ func childAtBool(left, right []nodeRef, n nodeRef, b bool) nodeRef {
 		return right[n]
 	}
 	return left[n]
+}
+
+func childAtBoolOrdered(n nodeRef, b bool, size nodeRef) nodeRef {
+	var ret nodeRef
+	if b {
+		ret = n*2 + 2
+	} else {
+		ret = n*2 + 1
+	}
+	if ret >= size {
+		return absent
+	}
+	return ret
 }
 
 // setChildAt assigns o as the child of n specified by b.
@@ -306,32 +344,42 @@ func (t treeCursor[B, T]) Size() (size int) {
 // Note: this has the side effect of "garbage collecting" the nodes slice and
 // values map (for the copy, not the original): unreachable nodes and their
 // values are not copied.
+// TODO: there should be a dumb copy and an ordered copy. Really we need two types:
+// a treeBuilder and a tree.
 func (t treeCursor[B, T]) Copy() treeCursor[B, T] {
-	return newTree[B, T](len(t.bits), len(t.value)).Cursor().CopyFrom(t)
+	// TODO get actual size required. Could just grow it dynamically, then copy
+	// to a new pre-allocated one at the end.
+	return newSizedTree[B, T](len(t.bits)*3, len(t.value)).Cursor().CopyFrom(t)
 }
 
 // CopyFrom copies o to t.
 // TODO: is it ok if this overwrites? yes.
 func (t treeCursor[B, T]) CopyFrom(o treeCursor[B, T]) treeCursor[B, T] {
-	s := stack[tc2[B, T]]{}
-	s.Push(tc2[B, T]{o, t})
+	type nr2 struct {
+		o nodeRef
+		t nodeRef
+	}
+	s := stack[nr2]{}
+	s.Push(nr2{0, 0})
 	for !s.IsEmpty() {
-		c := s.Pop()
-		src, dst := c[0], c[1]
-		//srcN := src.Node()
-		//dst.SetNode(node{key: srcN.key, hasEntry: srcN.hasEntry})
-		//dst.SetNode(node{key: src.Key()})
-		//dst.key[dst.node] = src.key[src.node]
-		dst.bits[dst.node] = src.bits[src.node]
-		dst.len[dst.node] = src.len[src.node]
-		dst.offset[dst.node] = src.offset[src.node]
-		dst.SetValueFrom(src)
-		for _, bit := range eachBit {
-			if srcChild, srcOk := src.ChildAt(bit); srcOk {
-				s.Push(tc2[B, T]{srcChild, dst.NewChildAt(bit)})
-			}
+		nr := s.Pop()
+		if int(nr.o) > len(o.bits) {
+		}
+		t.bits[nr.t] = o.bits[nr.o]
+		t.len[nr.t] = o.len[nr.o]
+		t.offset[nr.t] = o.offset[nr.o]
+		if o.entry[nr.o] {
+			t.entry[nr.t] = true
+			t.value[nr.t] = o.value[nr.o]
+		}
+		if oChild := o.childAt(nr.o, bitR); oChild != absent {
+			s.Push(nr2{oChild, nr.t*2 + 2})
+		}
+		if oChild := o.childAt(nr.o, bitL); oChild != absent {
+			s.Push(nr2{oChild, nr.t*2 + 1})
 		}
 	}
+	t.ordered = true
 	return t
 }
 
@@ -809,14 +857,15 @@ func (t *tree[B, T]) equalPrefix(n nodeRef, k key[B]) bool {
 // TODO strict
 func (t treeCursor[B, T]) Encompasses(k key[B]) (ret bool) {
 	b128 := k.content.To128()
+	tSize := nodeRef(len(t.bits))
 	//n := t.tree.childAtBool(t.node, b128.BitBool(t.tree.key[t.node].seg.len))
-	n := childAtBool(t.left, t.right, t.node, b128.BitBool(t.tree.len[t.node]))
+	n := childAtBoolOrdered(t.node, b128.BitBool(t.tree.len[t.node]), tSize)
 	for n != absent {
 		if ret = t.tree.entry[n] && t.tree.len[n] <= k.len && t.tree.equalPrefix(n, k); ret {
 			break
 		}
 		//n = t.tree.childAtBool(n, b128.BitBool(t.tree.key[n].seg.len))
-		n = childAtBool(t.left, t.right, n, b128.BitBool(t.tree.len[n]))
+		n = childAtBoolOrdered(n, b128.BitBool(t.tree.len[n]), tSize)
 	}
 	return
 }
@@ -890,7 +939,7 @@ func (t treeCursor[B, T]) DescendantsOf(k key[B], strict bool) (ret treeCursor[B
 // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
 // the tree.
 func (t treeCursor[B, T]) AncestorsOf(k key[B], strict bool) (ret treeCursor[B, T]) {
-	ret = newTree[B, T](1, 1).Cursor()
+	ret = newTree[B, T]().Cursor()
 	t.walk(k, func(n treeCursor[B, T]) bool {
 		if !n.Key().IsPrefixOf(k) {
 			return true
@@ -930,7 +979,7 @@ func (t treeCursor[B, T]) Filter(o treeCursor[B, bool]) {
 // at the same time.
 // TODO: does it make sense to have both this method and filter()?
 func (t treeCursor[B, T]) FilterCopy(o treeCursor[B, bool]) treeCursor[B, T] {
-	ret := newTree[B, T](1, 1).Cursor()
+	ret := newTree[B, T]().Cursor()
 	var k key[B]
 	t.walk(k, func(n treeCursor[B, T]) bool {
 		if n.HasEntry() && o.Encompasses(n.Key()) {
