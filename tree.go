@@ -349,7 +349,19 @@ func (t treeCursor[B, T]) Size() (size int) {
 func (t treeCursor[B, T]) Copy() treeCursor[B, T] {
 	// TODO get actual size required. Could just grow it dynamically, then copy
 	// to a new pre-allocated one at the end.
-	return newSizedTree[B, T](len(t.bits)*3, len(t.value)).Cursor().CopyFrom(t)
+	return newTree[B, T]().Cursor().CopyFrom(t)
+}
+
+func (t *tree[B, T]) grow(n int) {
+	if n <= 0 {
+		return
+	}
+	t.bits = append(t.bits, make([]B, n)...)
+	t.len = append(t.len, make([]uint8, n)...)
+	t.offset = append(t.offset, make([]uint8, n)...)
+	t.left = append(t.left, make([]nodeRef, n)...)
+	t.right = append(t.right, make([]nodeRef, n)...)
+	t.entry = append(t.entry, make([]bool, n)...)
 }
 
 // CopyFrom copies o to t.
@@ -363,8 +375,7 @@ func (t treeCursor[B, T]) CopyFrom(o treeCursor[B, T]) treeCursor[B, T] {
 	s.Push(nr2{0, 0})
 	for !s.IsEmpty() {
 		nr := s.Pop()
-		if int(nr.o) > len(o.bits) {
-		}
+		t.tree.grow(int(nr.t) - len(t.bits) + 1)
 		t.bits[nr.t] = o.bits[nr.o]
 		t.len[nr.t] = o.len[nr.o]
 		t.offset[nr.t] = o.offset[nr.o]
