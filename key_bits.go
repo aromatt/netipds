@@ -69,7 +69,11 @@ func (k keyBits6) BitsClearedFrom(bit uint8) keyBits6 {
 }
 
 func (k keyBits6) Bit(i uint8) bit {
-	return k.isBitSet(i)
+	if i < 64 {
+		return k.hi&(1<<(63-i)) != 0
+	}
+	return k.lo&(1<<(127-i)) != 0
+
 }
 
 func (k keyBits6) CommonPrefixLen(o keyBits6) uint8 {
