@@ -107,10 +107,7 @@ func (k keyBits6) String() string {
 		content = fmt.Sprintf("%x", k.hi)
 	}
 	if k.lo > 0 {
-		if k.hi > 0 {
-		} else {
-			content = fmt.Sprintf("%s%x", content, k.lo)
-		}
+		content = fmt.Sprintf("%s%x", content, k.lo)
 	}
 	return fmt.Sprintf("%s", content)
 }
