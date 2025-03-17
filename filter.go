@@ -14,7 +14,7 @@ type filter struct {
 }
 
 // insert adds k to the filter.
-func (f filter) insert(k key[uint128]) filter {
+func (f *filter) insert(k key[uint128]) {
 	f.ones = f.ones.or(k.content)
 	f.zeros = f.zeros.or(k.content.not())
 	if f.minLen == 0 || k.len < f.minLen {
@@ -23,11 +23,10 @@ func (f filter) insert(k key[uint128]) filter {
 	if k.len > f.maxLen {
 		f.maxLen = k.len
 	}
-	return f
 }
 
 // mightContain returns true if the filter might contain k.
-func (f filter) mightContain(k key[uint128]) bool {
+func (f *filter) mightContain(k key[uint128]) bool {
 	if k.len < f.minLen || k.len > f.maxLen {
 		return false
 	}
@@ -43,7 +42,7 @@ func (f filter) mightContain(k key[uint128]) bool {
 
 // mightContainPrefix returns true if the filter might contain a key that is a
 // prefix of k.
-func (f filter) mightContainPrefix(k key[uint128]) bool {
+func (f *filter) mightContainPrefix(k key[uint128]) bool {
 	com1 := f.ones.and(k.content).commonPrefixLen(k.content)
 	notk := k.content.not()
 	com0 := f.zeros.and(notk).commonPrefixLen(notk)

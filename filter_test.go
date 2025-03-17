@@ -43,7 +43,7 @@ func TestFilterMightContain(t *testing.T) {
 	for _, tt := range tests {
 		f := filter{}
 		for _, k := range tt.insert {
-			f = f.insert(k)
+			f.insert(k)
 		}
 		if got := f.mightContain(tt.query); got != tt.want {
 			t.Errorf("f.mightContain(%v) = %v, want %v", tt.query, got, tt.want)
@@ -66,7 +66,7 @@ func TestFilterMightContainPrefix(t *testing.T) {
 	for _, tt := range tests {
 		f := filter{}
 		for _, k := range tt.insert {
-			f = f.insert(k)
+			f.insert(k)
 		}
 		if got := f.mightContainPrefix(tt.query); got != tt.want {
 			t.Errorf("f.mightContainPrefix(%v) = %v, want %v", tt.query, got, tt.want)
