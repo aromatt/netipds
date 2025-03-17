@@ -40,11 +40,24 @@ func (f *filter) mightContain(k key[uint128]) bool {
 	return true
 }
 
+func (f *filter) mightContainPrefixOnes(k key[uint128]) bool {
+	return f.ones.and(k.content).commonPrefixLen(k.content) >= f.minLen
+}
+
+func (f *filter) mightContainPrefixZeros(k key[uint128]) bool {
+	notk := k.content.not()
+	return f.zeros.and(notk).commonPrefixLen(notk) >= f.minLen
+}
+
 // mightContainPrefix returns true if the filter might contain a key that is a
 // prefix of k.
 func (f *filter) mightContainPrefix(k key[uint128]) bool {
-	com1 := f.ones.and(k.content).commonPrefixLen(k.content)
+	if f.ones.and(k.content).commonPrefixLen(k.content) < f.minLen {
+		return false
+	}
 	notk := k.content.not()
-	com0 := f.zeros.and(notk).commonPrefixLen(notk)
-	return com1 >= f.minLen && com0 >= f.minLen
+	if f.zeros.and(notk).commonPrefixLen(notk) < f.minLen {
+		return false
+	}
+	return true
 }

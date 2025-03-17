@@ -540,8 +540,12 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	k128 := k.To128()
+	notK128 := k128.content.not()
 	for n := t.pathNext128(k128.content); n != nil; n = n.pathNext128(k128.content) {
-		if !t.filter.mightContainPrefix(k128) {
+		if t.filter.ones.and(k128.content).commonPrefixLen(k128.content) < t.filter.minLen {
+			break
+		}
+		if t.filter.zeros.and(notK128).commonPrefixLen(notK128) < t.filter.minLen {
 			break
 		}
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
