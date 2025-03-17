@@ -526,9 +526,6 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	k128 := k.To128()
 	for n := t.pathNext128(k128.content); n != nil; n = n.pathNext128(k128.content) {
-		//if !t.filter.mightContain(k128) {
-		//	break
-		//}
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -540,7 +537,14 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	k128 := k.To128()
-	if !t.filter.mightContainPrefix(k128) {
+	//if !t.filter.mightContainPrefix(k128) {
+	//	return false
+	//}
+	if t.filter.ones.and(k128.content).commonPrefixLen(k128.content) < t.filter.minLen {
+		return false
+	}
+	notk := k128.content.not()
+	if t.filter.zeros.and(notk).commonPrefixLen(notk) < t.filter.minLen {
 		return false
 	}
 	for n := t.pathNext128(k128.content); n != nil; n = n.pathNext128(k128.content) {
@@ -555,9 +559,6 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
 	k128 := k.To128()
-	if !t.filter.mightContainPrefix(k128) {
-		return false
-	}
 	for n := t.pathNext128(k128.content); n != nil; n = n.pathNext128(k128.content) {
 		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
 			break
