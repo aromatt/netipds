@@ -9,7 +9,6 @@ type KeyBits[T comparable] interface {
 	IsZero() bool
 	BitsClearedFrom(uint8) T
 	Bit(uint8) bit
-	BitBool(uint8) bool
 	CommonPrefixLen(T) uint8
 	// TODO For use by Next()
 	WithBitSet(uint8) T
@@ -32,10 +31,6 @@ func (k keyBits4) BitsClearedFrom(bit uint8) keyBits4 {
 }
 
 func (k keyBits4) Bit(i uint8) bit {
-	return bit(k.bits >> (31 - i) & 1)
-}
-
-func (k keyBits4) BitBool(i uint8) bool {
 	return k.bits&(1<<(31-i)) != 0
 }
 
@@ -74,15 +69,7 @@ func (k keyBits6) BitsClearedFrom(bit uint8) keyBits6 {
 }
 
 func (k keyBits6) Bit(i uint8) bit {
-	return bit(k.isBitSet(i))
-}
-
-func (k keyBits6) BitBool(i uint8) bool {
-	if i < 64 {
-		return k.hi&(1<<(63-i)) != 0
-	}
-	return k.lo&(1<<(127-i)) != 0
-
+	return k.isBitSet(i)
 }
 
 func (k keyBits6) CommonPrefixLen(o keyBits6) uint8 {

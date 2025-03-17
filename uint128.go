@@ -122,21 +122,11 @@ func (u uint128) shiftLeft(n uint8) uint128 {
 	}
 }
 
-// isBitSet returns bit(1) if the bit at the given position is set.
+// isBitSet returns true if the bit at the given position is set.
 // If bit > 127, returns false.
-func (u uint128) isBitSet(bit uint8) bit {
-	if bit < 64 {
-		return uint8((u.hi >> (63 - bit)) & 1)
+func (u uint128) isBitSet(i uint8) bool {
+	if i < 64 {
+		return u.hi&(1<<(63-i)) != 0
 	}
-	return uint8((u.lo >> (127 - bit)) & 1)
-}
-
-// TODO
-// isBitSetBool returns true if the bit at the given position is set.
-// If bit > 127, returns false.
-func (u uint128) isBitSetBool(bit uint8) bool {
-	if bit < 64 {
-		return u.hi&1<<(63-bit) != 0
-	}
-	return u.lo&1<<(127-bit) != 0
+	return u.lo&(1<<(127-i)) != 0
 }

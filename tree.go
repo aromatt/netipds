@@ -4,13 +4,7 @@ import (
 	"fmt"
 )
 
-// tree is a binary radix tree supporting 128-bit keys (see key.go).
-//
-// The tree is compressed by default, however it supports uncompressed
-// insertion via insertLazy(). This can be much faster than insert() and works
-// well with netipds's intended usage pattern (build a collection with a
-// builder type, then generate an immutable version). After lazy insertions,
-// the tree can be compressed using the compress() method.
+// tree is a binary radix tree.
 type tree[T any, B KeyBits[B]] struct {
 	key      key[B]
 	hasEntry bool
@@ -436,7 +430,7 @@ func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 		bit := k.Bit(t.key.len)
 		child, sibling := t.children(bit)
 		if *sibling == nil {
-			*sibling = newTree[T](t.key.Next((^bit) & 1)).setValue(v)
+			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
 		}
 		*child = newTree[T](t.key.Next(bit)).insertHole(k, v)
 		return t
@@ -490,17 +484,8 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 
 // pathNext returns the child of t which is next in the traversal of the
 // specified path.
-func (t *tree[T, B]) pathNext(path key[B]) *tree[T, B] {
-	if path.content.BitBool(t.key.len) {
-		return t.right
-	}
-	return t.left
-}
-
-// pathNext returns the child of t which is next in the traversal of the
-// specified path.
-func (t *tree[T, B]) pathNext128(path uint128) *tree[T, B] {
-	if path.BitBool(t.key.len) {
+func (t *tree[T, B]) pathNext(path uint128) *tree[T, B] {
+	if path.Bit(t.key.len) {
 		return t.right
 	}
 	return t.left
@@ -509,7 +494,7 @@ func (t *tree[T, B]) pathNext128(path uint128) *tree[T, B] {
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 	k128 := k.content.To128()
-	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
+	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
 		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
@@ -523,7 +508,7 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	k128 := k.content.To128()
-	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
+	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -535,7 +520,7 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	k128 := k.content.To128()
-	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
+	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
@@ -547,7 +532,7 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 // encompasses the provided key.
 func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
 	k128 := k.content.To128()
-	for n := t.pathNext128(k128); n != nil; n = n.pathNext128(k128) {
+	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
 		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
 			break
 		}
@@ -555,20 +540,19 @@ func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
 	return
 }
 
-// // rootOf returns the shortest-prefix ancestor of the key provided, if any.
-// // If strict == true, the key itself is not considered.
-//
-//	func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
-//		t.walk(k, func(n *tree[T, B]) bool {
-//			if n.hasEntry && n.key.IsPrefixOf(k, strict) {
-//				outKey, val, ok = n.key, n.value, true
-//				return true
-//			}
-//			return false
-//		})
-//		return
-//	}
-//
+//// rootOf returns the shortest-prefix ancestor of the key provided, if any.
+//// If strict == true, the key itself is not considered.
+//func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
+//	t.walk(k, func(n *tree[T, B]) bool {
+//		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
+//			outKey, val, ok = n.key, n.value, true
+//			return true
+//		}
+//		return false
+//	})
+//	return
+//}
+
 // // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // // If strict == true, the key itself is not considered.
 //
