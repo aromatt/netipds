@@ -2,6 +2,7 @@ package netipds
 
 import (
 	"fmt"
+	"maps"
 	"net/netip"
 )
 
@@ -13,29 +14,34 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree  tree[T, keyBits6]
-	tree4 tree[T, keyBits4]
+	tree   tree[keyBits6]
+	tree4  tree[keyBits4]
+	values map[netip.Prefix]T
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
-func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
-	if p.Addr().Is4() {
-		return m.tree4.get(key4FromPrefix(p.Masked()))
-	} else {
-		return m.tree.get(key6FromPrefix(p.Masked()))
-	}
-}
+//func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
+//	if p.Addr().Is4() {
+//		return m.tree4.get(key4FromPrefix(p.Masked()))
+//	} else {
+//		return m.tree.get(key6FromPrefix(p.Masked()))
+//	}
+//}
 
 // Set associates v with p.
 func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
+	if m.values == nil {
+		m.values = make(map[netip.Prefix]T)
+	}
 	if !p.IsValid() {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4 = *(m.tree4.insert(key4FromPrefix(p.Masked()), v))
+		m.tree4 = *(m.tree4.insert(key4FromPrefix(p.Masked())))
 	} else {
-		m.tree = *(m.tree.insert(key6FromPrefix(p.Masked()), v))
+		m.tree = *(m.tree.insert(key6FromPrefix(p.Masked())))
 	}
+	m.values[p] = v
 	return nil
 }
 
@@ -53,6 +59,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	} else {
 		m.tree.remove(key6FromPrefix(p.Masked()))
 	}
+	delete(m.values, p)
 	return nil
 }
 
@@ -68,7 +75,9 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.copy()
 	t4 := m.tree4.copy()
-	return &PrefixMap[T]{*t, *t4, t.size(), t4.size()}
+	values := make(map[netip.Prefix]T, len(m.values))
+	maps.Copy(values, m.values)
+	return &PrefixMap[T]{*t, *t4, t.size(), t4.size(), values}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
@@ -83,19 +92,23 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree  tree[T, keyBits6]
-	tree4 tree[T, keyBits4]
-	size  int
-	size4 int
+	tree   tree[keyBits6]
+	tree4  tree[keyBits4]
+	size   int
+	size4  int
+	values map[netip.Prefix]T
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
-	if p.Addr().Is4() {
-		return m.tree4.get(key4FromPrefix(p))
-	} else {
-		return m.tree.get(key6FromPrefix(p))
-	}
+	v, ok := m.values[p]
+	return v, ok
+	//	if p.Addr().Is4() {
+	//		//return m.tree4.get(key4FromPrefix(p))
+	//	} else {
+	//
+	//		//return m.tree.get(key6FromPrefix(p))
+	//	}
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
