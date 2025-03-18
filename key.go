@@ -74,10 +74,6 @@ func (k key[B]) Next(b bit) key[B] {
 	return NewKey(content, k.offset, k.len+1)
 }
 
-func (k key[B]) PathNext(path key[B]) bit {
-	return path.Bit(k.len)
-}
-
 func (k key[B]) Rooted() key[B] {
 	return NewKey(k.content, 0, k.len)
 }
