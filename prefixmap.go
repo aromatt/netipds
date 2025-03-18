@@ -2,6 +2,7 @@ package netipds
 
 import (
 	"fmt"
+	"maps"
 	"net/netip"
 )
 
@@ -13,24 +14,28 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree  tree[keyBits6, T]
-	tree4 tree[keyBits4, T]
+	tree   tree[keyBits6]
+	tree4  tree[keyBits4]
+	values map[netip.Prefix]T
 }
 
 func NewPrefixMapBuilder[T any]() *PrefixMapBuilder[T] {
 	return &PrefixMapBuilder[T]{
-		tree:  *newTree[keyBits6, T](1, 1),
-		tree4: *newTree[keyBits4, T](1, 1),
+		tree:   *newTree[keyBits6](1),
+		tree4:  *newTree[keyBits4](1),
+		values: make(map[netip.Prefix]T),
 	}
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
-	if p.Addr().Is4() {
-		return m.tree4.Cursor().Get(key4FromPrefix(p))
-	} else {
-		return m.tree.Cursor().Get(key6FromPrefix(p))
-	}
+	v, ok := m.values[p]
+	return v, ok
+	//if p.Addr().Is4() {
+	//	return m.tree4.Cursor().Get(key4FromPrefix(p))
+	//} else {
+	//	return m.tree.Cursor().Get(key6FromPrefix(p))
+	//}
 }
 
 // Set associates v with p.
@@ -39,10 +44,11 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		m.tree4.Cursor().Insert(key4FromPrefix(p), v)
+		m.tree4.Cursor().Insert(key4FromPrefix(p))
 	} else {
-		m.tree.Cursor().Insert(key6FromPrefix(p), v)
+		m.tree.Cursor().Insert(key6FromPrefix(p))
 	}
+	m.values[p] = v
 	return nil
 }
 
@@ -60,6 +66,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	} else {
 		m.tree.Cursor().Remove(key6FromPrefix(p))
 	}
+	delete(m.values, p)
 	return nil
 }
 
@@ -75,7 +82,9 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.Copy()
 	t4 := m.tree4.Copy()
-	return &PrefixMap[T]{*t, *t4, t.Cursor().Size(), t4.Cursor().Size()}
+	values := make(map[netip.Prefix]T, len(m.values))
+	maps.Copy(values, m.values)
+	return &PrefixMap[T]{*t, *t4, t.Cursor().Size(), t4.Cursor().Size(), values}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
@@ -90,19 +99,22 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree  tree[keyBits6, T]
-	tree4 tree[keyBits4, T]
-	size  int
-	size4 int
+	tree   tree[keyBits6]
+	tree4  tree[keyBits4]
+	size   int
+	size4  int
+	values map[netip.Prefix]T
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
-	if p.Addr().Is4() {
-		return m.tree4.Cursor().Get(key4FromPrefix(p))
-	} else {
-		return m.tree.Cursor().Get(key6FromPrefix(p))
-	}
+	v, ok := m.values[p]
+	return v, ok
+	//if p.Addr().Is4() {
+	//	return m.tree4.Cursor().Get(key4FromPrefix(p))
+	//} else {
+	//	return m.tree.Cursor().Get(key6FromPrefix(p))
+	//}
 }
 
 // Contains returns true if this map includes the exact Prefix provided.

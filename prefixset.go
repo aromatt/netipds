@@ -12,14 +12,14 @@ import (
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree  tree[keyBits6, bool]
-	tree4 tree[keyBits4, bool]
+	tree  tree[keyBits6]
+	tree4 tree[keyBits4]
 }
 
 func NewPrefixSetBuilder() *PrefixSetBuilder {
 	return &PrefixSetBuilder{
-		tree:  *newTree[keyBits6, bool](1, 1),
-		tree4: *newTree[keyBits4, bool](1, 1),
+		tree:  *newTree[keyBits6](1),
+		tree4: *newTree[keyBits4](1),
 	}
 }
 
@@ -29,9 +29,9 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 		return fmt.Errorf("Prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.Cursor().Insert(key4FromPrefix(p), true)
+		s.tree4.Cursor().Insert(key4FromPrefix(p))
 	} else {
-		s.tree.Cursor().Insert(key6FromPrefix(p), true)
+		s.tree.Cursor().Insert(key6FromPrefix(p))
 	}
 	return nil
 }
@@ -131,8 +131,8 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree  tree[keyBits6, bool]
-	tree4 tree[keyBits4, bool]
+	tree  tree[keyBits6]
+	tree4 tree[keyBits4]
 	size  int
 	size4 int
 }

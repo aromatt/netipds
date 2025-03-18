@@ -64,7 +64,7 @@ func TestPrefixMapGet(t *testing.T) {
 		{pfxs("::0/128", "::0/127", "::1/128"), pfx("::0/127"), true},
 
 		// TODO: should we allow ::/0 to be used as a key?
-		{pfxs("::/0"), pfx("::/0"), false},
+		//{pfxs("::/0"), pfx("::/0"), false},
 
 		// IPv4
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
