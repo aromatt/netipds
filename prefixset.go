@@ -103,6 +103,8 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	t := s.tree.copy()
 	t4 := s.tree4.copy()
+	t.setMinMaxLen()
+	t4.setMinMaxLen()
 	return &PrefixSet{*t, *t4, t.size(), t4.size()}
 }
 

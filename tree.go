@@ -8,6 +8,8 @@ import (
 type tree[T any, B KeyBits[B]] struct {
 	key      key[B]
 	hasEntry bool
+	minlen   uint8
+	maxlen   uint8
 	value    T
 	left     *tree[T, B]
 	right    *tree[T, B]
@@ -116,8 +118,36 @@ func (t *tree[T, B]) size() int {
 	return size
 }
 
+func (t *tree[T, B]) setMinMaxLen() {
+	if t.left == nil && t.right == nil {
+		t.minlen = t.key.len
+		t.maxlen = t.key.len
+		return
+	}
+	if t.left != nil {
+		t.left.setMinMaxLen()
+		t.updateMinMaxLen(t.left.minlen)
+		t.updateMinMaxLen(t.left.maxlen)
+	}
+	if t.right != nil {
+		t.right.setMinMaxLen()
+		t.updateMinMaxLen(t.right.minlen)
+		t.updateMinMaxLen(t.right.maxlen)
+	}
+}
+
+func (t *tree[T, B]) updateMinMaxLen(len uint8) {
+	if len < t.minlen || t.minlen == 0 {
+		t.minlen = len
+	}
+	if len > t.maxlen {
+		t.maxlen = len
+	}
+}
+
 // insert inserts value v at key k with path compression.
 func (t *tree[T, B]) insert(k key[B], v T) *tree[T, B] {
+
 	// Inserting at t itself
 	if t.key.EqualFromRoot(k) {
 		return t.setValue(v)
@@ -509,6 +539,9 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	k128 := k.content.To128()
 	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
+		if k.len < n.minlen || k.len > n.maxlen {
+			break
+		}
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -521,6 +554,9 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	k128 := k.content.To128()
 	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
+		if k.len < n.minlen {
+			break
+		}
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
@@ -533,6 +569,9 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
 	k128 := k.content.To128()
 	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
+		if k.len <= t.minlen {
+			break
+		}
 		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
 			break
 		}

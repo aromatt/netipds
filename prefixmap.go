@@ -68,6 +68,8 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t := m.tree.copy()
 	t4 := m.tree4.copy()
+	t.setMinMaxLen()
+	t4.setMinMaxLen()
 	return &PrefixMap[T]{*t, *t4, t.size(), t4.size()}
 }
 
