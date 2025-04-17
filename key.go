@@ -19,13 +19,10 @@ func (k key[B]) Bit(i uint8) bit {
 	return k.content.Bit(i)
 }
 
-// StringRel prints the portion of h.content from offset to len, as hex,
+// String prints the portion of k.content from offset to len, as hex,
 // followed by ",<len>-<offset>". The least significant bit in the output is
 // the bit at position (h.len - 1). Leading zeros are omitted.
-//
-// This representation is lossy in that it hides the first h.offset bits, but
-// it's helpful for debugging in the context of a pretty-printed tree.
-func (k key[B]) StringRel() string {
+func (k key[B]) String() string {
 	return fmt.Sprintf("%s,%d-%d", k.content.Justify(k.offset, k.len), k.offset, k.len)
 }
 
@@ -71,7 +68,7 @@ func (k key[B]) Next(b bit) key[B] {
 	if b == bitR {
 		content = content.WithBitSet(k.len)
 	}
-	return NewKey(content, k.offset, k.len+1)
+	return NewKey(content, k.len, k.len+1)
 }
 
 func (k key[B]) Rooted() key[B] {

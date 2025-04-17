@@ -98,7 +98,11 @@ func (k keyBits6) String() string {
 		content = fmt.Sprintf("%x", k.hi)
 	}
 	if k.lo > 0 {
-		content = fmt.Sprintf("%s%x", content, k.lo)
+		if k.hi > 0 {
+			content = fmt.Sprintf("%s%0*x", content, 16, k.lo)
+		} else {
+			content = fmt.Sprintf("%s%x", content, k.lo)
+		}
 	}
 	return fmt.Sprintf("%s", content)
 }

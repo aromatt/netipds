@@ -83,9 +83,9 @@ func (t *tree[T, B]) copy() *tree[T, B] {
 func (t *tree[T, B]) stringImpl(indent string, pre string, hideVal bool) string {
 	var ret string
 	if hideVal {
-		ret = fmt.Sprintf("%s%s%s\n", indent, pre, t.key.StringRel())
+		ret = fmt.Sprintf("%s%s%s\n", indent, pre, t.key.String())
 	} else {
-		ret = fmt.Sprintf("%s%s%s: %v\n", indent, pre, t.key.StringRel(), t.value)
+		ret = fmt.Sprintf("%s%s%s: %v\n", indent, pre, t.key.String(), t.value)
 	}
 	if t.left != nil {
 		ret += t.left.stringImpl(indent+"  ", "L:", hideVal)
