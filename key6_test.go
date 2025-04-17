@@ -128,24 +128,6 @@ func TestKey6IsPrefixOf(t *testing.T) {
 	}
 }
 
-func TestKey6IsPrefixOfStrict(t *testing.T) {
-	tests := []struct {
-		a    netip.Prefix
-		b    netip.Prefix
-		want bool
-	}{
-		{pfx("::/0"), pfx("::/0"), false},
-		{pfx("::/0"), pfx("::/1"), true},
-		{pfx("::2/127"), pfx("::3/128"), true},
-		{pfx("::2/128"), pfx("::3/128"), false},
-	}
-	for _, tt := range tests {
-		if got := key6FromPrefix(tt.a).IsPrefixOfStrict(key6FromPrefix(tt.b)); got != tt.want {
-			t.Errorf("%v.isPrefixOfStrict(%v) = %v, want %v", tt.a, tt.b, got, tt.want)
-		}
-	}
-}
-
 func TestKey6Truncated(t *testing.T) {
 	tests := []struct {
 		k    key[keyBits6]

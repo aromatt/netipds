@@ -117,17 +117,6 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	}
 }
 
-// EncompassesStrict returns true if this map includes a Prefix which
-// completely encompasses p. The encompassing Prefix must be an ancestor of p,
-// not p itself.
-func (m *PrefixMap[T]) EncompassesStrict(p netip.Prefix) bool {
-	if p.Addr().Is4() {
-		return m.tree4.encompassesStrict(key4FromPrefix(p))
-	} else {
-		return m.tree.encompassesStrict(key6FromPrefix(p))
-	}
-}
-
 /* HACK
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {

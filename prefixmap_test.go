@@ -215,57 +215,6 @@ func TestPrefixMapEncompasses(t *testing.T) {
 	}
 }
 
-func TestPrefixMapEncompassesStrict(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want bool
-	}{
-		{pfxs(), pfx("::0/128"), false},
-
-		{pfxs("::0/128"), pfx("::0/128"), false},
-		{pfxs("::0/128"), pfx("::0/127"), false},
-
-		{pfxs("::0/127"), pfx("::0/128"), true},
-		{pfxs("::0/127"), pfx("::1/128"), true},
-
-		{pfxs("::2/127"), pfx("::1/128"), false},
-		{pfxs("::2/127"), pfx("::2/128"), true},
-		{pfxs("::2/127"), pfx("::3/128"), true},
-
-		{pfxs("::0/127", "::0/128"), pfx("::0/127"), false},
-
-		// This map contains a node that strictly encompasses the query, but
-		// that node does not have an entry
-		{pfxs("::0/128", "::1/128"), pfx("::0/128"), false},
-
-		// A Prefix is not considered encompassed if the map contains all of its
-		// children but not the Prefix itself.
-		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
-
-		// IPv4
-		{pfxs("10.0.0.1/32"), pfx("10.0.0.1/32"), false},
-		{pfxs("10.0.0.0/32"), pfx("10.0.0.0/31"), false},
-
-		{pfxs("10.0.0.0/31"), pfx("10.0.0.0/32"), true},
-		{pfxs("10.0.0.0/31"), pfx("10.0.0.1/32"), true},
-
-		{pfxs("10.0.0.2/31"), pfx("10.0.0.1/32"), false},
-		{pfxs("10.0.0.2/31"), pfx("10.0.0.2/32"), true},
-		{pfxs("10.0.0.2/31"), pfx("10.0.0.3/32"), true},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		pm := pmb.PrefixMap()
-		if got := pm.EncompassesStrict(tt.get); got != tt.want {
-			t.Errorf("pm.EncompassesStrict(%s) = %v, want %v", tt.get, got, tt.want)
-		}
-	}
-}
-
 /* HACK
 
 func TestPrefixMapToMap(t *testing.T) {

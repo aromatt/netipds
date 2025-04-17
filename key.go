@@ -67,15 +67,6 @@ func (k key[B]) IsPrefixOf(o key[B]) bool {
 	return k.content == o.content.BitsClearedFrom(k.len)
 }
 
-// IsPrefixOfStrict reports whether k is a strict prefix of o, i.e.
-// k.len < o.len and has the same content as o up to position k.len.
-func (k key[B]) IsPrefixOfStrict(o key[B]) bool {
-	if k.len >= o.len {
-		return false
-	}
-	return k.content == o.content.BitsClearedFrom(k.len)
-}
-
 // Next returns a one-bit key just beyond k, set to 1 iff b == bitR.
 func (k key[B]) Next(b bit) key[B] {
 	content := k.content

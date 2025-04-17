@@ -517,23 +517,11 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 }
 
 // encompasses returns true if this tree includes a key which completely
-// encompasses the provided key.
+// encompasses or is equal to the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	k128 := k.content.To128()
 	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
-			break
-		}
-	}
-	return
-}
-
-// encompasses returns true if this tree includes a key which completely
-// encompasses the provided key.
-func (t *tree[T, B]) encompassesStrict(k key[B]) (ret bool) {
-	k128 := k.content.To128()
-	for n := t.pathNext(k128); n != nil; n = n.pathNext(k128) {
-		if ret = n.hasEntry && n.key.IsPrefixOfStrict(k); ret {
 			break
 		}
 	}

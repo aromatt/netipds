@@ -150,17 +150,6 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	}
 }
 
-// EncompassesStrict returns true if this set includes a Prefix which
-// completely encompasses p. The encompassing Prefix must be an ancestor of p,
-// not p itself.
-func (s *PrefixSet) EncompassesStrict(p netip.Prefix) bool {
-	if p.Addr().Is4() {
-		return s.tree4.encompassesStrict(key4FromPrefix(p))
-	} else {
-		return s.tree.encompassesStrict(key6FromPrefix(p))
-	}
-}
-
 /* HACK
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {

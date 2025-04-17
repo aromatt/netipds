@@ -79,35 +79,6 @@ func TestPrefixSetEncompasses(t *testing.T) {
 	}
 }
 
-func TestPrefixSetEncompassesStrict(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want bool
-	}{
-		{pfxs(), pfx("::0/128"), false},
-		{pfxs("::0/128"), pfx("::0/128"), false},
-		{pfxs("::0/128"), pfx("::1/128"), false},
-		{pfxs("::0/128"), pfx("::0/127"), false},
-		{pfxs("::0/127"), pfx("::0/128"), true},
-		{pfxs("::0/126"), pfx("::0/128"), true},
-		// The set covers the input prefix but does not encompass it.
-		{pfxs("::0/128", "::1/128"), pfx("::0/127"), false},
-		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), true},
-	}
-
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
-			psb.Add(p)
-		}
-		ps := psb.PrefixSet()
-		if got := ps.EncompassesStrict(tt.get); got != tt.want {
-			t.Errorf("ps.EncompassesStrict(%s) = %v, want %v", tt.get, got, tt.want)
-		}
-	}
-}
-
 /* HACK
 func TestPrefixSetRootOf(t *testing.T) {
 	tests := []struct {
