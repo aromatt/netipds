@@ -10,9 +10,7 @@ type KeyBits[T comparable] interface {
 	BitsClearedFrom(uint8) T
 	Bit(uint8) bit
 	CommonPrefixLen(T) uint8
-	// TODO For use by Next()
 	WithBitSet(uint8) T
-	// TODO For use by StringRel()
 	Justify(uint8, uint8) T
 	String() string
 	To128() uint128
