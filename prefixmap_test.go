@@ -215,8 +215,6 @@ func TestPrefixMapEncompasses(t *testing.T) {
 	}
 }
 
-/* HACK
-
 func TestPrefixMapToMap(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -247,6 +245,8 @@ func TestPrefixMapToMap(t *testing.T) {
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
 }
+
+/* HACK
 
 func TestPrefixMapRemove(t *testing.T) {
 	tests := []struct {

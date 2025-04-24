@@ -13,7 +13,7 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree  tree[T, keyBits6]
+	tree6 tree[T, keyBits6]
 	tree4 tree[T, keyBits4]
 }
 
@@ -22,7 +22,7 @@ func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p.Masked()))
 	} else {
-		return m.tree.get(key6FromPrefix(p.Masked()))
+		return m.tree6.get(key6FromPrefix(p.Masked()))
 	}
 }
 
@@ -34,7 +34,7 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if p.Addr().Is4() {
 		m.tree4 = *(m.tree4.insert(key4FromPrefix(p.Masked()), v))
 	} else {
-		m.tree = *(m.tree.insert(key6FromPrefix(p.Masked()), v))
+		m.tree6 = *(m.tree6.insert(key6FromPrefix(p.Masked()), v))
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		m.tree4.remove(key4FromPrefix(p.Masked()))
 	} else {
-		m.tree.remove(key6FromPrefix(p.Masked()))
+		m.tree6.remove(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
-	t := m.tree.copy()
+	t := m.tree6.copy()
 	t4 := m.tree4.copy()
 	return &PrefixMap[T]{*t, *t4, t.size(), t4.size()}
 }
@@ -74,7 +74,7 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 func (s *PrefixMapBuilder[T]) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		s.tree4.stringImpl("", "", false),
-		s.tree.stringImpl("", "", false),
+		s.tree6.stringImpl("", "", false),
 	)
 }
 
@@ -83,7 +83,7 @@ func (s *PrefixMapBuilder[T]) String() string {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree  tree[T, keyBits6]
+	tree6 tree[T, keyBits6]
 	tree4 tree[T, keyBits4]
 	size  int
 	size4 int
@@ -94,7 +94,7 @@ func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p))
 	} else {
-		return m.tree.get(key6FromPrefix(p))
+		return m.tree6.get(key6FromPrefix(p))
 	}
 }
 
@@ -103,7 +103,7 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.contains(key4FromPrefix(p))
 	} else {
-		return m.tree.contains(key6FromPrefix(p))
+		return m.tree6.contains(key6FromPrefix(p))
 	}
 }
 
@@ -113,7 +113,7 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.encompasses(key4FromPrefix(p))
 	} else {
-		return m.tree.encompasses(key6FromPrefix(p))
+		return m.tree6.encompasses(key6FromPrefix(p))
 	}
 }
 
@@ -169,19 +169,28 @@ func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (netip.Prefix, T, bool) {
 func (m *PrefixMap[T]) ParentOfStrict(p netip.Prefix) (netip.Prefix, T, bool) {
 	return m.parentOf(p, true)
 }
+*/
 
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree.walk(key{}, func(n *tree[T, K]) bool {
+	m.tree4.walk(key[keyBits4]{}, func(n *tree[T, keyBits4]) bool {
 		if n.hasEntry {
-			res[n.key.toPrefix()] = n.value
+			res[n.key.ToPrefix()] = n.value
 		}
 		return false
 	})
+	m.tree6.walk(key[keyBits6]{}, func(n *tree[T, keyBits6]) bool {
+		if n.hasEntry {
+			res[n.key.ToPrefix()] = n.value
+		}
+		return false
+	})
+
 	return res
 }
 
+/* HACK
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
@@ -222,7 +231,7 @@ func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 func (s *PrefixMap[T]) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		s.tree4.stringImpl("", "", false),
-		s.tree.stringImpl("", "", false),
+		s.tree6.stringImpl("", "", false),
 	)
 }
 
