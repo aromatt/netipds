@@ -529,7 +529,6 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 }
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
-// If strict == true, the key itself is not considered.
 func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 	t.walk(k, func(n *tree[T, B]) bool {
 		if n.hasEntry && n.key.IsPrefixOf(k) {
@@ -541,19 +540,17 @@ func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 	return
 }
 
-// // parentOf returns the longest-prefix ancestor of the key provided, if any.
-// // If strict == true, the key itself is not considered.
-//
-//	func (t *tree[T, B]) parentOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
-//		t.walk(k, func(n *tree[T, B]) bool {
-//			if n.hasEntry && n.key.IsPrefixOf(k, strict) {
-//				outKey, val, ok = n.key, n.value, true
-//			}
-//			return false
-//		})
-//		return
-//	}
-//
+// parentOf returns the longest-prefix ancestor of the key provided, if any.
+func (t *tree[T, B]) parentOf(k key[B]) (outKey key[B], val T, ok bool) {
+	t.walk(k, func(n *tree[T, B]) bool {
+		if n.hasEntry && n.key.IsPrefixOf(k) {
+			outKey, val, ok = n.key, n.value, true
+		}
+		return false
+	})
+	return
+}
+
 // // descendantsOf returns the sub-tree containing all descendants of the
 // // provided key. The key itself will be included if it has an entry in the
 // // tree, unless strict == true. descendantsOf returns an empty tree if the
