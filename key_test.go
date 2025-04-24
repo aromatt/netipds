@@ -35,6 +35,7 @@ func TestKey4ToPrefix(t *testing.T) {
 	tests := []struct {
 		p netip.Prefix
 	}{
+		{pfx("0.0.0.0/32")},
 		{pfx("1.2.3.0/24")},
 		{pfx("1.2.3.4/32")},
 		{pfx("128.0.0.0/1")},
@@ -67,6 +68,7 @@ func TestKey6ToPrefix(t *testing.T) {
 	tests := []struct {
 		p netip.Prefix
 	}{
+		{pfx("::0/128")},
 		{pfx("::1/128")},
 		{pfx("::2/127")},
 	}

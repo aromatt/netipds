@@ -58,9 +58,6 @@ func (k keyBits4) To128() uint128 {
 }
 
 func (k keyBits4) ToAddr() netip.Addr {
-	if k.IsZero() {
-		return netip.Addr{}
-	}
 	var a4 [4]byte
 	bePutUint32(a4[:], k.bits)
 	return netip.AddrFrom4(a4)
@@ -119,9 +116,6 @@ func (k keyBits6) To128() uint128 {
 }
 
 func (k keyBits6) ToAddr() netip.Addr {
-	if k.IsZero() {
-		return netip.Addr{}
-	}
 	var a16 [16]byte
 	bePutUint64(a16[:8], k.hi)
 	bePutUint64(a16[8:], k.lo)
