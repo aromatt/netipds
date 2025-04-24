@@ -12,7 +12,7 @@ type key[B KeyBits[B]] struct {
 }
 
 func NewKey[B KeyBits[B]](content B, offset, len uint8) key[B] {
-	return key[B]{len, offset, content}
+	return key[B]{len, offset, content.BitsClearedFrom(len)}
 }
 
 // Bit returns the bit at position i in k.content.
