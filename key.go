@@ -81,6 +81,13 @@ func (k key[B]) Rooted() key[B] {
 	return NewKey(k.content, 0, k.len)
 }
 
+func (k key[B]) ToPrefix() netip.Prefix {
+	if k.IsZero() {
+		return netip.Prefix{}
+	}
+	return netip.PrefixFrom(k.content.ToAddr(), int(k.len))
+}
+
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 	a4 := p.Addr().As4()

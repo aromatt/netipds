@@ -31,6 +31,52 @@ func TestKey4FromPrefix(t *testing.T) {
 	}
 }
 
+func TestKey4ToPrefix(t *testing.T) {
+	tests := []struct {
+		p netip.Prefix
+	}{
+		{pfx("1.2.3.0/24")},
+		{pfx("1.2.3.4/32")},
+		{pfx("128.0.0.0/1")},
+	}
+	for _, tt := range tests {
+		if got := key4FromPrefix(tt.p).ToPrefix(); got != tt.p {
+			t.Errorf("key4FromPrefix(%v).toPrefix() = %v, want %v", tt.p, got, tt.p)
+		}
+	}
+}
+
+func TestKey6FromPrefix(t *testing.T) {
+	tests := []struct {
+		p    netip.Prefix
+		want key[keyBits6]
+	}{
+		{pfx("::1/128"), k6(uint128{0, 1}, 0, 128)},
+		{pfx("::2/127"), k6(uint128{0, 2}, 0, 127)},
+		{pfx("8000::/1"), k6(uint128{1 << 63, 0}, 0, 1)},
+		{pfx("::/0"), k6(uint128{}, 0, 0)},
+	}
+	for _, tt := range tests {
+		if got := key6FromPrefix(tt.p); got != tt.want {
+			t.Errorf("key6FromPrefix(%v) = %v, want %v", tt.p, got, tt.want)
+		}
+	}
+}
+
+func TestKey6ToPrefix(t *testing.T) {
+	tests := []struct {
+		p netip.Prefix
+	}{
+		{pfx("::1/128")},
+		{pfx("::2/127")},
+	}
+	for _, tt := range tests {
+		if got := key6FromPrefix(tt.p).ToPrefix(); got != tt.p {
+			t.Errorf("key6FromPrefix(%v).toPrefix() = %v, want %v", tt.p, got, tt.p)
+		}
+	}
+}
+
 func TestKey4Bit(t *testing.T) {
 	tests := []struct {
 		p    netip.Prefix
@@ -174,8 +220,6 @@ func TestKey6Rest(t *testing.T) {
 	}{
 		{k6(uint128{0, 0}, 0, 0), 0, k6(uint128{0, 0}, 0, 0)},
 		{k6(uint128{1, 0}, 64, 64), 64, k6(uint128{1, 0}, 64, 64)},
-
-		// Note: Rest does not mask content.
 		{k6(uint128{1, 0}, 64, 128), 127, k6(uint128{1, 0}, 127, 128)},
 	}
 	for _, tt := range tests {
@@ -185,7 +229,7 @@ func TestKey6Rest(t *testing.T) {
 	}
 }
 
-func TestKeyNext(t *testing.T) {
+func TestKey6Next(t *testing.T) {
 	tests := []struct {
 		k         key[keyBits6]
 		wantLeft  key[keyBits6]

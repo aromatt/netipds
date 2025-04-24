@@ -2,6 +2,7 @@ package netipds
 
 import (
 	"fmt"
+	"net/netip"
 )
 
 type KeyBits[T comparable] interface {
@@ -14,6 +15,7 @@ type KeyBits[T comparable] interface {
 	Justify(uint8, uint8) T
 	String() string
 	To128() uint128
+	ToAddr() netip.Addr
 }
 
 type keyBits4 struct {
@@ -40,7 +42,6 @@ func (k keyBits4) WithBitSet(i uint8) keyBits4 {
 	return keyBits4{k.bits | (1 << (31 - i))}
 }
 
-// TODO
 func (k keyBits4) Justify(o, l uint8) keyBits4 {
 	return keyBits4{(k.bits << o) >> (32 - l + o)}
 }
@@ -54,6 +55,15 @@ func (k keyBits4) String() string {
 
 func (k keyBits4) To128() uint128 {
 	return uint128{uint64(k.bits) << 32, 0}
+}
+
+func (k keyBits4) ToAddr() netip.Addr {
+	if k.IsZero() {
+		return netip.Addr{}
+	}
+	var a4 [4]byte
+	bePutUint32(a4[:], k.bits)
+	return netip.AddrFrom4(a4)
 }
 
 type keyBits6 = uint128
@@ -82,7 +92,6 @@ func (k keyBits6) WithBitSet(i uint8) keyBits6 {
 	return k.or(uint128{0, 1}.shiftLeft(127 - i))
 }
 
-// TODO
 func (k keyBits6) Justify(o, l uint8) keyBits6 {
 	return k.shiftLeft(o).shiftRight(128 - l + o)
 }
@@ -107,4 +116,14 @@ func (k keyBits6) String() string {
 
 func (k keyBits6) To128() uint128 {
 	return k
+}
+
+func (k keyBits6) ToAddr() netip.Addr {
+	if k.IsZero() {
+		return netip.Addr{}
+	}
+	var a16 [16]byte
+	bePutUint64(a16[:8], k.hi)
+	bePutUint64(a16[8:], k.lo)
+	return netip.AddrFrom16(a16)
 }
