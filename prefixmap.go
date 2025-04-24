@@ -126,24 +126,27 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 	}
 }
 
-/* HACK
-func (m *PrefixMap[T]) rootOf(
-	p netip.Prefix,
-	strict bool,
-) (outPfx netip.Prefix, val T, ok bool) {
-	label, val, ok := m.tree.rootOf(keyFromPrefix(p), strict)
-	if !ok {
-		return outPfx, val, false
-	}
-	return label.toPrefix(), val, true
-}
-
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
-func (m *PrefixMap[T]) RootOf(p netip.Prefix) (netip.Prefix, T, bool) {
-	return m.rootOf(p, false)
+// TODO repetitive
+func (m *PrefixMap[T]) RootOf(p netip.Prefix) (outPfx netip.Prefix, val T, ok bool) {
+	if p.Addr().Is4() {
+		var label key[keyBits4]
+		label, val, ok = m.tree4.rootOf(key4FromPrefix(p))
+		if ok {
+			outPfx = label.ToPrefix()
+		}
+	} else {
+		var label key[keyBits6]
+		label, val, ok = m.tree6.rootOf(key6FromPrefix(p))
+		if ok {
+			outPfx = label.ToPrefix()
+		}
+	}
+	return
 }
 
+/* HACK
 func (m *PrefixMap[T]) parentOf(
 	p netip.Prefix,
 	strict bool,

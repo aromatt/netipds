@@ -528,18 +528,18 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	return
 }
 
-//// rootOf returns the shortest-prefix ancestor of the key provided, if any.
-//// If strict == true, the key itself is not considered.
-//func (t *tree[T, B]) rootOf(k key[B], strict bool) (outKey key[B], val T, ok bool) {
-//	t.walk(k, func(n *tree[T, B]) bool {
-//		if n.hasEntry && n.key.IsPrefixOf(k, strict) {
-//			outKey, val, ok = n.key, n.value, true
-//			return true
-//		}
-//		return false
-//	})
-//	return
-//}
+// rootOf returns the shortest-prefix ancestor of the key provided, if any.
+// If strict == true, the key itself is not considered.
+func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
+	t.walk(k, func(n *tree[T, B]) bool {
+		if n.hasEntry && n.key.IsPrefixOf(k) {
+			outKey, val, ok = n.key, n.value, true
+			return true
+		}
+		return false
+	})
+	return
+}
 
 // // parentOf returns the longest-prefix ancestor of the key provided, if any.
 // // If strict == true, the key itself is not considered.
