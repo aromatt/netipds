@@ -975,6 +975,7 @@ func TestPrefixMapFilter(t *testing.T) {
 		checkMap(t, tt.want, filtered.ToMap())
 	}
 }
+*/
 
 func TestOverlapsPrefix(t *testing.T) {
 	tests := []struct {
@@ -995,6 +996,11 @@ func TestOverlapsPrefix(t *testing.T) {
 
 		// IPv4
 		{pfxs(), pfx("1.2.3.0/32"), false},
+		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), true},
+		{pfxs("0.0.0.0/32"), pfx("0.0.0.1/32"), false},
+		{pfxs("0.0.0.0/32"), pfx("0.0.0.0/31"), true},
+		{pfxs("0.0.0.0/31"), pfx("0.0.0.1/32"), true},
+		{pfxs("0.0.0.0/32", "0.0.0.1/32"), pfx("0.0.0.2/32"), false},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
@@ -1007,7 +1013,6 @@ func TestOverlapsPrefix(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestPrefixMapSize(t *testing.T) {
 	tests := []struct {
