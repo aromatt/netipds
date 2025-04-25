@@ -612,7 +612,6 @@ func TestPrefixSetRemove(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetFilter(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
@@ -627,6 +626,14 @@ func TestPrefixSetFilter(t *testing.T) {
 		{pfxs("::0/128", "::1/128"), pfxs("::0/127"), pfxs("::0/128", "::1/128")},
 		{pfxs("::0/128", "::1/128"), pfxs("::0/126"), pfxs("::0/128", "::1/128")},
 		{pfxs("::0/128", "::2/128"), pfxs("::0/127"), pfxs("::0/128")},
+
+		// IPv4
+		{pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32")},
+		{pfxs("1.2.3.4/32"), pfxs("1.2.3.0/24"), pfxs("1.2.3.4/32")},
+		{pfxs("1.2.3.0/24"), pfxs("1.2.3.0/32"), pfxs()},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{pfxs("1.2.3.4/32"), pfxs("::ffff:1.2.3.4/32"), pfxs()},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
@@ -641,7 +648,6 @@ func TestPrefixSetFilter(t *testing.T) {
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
-*/
 
 func TestPrefixSetPrefixesCompact(t *testing.T) {
 	tests := []struct {

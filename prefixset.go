@@ -48,10 +48,14 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 }
 
 // Filter removes all Prefixes that are not encompassed by o from s.
-//func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
-//	s.tree.filter(&o.tree)
-//	s.tree4.filter(&o.tree4)
-//}
+//
+// When filtering, a Prefix in o has no effect on its parent in s. To remove
+// subsets of Prefixes, see [PrefixSetBuilder.Subtract] and
+// [PrefixSetBuilder.SubtractPrefix].
+func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
+	s.tree6.filter(&o.tree6)
+	s.tree4.filter(&o.tree4)
+}
 
 // SubtractPrefix modifies s so that p and all of its descendants are removed,
 // leaving behind any remaining portions of affected Prefixes. This may add
