@@ -12,7 +12,7 @@ import (
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree  tree[bool, keyBits6]
+	tree6 tree[bool, keyBits6]
 	tree4 tree[bool, keyBits4]
 }
 
@@ -24,7 +24,7 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4 = *(s.tree4.insert(key4FromPrefix(p.Masked()), true))
 	} else {
-		s.tree = *(s.tree.insert(key6FromPrefix(p.Masked()), true))
+		s.tree6 = *(s.tree6.insert(key6FromPrefix(p.Masked()), true))
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4.remove(key4FromPrefix(p.Masked()))
 	} else {
-		s.tree.remove(key6FromPrefix(p.Masked()))
+		s.tree6.remove(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if p.Addr().Is4() {
 		s.tree4.subtractKey(key4FromPrefix(p.Masked()))
 	} else {
-		s.tree.subtractKey(key6FromPrefix(p.Masked()))
+		s.tree6.subtractKey(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 	s.tree4 = *s.tree4.subtractTree(&o.tree4)
-	s.tree = *s.tree.subtractTree(&o.tree)
+	s.tree6 = *s.tree6.subtractTree(&o.tree6)
 }
 
 // Intersect modifies s so that it contains the intersection of the entries
@@ -88,12 +88,12 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 // both sets or (b) exist in one set and have an ancestor in the other.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree4 = *s.tree4.intersectTree(&o.tree4)
-	s.tree = *s.tree.intersectTree(&o.tree)
+	s.tree6 = *s.tree6.intersectTree(&o.tree6)
 }
 
 // Merge modifies s so that it contains the union of the entries in s and o.
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
-	s.tree = *s.tree.mergeTree(&o.tree)
+	s.tree6 = *s.tree6.mergeTree(&o.tree6)
 	s.tree4 = *s.tree4.mergeTree(&o.tree4)
 }
 
@@ -101,7 +101,7 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 //
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
-	t := s.tree.copy()
+	t := s.tree6.copy()
 	t4 := s.tree4.copy()
 	return &PrefixSet{*t, *t4, t.size(), t4.size()}
 }
@@ -110,7 +110,7 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 func (s *PrefixSetBuilder) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		s.tree4.stringImpl("", "", true),
-		s.tree.stringImpl("", "", true),
+		s.tree6.stringImpl("", "", true),
 	)
 }
 
@@ -124,9 +124,9 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree  tree[bool, keyBits6]
+	tree6 tree[bool, keyBits6]
 	tree4 tree[bool, keyBits4]
-	size  int
+	size6 int
 	size4 int
 }
 
@@ -135,7 +135,7 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.contains(key4FromPrefix(p))
 	} else {
-		return s.tree.contains(key6FromPrefix(p))
+		return s.tree6.contains(key6FromPrefix(p))
 	}
 
 }
@@ -146,7 +146,7 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.encompasses(key4FromPrefix(p))
 	} else {
-		return s.tree.encompasses(key6FromPrefix(p))
+		return s.tree6.encompasses(key6FromPrefix(p))
 	}
 }
 
@@ -268,11 +268,11 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 func (s *PrefixSet) String() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		s.tree4.stringImpl("", "", true),
-		s.tree.stringImpl("", "", true),
+		s.tree6.stringImpl("", "", true),
 	)
 }
 
 // Size returns the number of elements in s.
 func (s *PrefixSet) Size() int {
-	return s.size + s.size4
+	return s.size6 + s.size4
 }

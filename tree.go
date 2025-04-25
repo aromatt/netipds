@@ -590,43 +590,41 @@ func (t *tree[T, B]) ancestorsOf(k key[B], strict bool) (ret *tree[T, B]) {
 	return
 }
 
-// // filter updates t to include only the keys encompassed by o.
-// //
-// // TODO: I think this can be done more efficiently by walking t and o
-// // at the same time.
+// filter updates t to include only the keys encompassed by o.
 //
-//	func (t *tree[T, B]) filter(o *tree[bool, B]) {
-//		remove := make([]key[B], 0)
-//		var k key[B]
-//		t.walk(k, func(n *tree[T, B]) bool {
-//			if !o.encompasses(n.key, false) {
-//				remove = append(remove, n.key)
-//			}
-//			return false
-//		})
-//		for _, k := range remove {
-//			t.remove(k)
-//		}
-//	}
-//
-// // filterCopy returns a recursive copy of t that includes only keys that are
-// // encompassed by o.
-// // TODO: I think this can be done more efficiently by walking t and o
-// // at the same time.
-// // TODO: does it make sense to have both this method and filter()?
-//
-//	func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
-//		ret := &tree[T, B]{}
-//		var k key[B]
-//		t.walk(k, func(n *tree[T, B]) bool {
-//			if n.hasEntry && o.encompasses(n.key, false) {
-//				ret = ret.insert(n.key, n.value)
-//			}
-//			return false
-//		})
-//		return ret
-//	}
-//
+// TODO: I think this can be done more efficiently by walking t and o
+// at the same time.
+func (t *tree[T, B]) filter(o *tree[bool, B]) {
+	remove := make([]key[B], 0)
+	var k key[B]
+	t.walk(k, func(n *tree[T, B]) bool {
+		if !o.encompasses(n.key) {
+			remove = append(remove, n.key)
+		}
+		return false
+	})
+	for _, k := range remove {
+		t.remove(k)
+	}
+}
+
+// filterCopy returns a recursive copy of t that includes only keys that are
+// encompassed by o.
+// TODO: I think this can be done more efficiently by walking t and o
+// at the same time.
+// TODO: does it make sense to have both this method and filter()?
+func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
+	ret := &tree[T, B]{}
+	var k key[B]
+	t.walk(k, func(n *tree[T, B]) bool {
+		if n.hasEntry && o.encompasses(n.key) {
+			ret = ret.insert(n.key, n.value)
+		}
+		return false
+	})
+	return ret
+}
+
 // overlapsKey reports whether any key in t overlaps k.
 func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 	var ret bool

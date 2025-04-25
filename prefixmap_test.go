@@ -575,8 +575,6 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 
 }
 
-/* HACK
-
 func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	pmb := &PrefixMapBuilder[int]{}
 
@@ -715,7 +713,6 @@ func TestPrefixMapFilter(t *testing.T) {
 		checkMap(t, tt.want, filtered.ToMap())
 	}
 }
-*/
 
 func TestOverlapsPrefix(t *testing.T) {
 	tests := []struct {

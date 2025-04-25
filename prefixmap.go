@@ -57,10 +57,10 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 }
 
 // Filter removes all Prefixes that are not encompassed by s from m.
-//func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
-//	m.tree.filter(&s.tree)
-//	m.tree4.filter(&s.tree4)
-//}
+func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
+	m.tree6.filter(&s.tree6)
+	m.tree4.filter(&s.tree4)
+}
 
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
@@ -213,14 +213,13 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 
 }
 
-/* HACK
 // Filter returns a new PrefixMap containing the entries of m that are
 // encompassed by s.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
-	t := m.tree.filterCopy(&s.tree)
-	return &PrefixMap[T]{*t, t.size()}
+	t6 := m.tree6.filterCopy(&s.tree6)
+	t4 := m.tree4.filterCopy(&s.tree4)
+	return &PrefixMap[T]{*t6, *t4, t6.size(), t4.size()}
 }
-*/
 
 // String returns a human-readable representation of m's tree structure.
 func (s *PrefixMap[T]) String() string {
