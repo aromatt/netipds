@@ -2,6 +2,7 @@ package netipds
 
 import (
 	"fmt"
+	"iter"
 )
 
 // tree is a binary radix tree.
@@ -524,11 +525,24 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	return
 }
 
+// followPath returns a Seq of *tree[T,B] that walks the path for key k.
+// It materializes k.content.U128() once, then calls yield(n) for each
+// node in the path (stopping early if yield returns false).
+func (t *tree[T, B]) followPath(k key[B]) iter.Seq[*tree[T, B]] {
+	return func(yield func(*tree[T, B]) bool) {
+		u := k.content.U128()
+		for n := t.pathNext(u); n != nil; n = n.pathNext(u) {
+			if !yield(n) {
+				return
+			}
+		}
+	}
+}
+
 // encompasses returns true if this tree includes a key which completely
 // encompasses or is equal to the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
-	u128 := k.content.U128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := range t.followPath(k) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
