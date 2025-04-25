@@ -369,7 +369,6 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 
 }
 
-/* HACK
 func TestPrefixSetSubtractPrefix(t *testing.T) {
 	tests := []struct {
 		set      []netip.Prefix
@@ -386,11 +385,22 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		{pfxs("::2/127"), pfx("::3/128"), pfxs("::2/128")},
 		{pfxs("::0/126"), pfx("::0/128"), pfxs("::1/128", "::2/127")},
 		{pfxs("::0/126"), pfx("::3/128"), pfxs("::0/127", "::2/128")},
+
+		// Subtracting from empty set
+		{pfxs(), pfx("::0/1"), pfxs()},
+
 		// IPv4
 		{
 			set:      pfxs("1.2.3.0/30"),
 			subtract: pfx("1.2.3.0/32"),
 			want:     pfxs("1.2.3.1/32", "1.2.3.2/31"),
+		},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{
+			set:      pfxs("1.2.3.0/30"),
+			subtract: pfx("::ffff:1.2.3.0/32"),
+			want:     pfxs("1.2.3.0/30"),
 		},
 	}
 	for _, tt := range tests {
@@ -403,6 +413,7 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 	}
 }
 
+/* HACK
 func TestPrefixSetSubtract(t *testing.T) {
 	tests := []struct {
 		set      []netip.Prefix

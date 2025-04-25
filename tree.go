@@ -187,7 +187,11 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 // remaining key space behind. If k is a descendant of t, then new nodes may be
 // created to fill in the gaps around k.
 func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
-	// This whole branch is being subtracted; no need to traverse further
+	// Subtracting from empty tree yields empty tree
+	if t.isEmpty() {
+		return t
+	}
+	// This tree is a child of what's being subtracted; no need to traverse further
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
 		return nil
 	}
