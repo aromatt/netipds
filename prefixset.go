@@ -150,12 +150,16 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	}
 }
 
-/* HACK
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
-	return s.tree.overlapsKey(keyFromPrefix(p))
+	if p.Addr().Is4() {
+		return s.tree4.overlapsKey(key4FromPrefix(p))
+	} else {
+		return s.tree6.overlapsKey(key6FromPrefix(p))
+	}
 }
 
+/* HACK
 func (s *PrefixSet) rootOf(
 	p netip.Prefix,
 	strict bool,

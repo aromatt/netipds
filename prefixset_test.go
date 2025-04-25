@@ -579,6 +579,8 @@ func TestPrefixSetAncestorsOfStrict(t *testing.T) {
 	}
 
 }
+*/
+
 func TestPrefixSetOverlapsPrefix(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -595,7 +597,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.4/32"), true},
 		{pfxs("1.2.3.0/24"), pfx("1.2.0.0/16"), true},
 
-		// Make sure value-less nodes don't count. This map contains
+		// Make sure value-less nodes don't count. This PrefixSet contains
 		// the shared prefix ::0/126.
 		{pfxs("::0/128", "::2/128"), pfx("::3/128"), false},
 	}
@@ -610,6 +612,8 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 		}
 	}
 }
+
+/*
 
 func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 	if len(got) != len(want) {
