@@ -14,7 +14,7 @@ type KeyBits[T comparable] interface {
 	WithBitSet(uint8) T
 	Justify(uint8, uint8) T
 	String() string
-	To128() uint128
+	U128() uint128
 	ToAddr() netip.Addr
 }
 
@@ -53,7 +53,7 @@ func (k keyBits4) String() string {
 	return fmt.Sprintf("%x", k.bits)
 }
 
-func (k keyBits4) To128() uint128 {
+func (k keyBits4) U128() uint128 {
 	return uint128{uint64(k.bits) << 32, 0}
 }
 
@@ -111,7 +111,7 @@ func (k keyBits6) String() string {
 	return fmt.Sprintf("%s", content)
 }
 
-func (k keyBits6) To128() uint128 {
+func (k keyBits6) U128() uint128 {
 	return k
 }
 

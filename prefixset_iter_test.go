@@ -214,6 +214,7 @@ func TestPrefixSetAllCompact(t *testing.T) {
 		checkYieldFalse(t, seqAll)
 	}
 }
+
 func checkPrefixSeq(t *testing.T, seq iter.Seq[netip.Prefix], want []netip.Prefix) {
 	t.Helper()
 	got := slices.AppendSeq(make([]netip.Prefix, 0, len(want)), seq)

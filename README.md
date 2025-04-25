@@ -101,6 +101,6 @@ types, and offers additional set operations.
 See [gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more libraries and
 benchmarks comparing them.
 
-## Pre-1.0 API Changes
+## Pre-1.0 Breaking Changes
 The following versions have breaking API changes:
 * v0.1.9: Removed `*Strict` methods
