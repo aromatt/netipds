@@ -66,9 +66,9 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 //
 // The builder remains usable after calling PrefixMap.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
-	t := m.tree6.copy()
+	t6 := m.tree6.copy()
 	t4 := m.tree4.copy()
-	return &PrefixMap[T]{*t, *t4, t.size(), t4.size()}
+	return &PrefixMap[T]{*t6, *t4, t6.size(), t4.size()}
 }
 
 func (s *PrefixMapBuilder[T]) String() string {
@@ -85,7 +85,7 @@ func (s *PrefixMapBuilder[T]) String() string {
 type PrefixMap[T any] struct {
 	tree6 tree[T, keyBits6]
 	tree4 tree[T, keyBits4]
-	size  int
+	size6 int
 	size4 int
 }
 
@@ -194,7 +194,7 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
 	} else {
 		t := m.tree6.descendantsOf(key6FromPrefix(p), false)
-		return &PrefixMap[T]{tree6: *t, size: t.size()}
+		return &PrefixMap[T]{tree6: *t, size6: t.size()}
 	}
 }
 
@@ -224,5 +224,5 @@ func (s *PrefixMap[T]) String() string {
 
 // Size returns the number of entries in m.
 func (m *PrefixMap[T]) Size() int {
-	return m.size + m.size4
+	return m.size6 + m.size4
 }
