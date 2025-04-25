@@ -240,24 +240,29 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 	return res
 }
 
-/* HACK
 // PrefixesCompact returns a slice of the Prefixes in s that are not
 // children of other Prefixes in s.
 //
 // Note: PrefixCompact does not merge siblings, so the result may contain
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
-	res := make([]netip.Prefix, 0, s.size)
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	res := make([]netip.Prefix, 0, s.size6+s.size4)
+	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
 		if n.hasEntry {
-			res = append(res, n.key.toPrefix())
+			res = append(res, n.key.ToPrefix())
+			return true
+		}
+		return false
+	})
+	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+		if n.hasEntry {
+			res = append(res, n.key.ToPrefix())
 			return true
 		}
 		return false
 	})
 	return res
 }
-*/
 
 // String returns a human-readable representation of s's tree structure.
 func (s *PrefixSet) String() string {
