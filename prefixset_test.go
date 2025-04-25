@@ -152,7 +152,6 @@ func TestPrefixSetParentOf(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -242,101 +241,6 @@ func TestPrefixSetDescendantsOf(t *testing.T) {
 	}
 }
 
-func TestPrefixSetDescendantsOfStrict(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want []netip.Prefix
-	}{
-		{pfxs(), pfx("::0/128"), pfxs()},
-
-		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), pfxs()},
-		{pfxs("::1/128"), pfx("::0/128"), pfxs()},
-		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
-		{pfxs("::1/128"), pfx("::1/128"), pfxs()},
-		{pfxs("::2/128"), pfx("::2/128"), pfxs()},
-		{pfxs("::0/128"), pfx("::1/127"), pfxs("::0/128")},
-		{pfxs("::1/128"), pfx("::0/127"), pfxs("::1/128")},
-		{pfxs("::2/127"), pfx("::2/127"), pfxs()},
-
-		// Multi-prefix map
-		{
-			set:  pfxs("::0/127", "::0/128"),
-			get:  pfx("::0/127"),
-			want: pfxs("::0/128"),
-		},
-
-		// Using "::/0" as a lookup key
-		{pfxs("::0/128"), pfx("::/0"), pfxs("::0/128")},
-
-		// Get a prefix that has no entry but has children.
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/127"),
-			want: pfxs("::0/128", "::1/128"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128", "::2/128"),
-			get:  pfx("::2/127"),
-			want: pfxs("::2/128"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/127"),
-			want: pfxs("::0/128", "::1/128"),
-		},
-		{
-			set:  pfxs("::2/128", "::3/128"),
-			get:  pfx("::2/127"),
-			want: pfxs("::2/128", "::3/128"),
-		},
-
-		// Get a entry-less shared prefix node that has a entry-less child
-		{
-			set: pfxs("::4/128", "::6/128", "::7/128"),
-			// This node is in the tree, as is "::6/127", but they are both
-			// entry-less shared prefixes.
-			get:  pfx("::4/126"),
-			want: pfxs("::4/128", "::6/128", "::7/128"),
-		},
-
-		// Get an entry shared prefix node that has a entry-less child
-		{
-			set: pfxs("::4/126", "::6/128", "::7/128"),
-			get: pfx("::4/126"),
-			// The node "::6/127" is a node in the tree but has no entry, so it
-			// should not be included in the result.
-			want: pfxs("::6/128", "::7/128"),
-		},
-
-		// Get a prefix that has no exact node, but still has descendants
-		{
-			set:  pfxs("::2/128", "::3/128"),
-			get:  pfx("::0/126"),
-			want: pfxs("::2/128", "::3/128"),
-		},
-
-		// IPv4
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), pfxs()},
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/24"), pfxs("1.2.3.0/32")},
-		{pfxs("1.2.3.1/32"), pfx("1.2.3.0/24"), pfxs("1.2.3.1/32")},
-		{pfxs("1.2.3.1/32"), pfx("1.2.4.0/24"), pfxs()},
-		{
-			set:  pfxs("1.2.3.0/32", "1.2.3.1/32"),
-			get:  pfx("1.2.3.0/24"),
-			want: pfxs("1.2.3.0/32", "1.2.3.1/32"),
-		},
-	}
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
-			psb.Add(p)
-		}
-		checkPrefixSlice(t, psb.PrefixSet().DescendantsOfStrict(tt.get).Prefixes(), tt.want)
-	}
-}
-
 func TestPrefixSetAncestorsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -417,93 +321,7 @@ func TestPrefixSetAncestorsOf(t *testing.T) {
 		}
 		checkPrefixSlice(t, psb.PrefixSet().AncestorsOf(tt.get).Prefixes(), tt.want)
 	}
-
 }
-
-func TestPrefixSetAncestorsOfStrict(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want []netip.Prefix
-	}{
-		{pfxs(), pfx("::0/128"), pfxs()},
-
-		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), pfxs()},
-		{pfxs("::1/128"), pfx("::0/128"), pfxs()},
-		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
-		{pfxs("::1/128"), pfx("::1/128"), pfxs()},
-		{pfxs("::2/128"), pfx("::2/128"), pfxs()},
-		{pfxs("::0/127"), pfx("::0/128"), pfxs("::0/127")},
-		{pfxs("::0/127"), pfx("::1/128"), pfxs("::0/127")},
-		{pfxs("::2/127"), pfx("::2/127"), pfxs()},
-
-		// Multi-prefix maps
-		{
-			set:  pfxs("::0/127", "::0/128"),
-			get:  pfx("::0/128"),
-			want: pfxs("::0/127"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/128"),
-			want: pfxs(),
-		},
-		{
-			set:  pfxs("::0/126", "::0/127", "::1/128"),
-			get:  pfx("::0/128"),
-			want: pfxs("::0/126", "::0/127"),
-		},
-
-		// Make sure nodes without entries are excluded
-		{
-			set: pfxs("::0/128", "::2/128"),
-			get: pfx("::0/128"),
-			// "::2/127" is a node in the tree but has no entry, so it should
-			// not be included in the result. "0::/128" is the prefix itself,
-			// so it is also excluded.
-			want: pfxs(),
-		},
-
-		// Make sure parent/child insertion order doesn't matter
-		{
-			set:  pfxs("::0/126", "::0/127"),
-			get:  pfx("::0/128"),
-			want: pfxs("::0/126", "::0/127"),
-		},
-		{
-			set:  pfxs("::0/127", "::0/126"),
-			get:  pfx("::0/128"),
-			want: pfxs("::0/126", "::0/127"),
-		},
-
-		// IPv4
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.1/32"), pfxs()},
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), pfxs()},
-		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/32"), pfxs("1.2.3.0/24")},
-		// Insert shortest prefix first
-		{
-			set:  pfxs("1.2.0.0/16", "1.2.3.0/24"),
-			get:  pfx("1.2.3.0/32"),
-			want: pfxs("1.2.0.0/16", "1.2.3.0/24"),
-		},
-		// Insert longest prefix first
-		{
-			set:  pfxs("1.2.3.0/24", "1.2.0.0/16"),
-			get:  pfx("1.2.3.0/32"),
-			want: pfxs("1.2.0.0/16", "1.2.3.0/24"),
-		},
-	}
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
-			psb.Add(p)
-		}
-		checkPrefixSlice(t, psb.PrefixSet().AncestorsOfStrict(tt.get).Prefixes(), tt.want)
-	}
-
-}
-*/
 
 func TestPrefixSetOverlapsPrefix(t *testing.T) {
 	tests := []struct {
@@ -537,8 +355,6 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 	}
 }
 
-/*
-
 func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 	if len(got) != len(want) {
 		t.Errorf("got %v (len %d), want %v (len %d)", got, len(got), want, len(want))
@@ -553,6 +369,7 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 
 }
 
+/* HACK
 func TestPrefixSetSubtractPrefix(t *testing.T) {
 	tests := []struct {
 		set      []netip.Prefix
@@ -822,6 +639,7 @@ func TestPrefixSetSize(t *testing.T) {
 		{pfxs("::0/126", "::0/127"), 2},
 		{pfxs("::0/127", "::0/128", "::1/128"), 3},
 		{pfxs("::0/128", "1.2.3.4/32"), 2},
+		{pfxs("::0/128", "::0/128"), 1},
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{pfxs("1.2.3.4/32", "::ffff:1.2.3.4/128"), 2},
 	}

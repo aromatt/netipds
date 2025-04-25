@@ -198,50 +198,49 @@ func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 	return
 }
 
-/* HACK
 // DescendantsOf returns a PrefixSet containing all descendants of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
-	t := s.tree.descendantsOf(keyFromPrefix(p), false)
-	t4 := s.tree4.descendantsOf(key4FromPrefix(p), false)
-	return &PrefixSet{*t, *t4, t.size()}
-}
-
-// DescendantsOfStrict returns a PrefixSet containing all descendants of p in
-// s, excluding p itself.
-func (s *PrefixSet) DescendantsOfStrict(p netip.Prefix) *PrefixSet {
-	t := s.tree.descendantsOf(keyFromPrefix(p), true)
-	return &PrefixSet{*t, t.size()}
+	if p.Addr().Is4() {
+		t := s.tree4.descendantsOf(key4FromPrefix(p), false)
+		return &PrefixSet{tree4: *t, size4: t.size()}
+	} else {
+		t := s.tree6.descendantsOf(key6FromPrefix(p), false)
+		return &PrefixSet{tree6: *t, size6: t.size()}
+	}
 }
 
 // AncestorsOf returns a PrefixSet containing all ancestors of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
-	t := s.tree.ancestorsOf(keyFromPrefix(p), false)
-	return &PrefixSet{*t, t.size()}
-}
-
-// AncestorsOfStrict returns a PrefixSet containing all ancestors of p in s,
-// excluding p itself.
-func (s *PrefixSet) AncestorsOfStrict(p netip.Prefix) *PrefixSet {
-	t := s.tree.ancestorsOf(keyFromPrefix(p), true)
-	return &PrefixSet{*t, t.size()}
+	if p.Addr().Is4() {
+		t := s.tree4.ancestorsOf(key4FromPrefix(p), false)
+		return &PrefixSet{tree4: *t, size4: t.size()}
+	} else {
+		t := s.tree6.ancestorsOf(key6FromPrefix(p), false)
+		return &PrefixSet{tree6: *t, size6: t.size()}
+	}
 }
 
 // Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
-	res := make([]netip.Prefix, s.size)
-	i := 0
-	s.tree.walk(key{}, func(n *tree[bool]) bool {
+	res := make([]netip.Prefix, 0, s.size6+s.size4)
+	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
 		if n.hasEntry {
-			res[i] = n.key.toPrefix()
-			i++
+			res = append(res, n.key.ToPrefix())
 		}
-		return i >= len(res)
+		return len(res) == s.size6
+	})
+	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+		if n.hasEntry {
+			res = append(res, n.key.ToPrefix())
+		}
+		return len(res) == cap(res)
 	})
 	return res
 }
 
+/* HACK
 // PrefixesCompact returns a slice of the Prefixes in s that are not
 // children of other Prefixes in s.
 //

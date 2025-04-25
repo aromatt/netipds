@@ -170,19 +170,18 @@ func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok 
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree4.walk(key[keyBits4]{}, func(n *tree[T, keyBits4]) bool {
-		if n.hasEntry {
-			res[n.key.ToPrefix()] = n.value
-		}
-		return false
-	})
 	m.tree6.walk(key[keyBits6]{}, func(n *tree[T, keyBits6]) bool {
 		if n.hasEntry {
 			res[n.key.ToPrefix()] = n.value
 		}
 		return false
 	})
-
+	m.tree4.walk(key[keyBits4]{}, func(n *tree[T, keyBits4]) bool {
+		if n.hasEntry {
+			res[n.key.ToPrefix()] = n.value
+		}
+		return false
+	})
 	return res
 }
 
