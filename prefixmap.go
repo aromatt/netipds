@@ -186,14 +186,19 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	return res
 }
 
-/* HACK
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.descendantsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t, t.size()}
+	if p.Addr().Is4() {
+		t := m.tree4.descendantsOf(key4FromPrefix(p), false)
+		return &PrefixMap[T]{tree4: *t, size4: t.size()}
+	} else {
+		t := m.tree6.descendantsOf(key6FromPrefix(p), false)
+		return &PrefixMap[T]{tree6: *t, size: t.size()}
+	}
 }
 
+/* HACK
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {

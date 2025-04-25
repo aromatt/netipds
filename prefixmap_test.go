@@ -394,7 +394,6 @@ func TestPrefixMapParentOf(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixMapDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -484,101 +483,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 	}
 }
 
-func TestPrefixMapDescendantsOfStrict(t *testing.T) {
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want map[netip.Prefix]bool
-	}{
-		{pfxs(), pfx("::0/128"), wantMap(true)},
-
-		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), wantMap(true)},
-		{pfxs("::1/128"), pfx("::0/128"), wantMap(true)},
-		{pfxs("::0/128"), pfx("::0/128"), wantMap(true)},
-		{pfxs("::1/128"), pfx("::1/128"), wantMap(true)},
-		{pfxs("::2/128"), pfx("::2/128"), wantMap(true)},
-		{pfxs("::0/128"), pfx("::1/127"), wantMap(true, "::0/128")},
-		{pfxs("::1/128"), pfx("::0/127"), wantMap(true, "::1/128")},
-		{pfxs("::2/127"), pfx("::2/127"), wantMap(true)},
-
-		// Multi-prefix map
-		{
-			set:  pfxs("::0/127", "::0/128"),
-			get:  pfx("::0/127"),
-			want: wantMap(true, "::0/128"),
-		},
-
-		// Using "::/0" as a lookup key
-		{pfxs("::0/128"), pfx("::/0"), wantMap(true, "::0/128")},
-
-		// Get a prefix that has no entry but has children.
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/127"),
-			want: wantMap(true, "::0/128", "::1/128"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128", "::2/128"),
-			get:  pfx("::2/127"),
-			want: wantMap(true, "::2/128"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/127"),
-			want: wantMap(true, "::0/128", "::1/128"),
-		},
-		{
-			set:  pfxs("::2/128", "::3/128"),
-			get:  pfx("::2/127"),
-			want: wantMap(true, "::2/128", "::3/128"),
-		},
-
-		// Get a entry-less shared prefix node that has a entry-less child
-		{
-			set: pfxs("::4/128", "::6/128", "::7/128"),
-			// This node is in the tree, as is "::6/127", but they are both
-			// entry-less shared prefixes.
-			get:  pfx("::4/126"),
-			want: wantMap(true, "::4/128", "::6/128", "::7/128"),
-		},
-
-		// Get an entry shared prefix node that has a entry-less child
-		{
-			set: pfxs("::4/126", "::6/128", "::7/128"),
-			get: pfx("::4/126"),
-			// The node "::6/127" is a node in the tree but has no entry, so it
-			// should not be included in the result.
-			want: wantMap(true, "::6/128", "::7/128"),
-		},
-
-		// Get a prefix that has no exact node, but still has descendants
-		{
-			set:  pfxs("::2/128", "::3/128"),
-			get:  pfx("::0/126"),
-			want: wantMap(true, "::2/128", "::3/128"),
-		},
-
-		// IPv4
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), wantMap(true)},
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/24"), wantMap(true, "1.2.3.0/32")},
-		{pfxs("1.2.3.1/32"), pfx("1.2.3.0/24"), wantMap(true, "1.2.3.1/32")},
-		{pfxs("1.2.3.1/32"), pfx("1.2.4.0/24"), wantMap(true)},
-		{
-			set:  pfxs("1.2.3.0/32", "1.2.3.1/32"),
-			get:  pfx("1.2.3.0/24"),
-			want: wantMap(true, "1.2.3.0/32", "1.2.3.1/32"),
-		},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOfStrict(tt.get).ToMap())
-	}
-}
-
+/* HACK
 func TestPrefixMapAncestorsOf(t *testing.T) {
 	result := func(prefixes ...string) map[netip.Prefix]bool {
 		m := make(map[netip.Prefix]bool, len(prefixes))

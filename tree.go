@@ -551,28 +551,27 @@ func (t *tree[T, B]) parentOf(k key[B]) (outKey key[B], val T, ok bool) {
 	return
 }
 
-// // descendantsOf returns the sub-tree containing all descendants of the
-// // provided key. The key itself will be included if it has an entry in the
-// // tree, unless strict == true. descendantsOf returns an empty tree if the
-// // provided key is not in the tree.
-//
-//	func (t *tree[T, B]) descendantsOf(k key[B], strict bool) (ret *tree[T, B]) {
-//		ret = &tree[T, B]{}
-//		t.walk(k, func(n *tree[T, B]) bool {
-//			if k.IsPrefixOf(n.key, false) {
-//				ret.key = n.key.Rooted()
-//				ret.left = n.left
-//				ret.right = n.right
-//				if !(strict && n.key.EqualFromRoot(k)) {
-//					ret.setValueFrom(n)
-//				}
-//				return true
-//			}
-//			return false
-//		})
-//		return
-//	}
-//
+// descendantsOf returns the sub-tree containing all descendants of the
+// provided key. The key itself will be included if it has an entry in the
+// tree. descendantsOf returns an empty tree if the provided key is not in the
+// tree.
+func (t *tree[T, B]) descendantsOf(k key[B], strict bool) (ret *tree[T, B]) {
+	ret = &tree[T, B]{}
+	t.walk(k, func(n *tree[T, B]) bool {
+		if k.IsPrefixOf(n.key) {
+			ret.key = n.key.Rooted()
+			ret.left = n.left
+			ret.right = n.right
+			if !(strict && n.key.EqualFromRoot(k)) {
+				ret.setValueFrom(n)
+			}
+			return true
+		}
+		return false
+	})
+	return
+}
+
 // // ancestorsOf returns the sub-tree containing all ancestors of the provided
 // // key. The key itself will be included if it has an entry in the tree, unless
 // // strict == true. ancestorsOf returns an empty tree if key has no ancestors in
