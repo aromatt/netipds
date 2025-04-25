@@ -90,7 +90,7 @@ func TestPrefixSetRootOf(t *testing.T) {
 		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
 		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
 
-		// Unlike RootOfStrict, RootOf will return the prefix itself
+		// RootOf will return the prefix itself
 		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
 
 		// Make sure entry-less nodes are not returned by RootOf
@@ -117,7 +117,6 @@ func TestPrefixSetRootOf(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetParentOf(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix
@@ -129,7 +128,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
 		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
 
-		// Unlike ParentOfStrict, ParentOf will return the prefix itself
+		// ParentOf will return the prefix itself
 		{pfxs("::0/128"), pfx("::0/128"), pfx("::0/128"), true},
 
 		// IPv4
@@ -153,44 +152,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 	}
 }
 
-func TestPrefixSetParentOfStrict(t *testing.T) {
-	tests := []struct {
-		set        []netip.Prefix
-		get        netip.Prefix
-		wantPrefix netip.Prefix
-		wantOK     bool
-	}{
-		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
-		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
-		{pfxs("::0/127", "::0/128"), pfx("::0/128"), pfx("::0/127"), true},
-		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
-
-		// Unlike ParentOf, ParentOfStrict will not return the prefix itself
-		{pfxs("::0/128"), pfx("::0/128"), netip.Prefix{}, false},
-
-		// IPv4
-		{pfxs("1.2.3.0/31"), pfx("1.2.3.0/32"), pfx("1.2.3.0/31"), true},
-		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
-
-		// Another strictness check
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), netip.Prefix{}, false},
-	}
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
-			psb.Add(p)
-		}
-		ps := psb.PrefixSet()
-		gotPrefix, gotOK := ps.ParentOfStrict(tt.get)
-		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
-			t.Errorf(
-				"ps.ParentOfStrict(%s) = (%v, _, %v), want (%v, _, %v)",
-				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
-			)
-		}
-	}
-}
-
+/* HACK
 func TestPrefixSetDescendantsOf(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix

@@ -178,31 +178,27 @@ func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
 	return
 }
 
-/* HACK
-func (s *PrefixSet) parentOf(
-	p netip.Prefix,
-	strict bool,
-) (outPfx netip.Prefix, ok bool) {
-	key, _, ok := s.tree.parentOf(keyFromPrefix(p), strict)
-	if !ok {
-		return outPfx, false
-	}
-	return key.toPrefix(), true
-}
-
 // ParentOf returns the longest-prefix ancestor of p in s, if any. If p itself
 // has an entry, then p's entry is returned.
-func (s *PrefixSet) ParentOf(p netip.Prefix) (netip.Prefix, bool) {
-	return s.parentOf(p, false)
+func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
+	if p.Addr().Is4() {
+		var k key[keyBits4]
+		k, _, ok = s.tree4.parentOf(key4FromPrefix(p))
+		if ok {
+			parent = k.ToPrefix()
+		}
+	} else {
+		var k key[keyBits6]
+		k, _, ok = s.tree6.parentOf(key6FromPrefix(p))
+		if ok {
+			parent = k.ToPrefix()
+		}
+
+	}
+	return
 }
 
-// ParentOfStrict returns the longest-prefix ancestor of p in s, if any.
-// If p has no ancestors in the set, then ParentOfStrict returns zero values
-// and false.
-func (s *PrefixSet) ParentOfStrict(p netip.Prefix) (netip.Prefix, bool) {
-	return s.parentOf(p, true)
-}
-
+/* HACK
 // DescendantsOf returns a PrefixSet containing all descendants of p in s,
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
