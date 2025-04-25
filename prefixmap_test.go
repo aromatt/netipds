@@ -483,7 +483,6 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixMapAncestorsOf(t *testing.T) {
 	result := func(prefixes ...string) map[netip.Prefix]bool {
 		m := make(map[netip.Prefix]bool, len(prefixes))
@@ -576,98 +575,8 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 
 }
 
-func TestPrefixMapAncestorsOfStrict(t *testing.T) {
-	result := func(prefixes ...string) map[netip.Prefix]bool {
-		m := make(map[netip.Prefix]bool, len(prefixes))
-		for _, pStr := range prefixes {
-			p := netip.MustParsePrefix(pStr)
-			m[p] = true
-		}
-		return m
-	}
+/* HACK
 
-	tests := []struct {
-		set  []netip.Prefix
-		get  netip.Prefix
-		want map[netip.Prefix]bool
-	}{
-		{pfxs(), pfx("::0/128"), result()},
-
-		// Single-prefix maps
-		{pfxs("::0/128"), pfx("::1/128"), result()},
-		{pfxs("::1/128"), pfx("::0/128"), result()},
-		{pfxs("::0/128"), pfx("::0/128"), result()},
-		{pfxs("::1/128"), pfx("::1/128"), result()},
-		{pfxs("::2/128"), pfx("::2/128"), result()},
-		{pfxs("::0/127"), pfx("::0/128"), result("::0/127")},
-		{pfxs("::0/127"), pfx("::1/128"), result("::0/127")},
-		{pfxs("::2/127"), pfx("::2/127"), result()},
-
-		// Multi-prefix maps
-		{
-			set:  pfxs("::0/127", "::0/128"),
-			get:  pfx("::0/128"),
-			want: result("::0/127"),
-		},
-		{
-			set:  pfxs("::0/128", "::1/128"),
-			get:  pfx("::0/128"),
-			want: result(),
-		},
-		{
-			set:  pfxs("::0/126", "::0/127", "::1/128"),
-			get:  pfx("::0/128"),
-			want: result("::0/126", "::0/127"),
-		},
-
-		// Make sure nodes without entries are excluded
-		{
-			set: pfxs("::0/128", "::2/128"),
-			get: pfx("::0/128"),
-			// "::2/127" is a node in the tree but has no entry, so it should
-			// not be included in the result. "0::/128" is the prefix itself,
-			// so it is also excluded.
-			want: result(),
-		},
-
-		// Make sure parent/child insertion order doesn't matter
-		{
-			set:  pfxs("::0/126", "::0/127"),
-			get:  pfx("::0/128"),
-			want: result("::0/127", "::0/126"),
-		},
-		{
-			set:  pfxs("::0/127", "::0/126"),
-			get:  pfx("::0/128"),
-			want: result("::0/127", "::0/126"),
-		},
-
-		// IPv4
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.1/32"), result()},
-		{pfxs("1.2.3.0/32"), pfx("1.2.3.0/32"), result()},
-		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/32"), result("1.2.3.0/24")},
-		// Insert shortest prefix first
-		{
-			set:  pfxs("1.2.0.0/16", "1.2.3.0/24"),
-			get:  pfx("1.2.3.0/32"),
-			want: result("1.2.3.0/24", "1.2.0.0/16"),
-		},
-		// Insert longest prefix first
-		{
-			set:  pfxs("1.2.3.0/24", "1.2.0.0/16"),
-			get:  pfx("1.2.3.0/32"),
-			want: result("1.2.3.0/24", "1.2.0.0/16"),
-		},
-	}
-	for _, tt := range tests {
-		pmb := &PrefixMapBuilder[bool]{}
-		for _, p := range tt.set {
-			pmb.Set(p, true)
-		}
-		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOfStrict(tt.get).ToMap())
-	}
-
-}
 func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	pmb := &PrefixMapBuilder[int]{}
 

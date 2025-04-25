@@ -188,6 +188,7 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
+// TODO repetition
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	if p.Addr().Is4() {
 		t := m.tree4.descendantsOf(key4FromPrefix(p), false)
@@ -198,14 +199,21 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	}
 }
 
-/* HACK
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
+// TODO repetition
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
-	t := m.tree.ancestorsOf(keyFromPrefix(p), false)
-	return &PrefixMap[T]{*t, t.size()}
+	if p.Addr().Is4() {
+		t := m.tree4.ancestorsOf(key4FromPrefix(p), false)
+		return &PrefixMap[T]{tree4: *t, size4: t.size()}
+	} else {
+		t := m.tree6.ancestorsOf(key6FromPrefix(p), false)
+		return &PrefixMap[T]{tree6: *t, size6: t.size()}
+	}
+
 }
 
+/* HACK
 // Filter returns a new PrefixMap containing the entries of m that are
 // encompassed by s.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
