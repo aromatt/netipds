@@ -558,7 +558,7 @@ func TestPrefixSetMerge(t *testing.T) {
 		{
 			pfxs("1.2.3.4/32"),
 			pfxs("::ffff:1.2.3.4/128"),
-			pfxs("::ffff:1.2.3.4/128", "1.2.3.4/32"),
+			pfxs("1.2.3.4/32", "::ffff:1.2.3.4/128"),
 		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
@@ -670,7 +670,7 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 		{pfxs("1.2.3.0/31", "1.2.3.2/32"), pfxs("1.2.3.0/31", "1.2.3.2/32")},
 
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
-		{pfxs("::ffff:1.2.3.4/128", "1.2.3.4/32"), pfxs("::ffff:1.2.3.4/128", "1.2.3.4/32")},
+		{pfxs("1.2.3.4/32", "::ffff:1.2.3.4/128"), pfxs("1.2.3.4/32", "::ffff:1.2.3.4/128")},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}

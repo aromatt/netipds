@@ -12,8 +12,8 @@ import (
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree6 tree[bool, keyBits6]
 	tree4 tree[bool, keyBits4]
+	tree6 tree[bool, keyBits6]
 }
 
 // Add adds p to s.
@@ -53,8 +53,8 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 // subsets of Prefixes, see [PrefixSetBuilder.Subtract] and
 // [PrefixSetBuilder.SubtractPrefix].
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
-	s.tree6.filter(&o.tree6)
 	s.tree4.filter(&o.tree4)
+	s.tree6.filter(&o.tree6)
 }
 
 // SubtractPrefix modifies s so that p and all of its descendants are removed,
@@ -91,23 +91,23 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 // in s and o: to be included in the result, a Prefix must either (a) exist in
 // both sets or (b) exist in one set and have an ancestor in the other.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
-	s.tree6 = *s.tree6.intersectTree(&o.tree6)
 	s.tree4 = *s.tree4.intersectTree(&o.tree4)
+	s.tree6 = *s.tree6.intersectTree(&o.tree6)
 }
 
 // Merge modifies s so that it contains the union of the entries in s and o.
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
-	s.tree6 = *s.tree6.mergeTree(&o.tree6)
 	s.tree4 = *s.tree4.mergeTree(&o.tree4)
+	s.tree6 = *s.tree6.mergeTree(&o.tree6)
 }
 
 // PrefixSet returns an immutable PrefixSet representing the current state of s.
 //
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
-	t6 := s.tree6.copy()
 	t4 := s.tree4.copy()
-	return &PrefixSet{*t6, *t4, t6.size(), t4.size()}
+	t6 := s.tree6.copy()
+	return &PrefixSet{*t4, *t6, t4.size(), t6.size()}
 }
 
 // String returns a human-readable representation of s's tree structure.
@@ -128,10 +128,10 @@ func (s *PrefixSetBuilder) String() string {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree6 tree[bool, keyBits6]
 	tree4 tree[bool, keyBits4]
-	size6 int
+	tree6 tree[bool, keyBits6]
 	size4 int
+	size6 int
 }
 
 // Contains returns true if this set includes the exact Prefix provided.
@@ -229,17 +229,21 @@ func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
 // Prefixes returns a slice of all Prefixes in s.
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size6+s.size4)
-	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
-		if n.hasEntry {
-			res = append(res, n.key.ToPrefix())
-		}
-		return len(res) == s.size6
-	})
+	i := 0
 	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
+			i++
 		}
-		return len(res) == cap(res)
+		return i >= s.size4
+	})
+	i = 0
+	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+		if n.hasEntry {
+			res = append(res, n.key.ToPrefix())
+			i++
+		}
+		return i >= s.size6
 	})
 	return res
 }
@@ -251,14 +255,14 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size6+s.size4)
-	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			return true
 		}
 		return false
 	})
-	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			return true
@@ -278,5 +282,5 @@ func (s *PrefixSet) String() string {
 
 // Size returns the number of elements in s.
 func (s *PrefixSet) Size() int {
-	return s.size6 + s.size4
+	return s.size4 + s.size6
 }
