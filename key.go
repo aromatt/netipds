@@ -5,6 +5,16 @@ import (
 	"net/netip"
 )
 
+// key stores the string of bits which represent the full path to a node in a
+// prefix tree. The key is stored in the most-significant bits of the content
+// field.
+//
+// offset stores the starting position of the key segment owned by the node.
+//
+// len measures the full length of the key starting from bit 0.
+//
+// The content field should not have any bits set beyond len. NewKey enforces
+// this.
 type key[B KeyBits[B]] struct {
 	len     uint8
 	offset  uint8
@@ -53,7 +63,7 @@ func (k key[B]) IsZero() bool {
 	return k.len == 0
 }
 
-// Truncated returns a copy of k truncated to n bits.
+// Truncated returns a copy of k with all content beyond the nth bit cleared.
 func (k key[B]) Truncated(n uint8) key[B] {
 	return NewKey(k.content.BitsClearedFrom(n), k.offset, n)
 }
@@ -81,6 +91,7 @@ func (k key[B]) Rooted() key[B] {
 	return NewKey(k.content, 0, k.len)
 }
 
+// ToPrefix returns the netip.Prefix that represents k.
 func (k key[B]) ToPrefix() netip.Prefix {
 	if k.IsZero() {
 		return netip.Prefix{}
@@ -96,8 +107,5 @@ func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 
 // key6FromPrefix returns the key that represents the provided Prefix.
 func key6FromPrefix(p netip.Prefix) key[keyBits6] {
-	addr := p.Addr()
-	// TODO len could be -1
-	len := uint8(p.Bits())
-	return NewKey(u128From16(addr.As16()), 0, len)
+	return NewKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
 }
