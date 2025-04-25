@@ -386,7 +386,8 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		{pfxs("::0/126"), pfx("::0/128"), pfxs("::1/128", "::2/127")},
 		{pfxs("::0/126"), pfx("::3/128"), pfxs("::0/127", "::2/128")},
 
-		// Subtracting from empty set
+		// Subtract from empty set
+		{pfxs(), netip.Prefix{}, pfxs()},
 		{pfxs(), pfx("::0/1"), pfxs()},
 
 		// IPv4
@@ -413,7 +414,6 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetSubtract(t *testing.T) {
 	tests := []struct {
 		set      []netip.Prefix
@@ -435,6 +435,17 @@ func TestPrefixSetSubtract(t *testing.T) {
 		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
 		{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
 		{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
+
+		// Subtract from empty set
+		{pfxs(), pfxs(), pfxs()},
+		{pfxs(), pfxs("::0/1"), pfxs()},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{
+			set:      pfxs("1.2.3.0/30"),
+			subtract: pfxs("::ffff:1.2.3.0/32"),
+			want:     pfxs("1.2.3.0/30"),
+		},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
@@ -450,6 +461,7 @@ func TestPrefixSetSubtract(t *testing.T) {
 	}
 }
 
+/* HACK
 func TestPrefixSetIntersect(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix

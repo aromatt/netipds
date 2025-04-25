@@ -219,8 +219,12 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 // maybe we need two types of trees: value-bearing ones, and others that just
 // have value-less entries.
 func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
+	// Subtracting from empty tree yields empty tree
+	if t.isEmpty() {
+		return t
+	}
 	if o.hasEntry {
-		// This whole branch is being subtracted; no need to traverse further
+		// This tree is a child of what's being subtracted; no need to traverse further
 		if o.key.IsPrefixOf(t.key) {
 			return nil
 		}
