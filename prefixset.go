@@ -87,8 +87,8 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 // in s and o: to be included in the result, a Prefix must either (a) exist in
 // both sets or (b) exist in one set and have an ancestor in the other.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
-	s.tree4 = *s.tree4.intersectTree(&o.tree4)
 	s.tree6 = *s.tree6.intersectTree(&o.tree6)
+	s.tree4 = *s.tree4.intersectTree(&o.tree4)
 }
 
 // Merge modifies s so that it contains the union of the entries in s and o.
@@ -101,9 +101,9 @@ func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 //
 // The builder remains usable after calling PrefixSet.
 func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
-	t := s.tree6.copy()
+	t6 := s.tree6.copy()
 	t4 := s.tree4.copy()
-	return &PrefixSet{*t, *t4, t.size(), t4.size()}
+	return &PrefixSet{*t6, *t4, t6.size(), t4.size()}
 }
 
 // String returns a human-readable representation of s's tree structure.
