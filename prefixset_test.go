@@ -579,7 +579,6 @@ func TestPrefixSetMerge(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetRemove(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
@@ -590,7 +589,15 @@ func TestPrefixSetRemove(t *testing.T) {
 		{pfxs("::0/128"), pfxs(), pfxs("::0/128")},
 		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
 		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+		// Remove removes exact prefix, not entire subnet
 		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
+
+		// IPv4
+		{pfxs("1.2.3.4/32"), pfxs(), pfxs("1.2.3.4/32")},
+		{pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32"), pfxs()},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{pfxs("1.2.3.4/32"), pfxs("::ffff:1.2.3.4/128"), pfxs("1.2.3.4/32")},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
@@ -605,6 +612,7 @@ func TestPrefixSetRemove(t *testing.T) {
 	}
 }
 
+/* HACK
 func TestPrefixSetFilter(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
