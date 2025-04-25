@@ -131,7 +131,6 @@ func TestPrefixMapContains(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixMapContainsAfterRemove(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
@@ -168,7 +167,6 @@ func TestPrefixMapContainsAfterRemove(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestPrefixMapEncompasses(t *testing.T) {
 	tests := []struct {
@@ -246,8 +244,6 @@ func TestPrefixMapToMap(t *testing.T) {
 	}
 }
 
-/* HACK
-
 func TestPrefixMapRemove(t *testing.T) {
 	tests := []struct {
 		set    []netip.Prefix
@@ -307,6 +303,10 @@ func TestPrefixMapRemove(t *testing.T) {
 
 		// IPv4
 		{pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32"), wantMap(true)},
+		{pfxs("1.2.3.4/32"), pfxs(), wantMap(true, "1.2.3.4/32")},
+
+		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+		{pfxs("1.2.3.4/32"), pfxs("::ffff:1.2.3.4/32"), wantMap(true, "1.2.3.4/32")},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
@@ -319,7 +319,6 @@ func TestPrefixMapRemove(t *testing.T) {
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
 }
-*/
 
 func TestPrefixMapRootOf(t *testing.T) {
 	tests := []struct {
