@@ -138,7 +138,6 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
-// TODO repetitive
 func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
 		var k key[keyBits4]
@@ -158,7 +157,6 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool
 
 // ParentOf returns the longest-prefix ancestor of p in m, if any. If p itself
 // has an entry, then p's entry is returned.
-// TODO repetitive
 func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
 		var k key[keyBits4]
@@ -197,26 +195,24 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
-// TODO repetition
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	if p.Addr().Is4() {
-		t := m.tree4.descendantsOf(key4FromPrefix(p), false)
+		t := m.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
 	} else {
-		t := m.tree6.descendantsOf(key6FromPrefix(p), false)
+		t := m.tree6.descendantsOf(key6FromPrefix(p))
 		return &PrefixMap[T]{tree6: *t, size6: t.size()}
 	}
 }
 
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
-// TODO repetition
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 	if p.Addr().Is4() {
-		t := m.tree4.ancestorsOf(key4FromPrefix(p), false)
+		t := m.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
 	} else {
-		t := m.tree6.ancestorsOf(key6FromPrefix(p), false)
+		t := m.tree6.ancestorsOf(key6FromPrefix(p))
 		return &PrefixMap[T]{tree6: *t, size6: t.size()}
 	}
 
@@ -444,10 +440,10 @@ func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 // including p itself if it has an entry.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 	if p.Addr().Is4() {
-		t := s.tree4.descendantsOf(key4FromPrefix(p), false)
+		t := s.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}
 	} else {
-		t := s.tree6.descendantsOf(key6FromPrefix(p), false)
+		t := s.tree6.descendantsOf(key6FromPrefix(p))
 		return &PrefixSet{tree6: *t, size6: t.size()}
 	}
 }
@@ -456,10 +452,10 @@ func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 // including p itself if it has an entry.
 func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
 	if p.Addr().Is4() {
-		t := s.tree4.ancestorsOf(key4FromPrefix(p), false)
+		t := s.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}
 	} else {
-		t := s.tree6.ancestorsOf(key6FromPrefix(p), false)
+		t := s.tree6.ancestorsOf(key6FromPrefix(p))
 		return &PrefixSet{tree6: *t, size6: t.size()}
 	}
 }
