@@ -400,7 +400,7 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{
 			set:      pfxs("1.2.3.0/30"),
-			subtract: pfx("::ffff:1.2.3.0/32"),
+			subtract: pfx("::ffff:1.2.3.0/128"),
 			want:     pfxs("1.2.3.0/30"),
 		},
 	}
@@ -443,7 +443,7 @@ func TestPrefixSetSubtract(t *testing.T) {
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{
 			set:      pfxs("1.2.3.0/30"),
-			subtract: pfxs("::ffff:1.2.3.0/32"),
+			subtract: pfxs("::ffff:1.2.3.0/128"),
 			want:     pfxs("1.2.3.0/30"),
 		},
 	}
@@ -490,7 +490,7 @@ func TestPrefixSetIntersect(t *testing.T) {
 		{pfxs("1.2.3.0/24"), pfxs("1.2.0.0/32"), pfxs()},
 
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
-		{pfxs("1.2.3.0/24"), pfxs("::ffff:1.2.3.4/32"), pfxs()},
+		{pfxs("1.2.3.0/24"), pfxs("::ffff:1.2.3.4/128"), pfxs()},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
