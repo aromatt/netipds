@@ -159,30 +159,26 @@ func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	}
 }
 
-/* HACK
-func (s *PrefixSet) rootOf(
-	p netip.Prefix,
-	strict bool,
-) (outPfx netip.Prefix, ok bool) {
-	label, _, ok := s.tree.rootOf(keyFromPrefix(p), strict)
-	if !ok {
-		return outPfx, false
-	}
-	return label.toPrefix(), true
-}
-
 // RootOf returns the shortest-prefix ancestor of p in s, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
-func (s *PrefixSet) RootOf(p netip.Prefix) (netip.Prefix, bool) {
-	return s.rootOf(p, false)
+func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
+	if p.Addr().Is4() {
+		var k key[keyBits4]
+		k, _, ok = s.tree4.rootOf(key4FromPrefix(p))
+		if ok {
+			root = k.ToPrefix()
+		}
+	} else {
+		var k key[keyBits6]
+		k, _, ok = s.tree6.rootOf(key6FromPrefix(p))
+		if ok {
+			root = k.ToPrefix()
+		}
+	}
+	return
 }
 
-// RootOfStrict returns the shortest-prefix ancestor of p in s, if any. If p
-// has no ancestors in s, then RootOfStrict returns zero values and false.
-func (s *PrefixSet) RootOfStrict(p netip.Prefix) (netip.Prefix, bool) {
-	return s.rootOf(p, true)
-}
-
+/* HACK
 func (s *PrefixSet) parentOf(
 	p netip.Prefix,
 	strict bool,

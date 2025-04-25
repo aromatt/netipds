@@ -79,7 +79,6 @@ func TestPrefixSetEncompasses(t *testing.T) {
 	}
 }
 
-/* HACK
 func TestPrefixSetRootOf(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix
@@ -118,44 +117,7 @@ func TestPrefixSetRootOf(t *testing.T) {
 	}
 }
 
-func TestPrefixSetRootOfStrict(t *testing.T) {
-	tests := []struct {
-		set        []netip.Prefix
-		get        netip.Prefix
-		wantPrefix netip.Prefix
-		wantOK     bool
-	}{
-		{pfxs(), pfx("::0/128"), netip.Prefix{}, false},
-		{pfxs("::0/127"), pfx("::0/128"), pfx("::0/127"), true},
-		{pfxs("::0/1"), pfx("::0/128"), pfx("::0/1"), true},
-
-		// Unlike RootOf, RootOfStrict will not return the prefix itself
-		{pfxs("::0/128"), pfx("::0/128"), netip.Prefix{}, false},
-
-		// Make sure entry-less nodes are not returned by RootOfStrict
-		{pfxs("::0/127", "::2/127"), pfx("::0/128"), pfx("::0/127"), true},
-
-		// IPv4
-		{pfxs(), pfx("1.2.3.0/32"), netip.Prefix{}, false},
-		{pfxs("1.2.3.0/31"), pfx("1.2.3.0/32"), pfx("1.2.3.0/31"), true},
-		{pfxs("128.0.0.0/1"), pfx("128.0.0.0/32"), pfx("128.0.0.0/1"), true},
-	}
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.set {
-			psb.Add(p)
-		}
-		ps := psb.PrefixSet()
-		gotPrefix, gotOK := ps.RootOfStrict(tt.get)
-		if gotPrefix != tt.wantPrefix || gotOK != tt.wantOK {
-			t.Errorf(
-				"ps.RootOfStrict(%s) = (%v, _, %v), want (%v, _, %v)",
-				tt.get, gotPrefix, gotOK, tt.wantPrefix, tt.wantOK,
-			)
-		}
-	}
-}
-
+/* HACK
 func TestPrefixSetParentOf(t *testing.T) {
 	tests := []struct {
 		set        []netip.Prefix

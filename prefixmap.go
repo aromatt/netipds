@@ -129,18 +129,18 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
 // TODO repetitive
-func (m *PrefixMap[T]) RootOf(p netip.Prefix) (outPfx netip.Prefix, val T, ok bool) {
+func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
 		var k key[keyBits4]
 		k, val, ok = m.tree4.rootOf(key4FromPrefix(p))
 		if ok {
-			outPfx = k.ToPrefix()
+			root = k.ToPrefix()
 		}
 	} else {
 		var k key[keyBits6]
 		k, val, ok = m.tree6.rootOf(key6FromPrefix(p))
 		if ok {
-			outPfx = k.ToPrefix()
+			root = k.ToPrefix()
 		}
 	}
 	return
@@ -149,18 +149,18 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (outPfx netip.Prefix, val T, ok bo
 // ParentOf returns the longest-prefix ancestor of p in m, if any. If p itself
 // has an entry, then p's entry is returned.
 // TODO repetitive
-func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (outPfx netip.Prefix, val T, ok bool) {
+func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
 		var k key[keyBits4]
 		k, val, ok = m.tree4.parentOf(key4FromPrefix(p))
 		if ok {
-			outPfx = k.ToPrefix()
+			parent = k.ToPrefix()
 		}
 	} else {
 		var k key[keyBits6]
 		k, val, ok = m.tree6.parentOf(key6FromPrefix(p))
 		if ok {
-			outPfx = k.ToPrefix()
+			parent = k.ToPrefix()
 		}
 
 	}
