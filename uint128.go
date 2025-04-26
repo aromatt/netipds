@@ -1,8 +1,8 @@
-// Copied with modifications into netipds from net/netip
-
 // Copyright 2020 The Inet.Af AUTHORS. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Copied with modifications into netipds from net/netip
 
 package netipds
 
@@ -75,10 +75,6 @@ func (u uint128) commonPrefixLen(v uint128) (n uint8) {
 	}
 	return
 }
-
-// func (u *uint128) halves() [2]*uint64 {
-// 	return [2]*uint64{&u.hi, &u.lo}
-// }
 
 // bitsSetFrom returns a copy of u with the given bit
 // and all subsequent ones set.

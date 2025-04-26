@@ -45,7 +45,7 @@ func (k key[B]) EqualFromRoot(o key[B]) bool {
 // CommonPrefixLen returns the length of the common prefix between k and o,
 // truncated to the minimum of k.len and o.len.
 func (k key[B]) CommonPrefixLen(o key[B]) uint8 {
-	return min(min(o.len, k.len), k.content.CommonPrefixLen(o.content))
+	return minU8(minU8(o.len, k.len), k.content.CommonPrefixLen(o.content))
 }
 
 // Rest returns a copy of k starting at position i.

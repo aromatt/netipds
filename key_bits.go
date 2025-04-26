@@ -81,8 +81,15 @@ func (k keyBits6) Bit(i uint8) bit {
 
 }
 
+func minU8(a, b uint8) uint8 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func (k keyBits6) CommonPrefixLen(o keyBits6) uint8 {
-	return min(min(128, 128), k.commonPrefixLen(o))
+	return minU8(128, k.commonPrefixLen(o))
 }
 
 func (k keyBits6) WithBitSet(i uint8) keyBits6 {
