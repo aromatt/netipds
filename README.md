@@ -103,4 +103,4 @@ benchmarks comparing them.
 
 ## Pre-1.0 Breaking Changes
 The following versions have breaking API changes:
-* v0.1.9: Removed `*Strict` methods
+* v0.1.9: Removed `Strict` methods, removed `PrefixMapBuilder.Get`

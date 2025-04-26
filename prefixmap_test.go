@@ -81,10 +81,6 @@ func TestPrefixMapGet(t *testing.T) {
 		for _, p := range tt.set {
 			pmb.Set(p, true)
 		}
-		// Test PrefixMapBuilder.Get()
-		if _, ok := pmb.Get(tt.get); ok != tt.want {
-			t.Errorf("pmb.Get(%s) = %v, want %v", tt.get, ok, tt.want)
-		}
 		// Test PrefixMap.Get()
 		pm := pmb.PrefixMap()
 		if _, ok := pm.Get(tt.get); ok != tt.want {

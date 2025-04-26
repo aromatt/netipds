@@ -27,15 +27,6 @@ type PrefixMapBuilder[T any] struct {
 	tree6 tree[T, keyBits6]
 }
 
-// Get returns the value associated with the exact Prefix provided, if any.
-func (m *PrefixMapBuilder[T]) Get(p netip.Prefix) (T, bool) {
-	if p.Addr().Is4() {
-		return m.tree4.get(key4FromPrefix(p.Masked()))
-	} else {
-		return m.tree6.get(key6FromPrefix(p.Masked()))
-	}
-}
-
 // Set associates v with p.
 func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if !p.IsValid() {
