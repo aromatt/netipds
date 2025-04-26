@@ -5,7 +5,7 @@ import (
 	"net/netip"
 )
 
-type KeyBits[T comparable] interface {
+type keyBits[T comparable] interface {
 	comparable
 	IsZero() bool
 	BitsClearedFrom(uint8) T
@@ -115,7 +115,7 @@ func (k keyBits6) String() string {
 			content = fmt.Sprintf("%s%x", content, k.lo)
 		}
 	}
-	return fmt.Sprintf("%s", content)
+	return content
 }
 
 func (k keyBits6) U128() uint128 {

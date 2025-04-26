@@ -15,14 +15,15 @@ import (
 //
 // The content field should not have any bits set beyond len. NewKey enforces
 // this.
-type key[B KeyBits[B]] struct {
+type key[B keyBits[B]] struct {
 	len     uint8
 	offset  uint8
 	content B
 }
 
-func NewKey[B KeyBits[B]](content B, offset, len uint8) key[B] {
-	return key[B]{len, offset, content.BitsClearedFrom(len)}
+// newKey returns a new key with the content truncated to length bits.
+func newKey[B keyBits[B]](content B, offset, length uint8) key[B] {
+	return key[B]{length, offset, content.BitsClearedFrom(length)}
 }
 
 // Bit returns the bit at position i in k.content.
@@ -55,7 +56,7 @@ func (k key[B]) Rest(i uint8) key[B] {
 	if k.IsZero() || i > k.len {
 		return key[B]{}
 	}
-	return NewKey(k.content, i, k.len)
+	return newKey(k.content, i, k.len)
 }
 
 // IsZero reports whether k.len == 0.
@@ -65,7 +66,7 @@ func (k key[B]) IsZero() bool {
 
 // Truncated returns a copy of k with all content beyond the nth bit cleared.
 func (k key[B]) Truncated(n uint8) key[B] {
-	return NewKey(k.content.BitsClearedFrom(n), k.offset, n)
+	return newKey(k.content.BitsClearedFrom(n), k.offset, n)
 }
 
 // IsPrefixOf reports whether k is a prefix of o or is equal to o, i.e. k.len
@@ -83,12 +84,12 @@ func (k key[B]) Next(b bit) key[B] {
 	if b == bitR {
 		content = content.WithBitSet(k.len)
 	}
-	return NewKey(content, k.len, k.len+1)
+	return newKey(content, k.len, k.len+1)
 }
 
 // Rooted returns a copy of k with offset set to 0
 func (k key[B]) Rooted() key[B] {
-	return NewKey(k.content, 0, k.len)
+	return newKey(k.content, 0, k.len)
 }
 
 // ToPrefix returns the netip.Prefix that represents k.
@@ -102,10 +103,10 @@ func (k key[B]) ToPrefix() netip.Prefix {
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key[keyBits4] {
 	a4 := p.Addr().As4()
-	return NewKey(keyBits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
+	return newKey(keyBits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
 }
 
 // key6FromPrefix returns the key that represents the provided Prefix.
 func key6FromPrefix(p netip.Prefix) key[keyBits6] {
-	return NewKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
+	return newKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
 }

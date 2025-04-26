@@ -30,7 +30,7 @@ type PrefixMapBuilder[T any] struct {
 // Set associates v with p.
 func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
+		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
 		m.tree4 = *(m.tree4.insert(key4FromPrefix(p.Masked()), v))
@@ -47,7 +47,7 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 // [PrefixMapBuilder.Filter].
 func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
+		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
 		m.tree4.remove(key4FromPrefix(p.Masked()))
@@ -87,18 +87,16 @@ type PrefixMap[T any] struct {
 func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p))
-	} else {
-		return m.tree6.get(key6FromPrefix(p))
 	}
+	return m.tree6.get(key6FromPrefix(p))
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
 func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.contains(key4FromPrefix(p))
-	} else {
-		return m.tree6.contains(key6FromPrefix(p))
 	}
+	return m.tree6.contains(key6FromPrefix(p))
 }
 
 // Encompasses returns true if this map includes a Prefix which completely
@@ -106,18 +104,16 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.encompasses(key4FromPrefix(p))
-	} else {
-		return m.tree6.encompasses(key6FromPrefix(p))
 	}
+	return m.tree6.encompasses(key6FromPrefix(p))
 }
 
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return m.tree4.overlapsKey(key4FromPrefix(p))
-	} else {
-		return m.tree6.overlapsKey(key6FromPrefix(p))
 	}
+	return m.tree6.overlapsKey(key6FromPrefix(p))
 }
 
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
@@ -183,10 +179,9 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	if p.Addr().Is4() {
 		t := m.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
-	} else {
-		t := m.tree6.descendantsOf(key6FromPrefix(p))
-		return &PrefixMap[T]{tree6: *t, size6: t.size()}
 	}
+	t := m.tree6.descendantsOf(key6FromPrefix(p))
+	return &PrefixMap[T]{tree6: *t, size6: t.size()}
 }
 
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
@@ -195,10 +190,9 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 	if p.Addr().Is4() {
 		t := m.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
-	} else {
-		t := m.tree6.ancestorsOf(key6FromPrefix(p))
-		return &PrefixMap[T]{tree6: *t, size6: t.size()}
 	}
+	t := m.tree6.ancestorsOf(key6FromPrefix(p))
+	return &PrefixMap[T]{tree6: *t, size6: t.size()}
 
 }
 
@@ -229,7 +223,7 @@ type PrefixSetBuilder struct {
 // Add adds p to s.
 func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
+		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
 		s.tree4 = *(s.tree4.insert(key4FromPrefix(p.Masked()), true))
@@ -247,7 +241,7 @@ func (s *PrefixSetBuilder) Add(p netip.Prefix) error {
 // [PrefixSetBuilder.SubtractPrefix].
 func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
+		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
 		s.tree4.remove(key4FromPrefix(p.Masked()))
@@ -275,7 +269,7 @@ func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	if !p.IsValid() {
-		return fmt.Errorf("Prefix is not valid: %v", p)
+		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
 		s.tree4.subtractKey(key4FromPrefix(p.Masked()))
@@ -340,10 +334,8 @@ type PrefixSet struct {
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.contains(key4FromPrefix(p))
-	} else {
-		return s.tree6.contains(key6FromPrefix(p))
 	}
-
+	return s.tree6.contains(key6FromPrefix(p))
 }
 
 // Encompasses returns true if this set includes a Prefix which completely
@@ -351,18 +343,16 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.encompasses(key4FromPrefix(p))
-	} else {
-		return s.tree6.encompasses(key6FromPrefix(p))
 	}
+	return s.tree6.encompasses(key6FromPrefix(p))
 }
 
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 	if p.Addr().Is4() {
 		return s.tree4.overlapsKey(key4FromPrefix(p))
-	} else {
-		return s.tree6.overlapsKey(key6FromPrefix(p))
 	}
+	return s.tree6.overlapsKey(key6FromPrefix(p))
 }
 
 // RootOf returns the shortest-prefix ancestor of p in s, if any.
@@ -399,7 +389,6 @@ func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 		if ok {
 			parent = k.ToPrefix()
 		}
-
 	}
 	return
 }
@@ -410,10 +399,9 @@ func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 	if p.Addr().Is4() {
 		t := s.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}
-	} else {
-		t := s.tree6.descendantsOf(key6FromPrefix(p))
-		return &PrefixSet{tree6: *t, size6: t.size()}
 	}
+	t := s.tree6.descendantsOf(key6FromPrefix(p))
+	return &PrefixSet{tree6: *t, size6: t.size()}
 }
 
 // AncestorsOf returns a PrefixSet containing all ancestors of p in s,
@@ -422,10 +410,9 @@ func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
 	if p.Addr().Is4() {
 		t := s.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}
-	} else {
-		t := s.tree6.ancestorsOf(key6FromPrefix(p))
-		return &PrefixSet{tree6: *t, size6: t.size()}
 	}
+	t := s.tree6.ancestorsOf(key6FromPrefix(p))
+	return &PrefixSet{tree6: *t, size6: t.size()}
 }
 
 // Prefixes returns a slice of all Prefixes in s.

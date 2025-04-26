@@ -28,7 +28,7 @@ func TestPrefixSetAll6(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 
@@ -69,7 +69,7 @@ func TestPrefixSetAll4(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 
@@ -116,10 +116,10 @@ func TestPrefixSetAll(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add4 {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		for _, p := range tt.add6 {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 
@@ -155,7 +155,7 @@ func TestPrefixSetAllCompact4(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 
@@ -202,10 +202,10 @@ func TestPrefixSetAllCompact(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add4 {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		for _, p := range tt.add6 {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 

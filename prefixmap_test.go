@@ -39,6 +39,12 @@ func checkMap[T comparable](t *testing.T, want, got map[netip.Prefix]T) {
 	}
 }
 
+func tErr(err error, t *testing.T) {
+	if err != nil {
+		t.Errorf("error: %v", err)
+	}
+}
+
 func TestPrefixMapGet(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
@@ -79,7 +85,7 @@ func TestPrefixMapGet(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		// Test PrefixMap.Get()
 		pm := pmb.PrefixMap()
@@ -118,7 +124,7 @@ func TestPrefixMapContains(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		pm := pmb.PrefixMap()
 		if got := pm.Contains(tt.get); got != tt.want {
@@ -152,10 +158,10 @@ func TestPrefixMapContainsAfterRemove(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		for _, p := range tt.remove {
-			pmb.Remove(p)
+			tErr(pmb.Remove(p), t)
 		}
 		pm := pmb.PrefixMap()
 		if got := pm.Contains(tt.get); got != tt.want {
@@ -200,7 +206,7 @@ func TestPrefixMapEncompasses(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		pm := pmb.PrefixMap()
 		if got := pm.Encompasses(tt.get); got != tt.want {
@@ -234,7 +240,7 @@ func TestPrefixMapToMap(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
@@ -307,10 +313,10 @@ func TestPrefixMapRemove(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		for _, p := range tt.remove {
-			pmb.Remove(p)
+			tErr(pmb.Remove(p), t)
 		}
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
 	}
@@ -341,7 +347,7 @@ func TestPrefixMapRootOf(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		pm := pmb.PrefixMap()
 		gotPrefix, _, gotOK := pm.RootOf(tt.get)
@@ -376,7 +382,7 @@ func TestPrefixMapParentOf(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		pm := pmb.PrefixMap()
 		gotPrefix, _, gotOK := pm.ParentOf(tt.get)
@@ -472,7 +478,7 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get).ToMap())
 	}
@@ -563,7 +569,7 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOf(tt.get).ToMap())
 	}
@@ -574,14 +580,14 @@ func TestPrefixMapBuilderUsableAfterPrefixMap(t *testing.T) {
 	pmb := &PrefixMapBuilder[int]{}
 
 	// Create initial map
-	pmb.Set(pfx("::0/128"), 1)
-	pmb.Set(pfx("::1/128"), 1)
+	tErr(pmb.Set(pfx("::0/128"), 1), t)
+	tErr(pmb.Set(pfx("::1/128"), 1), t)
 	pm1 := pmb.PrefixMap()
 
 	// Make modifications with the sam PrefixMapBuilder and create a new map
-	pmb.Remove(pfx("::0/128"))
-	pmb.Set(pfx("::1/128"), 2)
-	pmb.Set(pfx("::2/128"), 2)
+	tErr(pmb.Remove(pfx("::0/128")), t)
+	tErr(pmb.Set(pfx("::1/128"), 2), t)
+	tErr(pmb.Set(pfx("::2/128"), 2), t)
 	pm2 := pmb.PrefixMap()
 
 	checkMap(t, wantMap(1, "::0/128", "::1/128"), pm1.ToMap())
@@ -637,11 +643,11 @@ func TestPrefixMapBuilderFilter(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		filter := &PrefixSetBuilder{}
 		for _, p := range tt.filter {
-			filter.Add(p)
+			tErr(filter.Add(p), t)
 		}
 		pmb.Filter(filter.PrefixSet())
 		checkMap(t, tt.want, pmb.PrefixMap().ToMap())
@@ -697,11 +703,11 @@ func TestPrefixMapFilter(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		filter := &PrefixSetBuilder{}
 		for _, p := range tt.filter {
-			filter.Add(p)
+			tErr(filter.Add(p), t)
 		}
 		pm := pmb.PrefixMap()
 		filtered := pm.Filter(filter.PrefixSet())
@@ -737,7 +743,7 @@ func TestOverlapsPrefix(t *testing.T) {
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.set {
-			pmb.Set(p, true)
+			tErr(pmb.Set(p, true), t)
 		}
 		pm := pmb.PrefixMap()
 		if got := pm.OverlapsPrefix(tt.get); got != tt.want {
@@ -764,7 +770,7 @@ func TestPrefixMapSize(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixMapBuilder[bool]{}
 		for _, p := range tt.add {
-			psb.Set(p, true)
+			tErr(psb.Set(p, true), t)
 		}
 		ps := psb.PrefixMap()
 		if got := ps.Size(); got != tt.want {

@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func k6(content uint128, offset, len uint8) key[keyBits6] {
-	return key[keyBits6]{len, offset, content}
+func k6(content uint128, offset, length uint8) key[keyBits6] {
+	return key[keyBits6]{length, offset, content}
 }
 
-func k4(content uint32, offset, len uint8) key[keyBits4] {
-	return key[keyBits4]{len, offset, keyBits4{content}}
+func k4(content uint32, offset, length uint8) key[keyBits4] {
+	return key[keyBits4]{length, offset, keyBits4{content}}
 }
 
 func TestKey4FromPrefix(t *testing.T) {

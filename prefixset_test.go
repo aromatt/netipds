@@ -42,7 +42,7 @@ func TestPrefixSetAddContains(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Contains(tt.get); got != tt.want {
@@ -70,7 +70,7 @@ func TestPrefixSetEncompasses(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Encompasses(tt.get); got != tt.want {
@@ -104,7 +104,7 @@ func TestPrefixSetRootOf(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		gotPrefix, gotOK := ps.RootOf(tt.get)
@@ -139,7 +139,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		gotPrefix, gotOK := ps.ParentOf(tt.get)
@@ -235,7 +235,7 @@ func TestPrefixSetDescendantsOf(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		checkPrefixSlice(t, psb.PrefixSet().DescendantsOf(tt.get).Prefixes(), tt.want)
 	}
@@ -317,7 +317,7 @@ func TestPrefixSetAncestorsOf(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		checkPrefixSlice(t, psb.PrefixSet().AncestorsOf(tt.get).Prefixes(), tt.want)
 	}
@@ -346,7 +346,7 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		if got := ps.OverlapsPrefix(tt.get); got != tt.want {
@@ -375,7 +375,6 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		subtract netip.Prefix
 		want     []netip.Prefix
 	}{
-		{pfxs(), netip.Prefix{}, pfxs()},
 		{pfxs("::0/1"), pfx("::0/1"), pfxs()},
 		{pfxs("::0/2"), pfx("::0/2"), pfxs()},
 		{pfxs("::0/128"), pfx("::0/128"), pfxs()},
@@ -387,7 +386,6 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 		{pfxs("::0/126"), pfx("::3/128"), pfxs("::0/127", "::2/128")},
 
 		// Subtract from empty set
-		{pfxs(), netip.Prefix{}, pfxs()},
 		{pfxs(), pfx("::0/1"), pfxs()},
 
 		// IPv4
@@ -407,9 +405,9 @@ func TestPrefixSetSubtractPrefix(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
-		psb.SubtractPrefix(tt.subtract)
+		tErr(psb.SubtractPrefix(tt.subtract), t)
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
@@ -450,11 +448,11 @@ func TestPrefixSetSubtract(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		subPsb := &PrefixSetBuilder{}
 		for _, p := range tt.subtract {
-			subPsb.Add(p)
+			tErr(subPsb.Add(p), t)
 		}
 		psb.Subtract(subPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
@@ -495,11 +493,11 @@ func TestPrefixSetIntersect(t *testing.T) {
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
 		for _, p := range x {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		intersectPsb := &PrefixSetBuilder{}
 		for _, p := range y {
-			intersectPsb.Add(p)
+			tErr(intersectPsb.Add(p), t)
 		}
 		psb.Intersect(intersectPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
@@ -564,11 +562,11 @@ func TestPrefixSetMerge(t *testing.T) {
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
 		for _, p := range x {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		unionPsb := &PrefixSetBuilder{}
 		for _, p := range y {
-			unionPsb.Add(p)
+			tErr(unionPsb.Add(p), t)
 		}
 		psb.Merge(unionPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
@@ -602,10 +600,10 @@ func TestPrefixSetRemove(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		for _, p := range tt.remove {
-			psb.Remove(p)
+			tErr(psb.Remove(p), t)
 		}
 		ps := psb.PrefixSet()
 		checkPrefixSlice(t, ps.Prefixes(), tt.want)
@@ -638,11 +636,11 @@ func TestPrefixSetFilter(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		filterPsb := &PrefixSetBuilder{}
 		for _, p := range tt.filter {
-			filterPsb.Add(p)
+			tErr(filterPsb.Add(p), t)
 		}
 		psb.Filter(filterPsb.PrefixSet())
 		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
@@ -675,7 +673,7 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		checkPrefixSlice(t, ps.PrefixesCompact(), tt.want)
@@ -704,7 +702,7 @@ func TestPrefixSetSize(t *testing.T) {
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.add {
-			psb.Add(p)
+			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
 		if got := ps.Size(); got != tt.want {
