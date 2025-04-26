@@ -81,13 +81,6 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	return &PrefixMap[T]{*t4, *t6, t4.size(), t6.size()}
 }
 
-func (s *PrefixMapBuilder[T]) String() string {
-	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.stringImpl("", "", false),
-		s.tree6.stringImpl("", "", false),
-	)
-}
-
 // PrefixMap is a map of [netip.Prefix] to T. It is implemented as a binary
 // radix tree.
 //
@@ -226,14 +219,6 @@ func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 	return &PrefixMap[T]{*t4, *t6, t4.size(), t6.size()}
 }
 
-// String returns a human-readable representation of m's tree structure.
-func (s *PrefixMap[T]) String() string {
-	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.stringImpl("", "", false),
-		s.tree6.stringImpl("", "", false),
-	)
-}
-
 // Size returns the number of entries in m.
 func (m *PrefixMap[T]) Size() int {
 	return m.size4 + m.size6
@@ -342,14 +327,6 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 	t4 := s.tree4.copy()
 	t6 := s.tree6.copy()
 	return &PrefixSet{*t4, *t6, t4.size(), t6.size()}
-}
-
-// String returns a human-readable representation of s's tree structure.
-func (s *PrefixSetBuilder) String() string {
-	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.stringImpl("", "", true),
-		s.tree6.stringImpl("", "", true),
-	)
 }
 
 // PrefixSet is a set of [netip.Prefix] values. It is implemented as a binary
@@ -504,14 +481,6 @@ func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 		return false
 	})
 	return res
-}
-
-// String returns a human-readable representation of s's tree structure.
-func (s *PrefixSet) String() string {
-	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
-		s.tree4.stringImpl("", "", true),
-		s.tree6.stringImpl("", "", true),
-	)
 }
 
 // Size returns the number of elements in s.
