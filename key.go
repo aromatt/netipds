@@ -102,7 +102,7 @@ func (k key[B]) ToPrefix() netip.Prefix {
 // key4FromPrefix returns the key that represents the provided Prefix.
 func key4FromPrefix(p netip.Prefix) key[keybits4] {
 	a4 := p.Addr().As4()
-	return newKey(keybits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
+	return newKey(keybits4(beUint32(a4[:])), 0, uint8(p.Bits()))
 }
 
 // key6FromPrefix returns the key that represents the provided Prefix.

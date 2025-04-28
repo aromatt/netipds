@@ -10,7 +10,7 @@ func k6(content uint128, offset, length uint8) key[keybits6] {
 }
 
 func k4(content uint32, offset, length uint8) key[keybits4] {
-	return key[keybits4]{length, offset, keybits4{content}}
+	return key[keybits4]{length, offset, keybits4(content)}
 }
 
 func TestKey4FromPrefix(t *testing.T) {

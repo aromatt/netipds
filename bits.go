@@ -45,48 +45,47 @@ type keybits[T comparable] interface {
 	ToAddr() netip.Addr
 }
 
-type keybits4 struct {
-	bits uint32
-}
+// keybits4 is for IPv4 keys.
+type keybits4 uint32
 
 func (k keybits4) IsZero() bool {
-	return k.bits == 0
+	return k == 0
 }
 
 func (k keybits4) BitsClearedFrom(bit uint8) keybits4 {
-	return keybits4{k.bits >> (32 - bit) << (32 - bit)}
+	return k >> (32 - bit) << (32 - bit)
 }
 
 func (k keybits4) Bit(i uint8) bit {
-	return k.bits&(1<<(31-i)) != 0
+	return k&(1<<(31-i)) != 0
 }
 
 func (k keybits4) CommonPrefixLen(o keybits4) uint8 {
-	return u32CommonPrefixLen(k.bits, o.bits)
+	return u32CommonPrefixLen(uint32(k), uint32(o))
 }
 
 func (k keybits4) WithBitSet(i uint8) keybits4 {
-	return keybits4{k.bits | (1 << (31 - i))}
+	return k | (1 << (31 - i))
 }
 
 func (k keybits4) Justify(o, l uint8) keybits4 {
-	return keybits4{(k.bits << o) >> (32 - l + o)}
+	return (k << o) >> (32 - l + o)
 }
 
 func (k keybits4) String() string {
 	if k.IsZero() {
 		return "0"
 	}
-	return fmt.Sprintf("%x", k.bits)
+	return fmt.Sprintf("%x", uint32(k))
 }
 
 func (k keybits4) U128() uint128 {
-	return uint128{uint64(k.bits) << 32, 0}
+	return uint128{uint64(k) << 32, 0}
 }
 
 func (k keybits4) ToAddr() netip.Addr {
 	var a4 [4]byte
-	bePutUint32(a4[:], k.bits)
+	bePutUint32(a4[:], uint32(k))
 	return netip.AddrFrom4(a4)
 }
 
