@@ -5,7 +5,7 @@ import (
 )
 
 // tree is a binary radix tree.
-type tree[T any, B keyBits[B]] struct {
+type tree[T any, B keybits[B]] struct {
 	key      key[B]
 	hasEntry bool
 	value    T
@@ -14,7 +14,7 @@ type tree[T any, B keyBits[B]] struct {
 }
 
 // newTree returns a new tree with the provided key.
-func newTree[T any, B keyBits[B]](k key[B]) *tree[T, B] {
+func newTree[T any, B keybits[B]](k key[B]) *tree[T, B] {
 	return &tree[T, B]{key: k}
 }
 

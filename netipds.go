@@ -23,8 +23,8 @@ import (
 // Call [PrefixMapBuilder.PrefixMap] to obtain an immutable PrefixMap from a
 // PrefixMapBuilder.
 type PrefixMapBuilder[T any] struct {
-	tree4 tree[T, keyBits4]
-	tree6 tree[T, keyBits6]
+	tree4 tree[T, keybits4]
+	tree6 tree[T, keybits6]
 }
 
 // Set associates v with p.
@@ -77,8 +77,8 @@ func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 //
 // Use [PrefixMapBuilder] to construct PrefixMaps.
 type PrefixMap[T any] struct {
-	tree4 tree[T, keyBits4]
-	tree6 tree[T, keyBits6]
+	tree4 tree[T, keybits4]
+	tree6 tree[T, keybits6]
 	size4 int
 	size6 int
 }
@@ -120,13 +120,13 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 // If p itself has an entry and has no ancestors, then p's entry is returned.
 func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
-		var k key[keyBits4]
+		var k key[keybits4]
 		k, val, ok = m.tree4.rootOf(key4FromPrefix(p))
 		if ok {
 			root = k.ToPrefix()
 		}
 	} else {
-		var k key[keyBits6]
+		var k key[keybits6]
 		k, val, ok = m.tree6.rootOf(key6FromPrefix(p))
 		if ok {
 			root = k.ToPrefix()
@@ -139,13 +139,13 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool
 // has an entry, then p's entry is returned.
 func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok bool) {
 	if p.Addr().Is4() {
-		var k key[keyBits4]
+		var k key[keybits4]
 		k, val, ok = m.tree4.parentOf(key4FromPrefix(p))
 		if ok {
 			parent = k.ToPrefix()
 		}
 	} else {
-		var k key[keyBits6]
+		var k key[keybits6]
 		k, val, ok = m.tree6.parentOf(key6FromPrefix(p))
 		if ok {
 			parent = k.ToPrefix()
@@ -158,13 +158,13 @@ func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok 
 // ToMap returns a map of all Prefixes in m to their associated values.
 func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	res := make(map[netip.Prefix]T)
-	m.tree4.walk(key[keyBits4]{}, func(n *tree[T, keyBits4]) bool {
+	m.tree4.walk(key[keybits4]{}, func(n *tree[T, keybits4]) bool {
 		if n.hasEntry {
 			res[n.key.ToPrefix()] = n.value
 		}
 		return false
 	})
-	m.tree6.walk(key[keyBits6]{}, func(n *tree[T, keyBits6]) bool {
+	m.tree6.walk(key[keybits6]{}, func(n *tree[T, keybits6]) bool {
 		if n.hasEntry {
 			res[n.key.ToPrefix()] = n.value
 		}
@@ -216,8 +216,8 @@ func (m *PrefixMap[T]) Size() int {
 //
 // Call PrefixSet to obtain an immutable PrefixSet from a PrefixSetBuilder.
 type PrefixSetBuilder struct {
-	tree4 tree[bool, keyBits4]
-	tree6 tree[bool, keyBits6]
+	tree4 tree[bool, keybits4]
+	tree6 tree[bool, keybits6]
 }
 
 // Add adds p to s.
@@ -324,8 +324,8 @@ func (s *PrefixSetBuilder) PrefixSet() *PrefixSet {
 //
 // Use [PrefixSetBuilder] to construct PrefixSets.
 type PrefixSet struct {
-	tree4 tree[bool, keyBits4]
-	tree6 tree[bool, keyBits6]
+	tree4 tree[bool, keybits4]
+	tree6 tree[bool, keybits6]
 	size4 int
 	size6 int
 }
@@ -359,13 +359,13 @@ func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 // If p itself has an entry and has no ancestors, then p's entry is returned.
 func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
 	if p.Addr().Is4() {
-		var k key[keyBits4]
+		var k key[keybits4]
 		k, _, ok = s.tree4.rootOf(key4FromPrefix(p))
 		if ok {
 			root = k.ToPrefix()
 		}
 	} else {
-		var k key[keyBits6]
+		var k key[keybits6]
 		k, _, ok = s.tree6.rootOf(key6FromPrefix(p))
 		if ok {
 			root = k.ToPrefix()
@@ -378,13 +378,13 @@ func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
 // has an entry, then p's entry is returned.
 func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 	if p.Addr().Is4() {
-		var k key[keyBits4]
+		var k key[keybits4]
 		k, _, ok = s.tree4.parentOf(key4FromPrefix(p))
 		if ok {
 			parent = k.ToPrefix()
 		}
 	} else {
-		var k key[keyBits6]
+		var k key[keybits6]
 		k, _, ok = s.tree6.parentOf(key6FromPrefix(p))
 		if ok {
 			parent = k.ToPrefix()
@@ -419,7 +419,7 @@ func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
 func (s *PrefixSet) Prefixes() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size6+s.size4)
 	i := 0
-	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+	s.tree4.walk(key[keybits4]{}, func(n *tree[bool, keybits4]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			i++
@@ -427,7 +427,7 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 		return i >= s.size4
 	})
 	i = 0
-	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+	s.tree6.walk(key[keybits6]{}, func(n *tree[bool, keybits6]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			i++
@@ -444,14 +444,14 @@ func (s *PrefixSet) Prefixes() []netip.Prefix {
 // complete sets of sibling prefixes, e.g. 1.2.3.0/32 and 1.2.3.1/32.
 func (s *PrefixSet) PrefixesCompact() []netip.Prefix {
 	res := make([]netip.Prefix, 0, s.size6+s.size4)
-	s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+	s.tree4.walk(key[keybits4]{}, func(n *tree[bool, keybits4]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			return true
 		}
 		return false
 	})
-	s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+	s.tree6.walk(key[keybits6]{}, func(n *tree[bool, keybits6]) bool {
 		if n.hasEntry {
 			res = append(res, n.key.ToPrefix())
 			return true

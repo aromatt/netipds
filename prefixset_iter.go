@@ -33,7 +33,7 @@ func (s *PrefixSet) All4() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
 		i := 0
-		s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+		s.tree4.walk(key[keybits4]{}, func(n *tree[bool, keybits4]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.ToPrefix())
 				i++
@@ -49,7 +49,7 @@ func (s *PrefixSet) All6() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
 		i := 0
-		s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+		s.tree6.walk(key[keybits6]{}, func(n *tree[bool, keybits6]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.ToPrefix())
 				i++
@@ -68,7 +68,7 @@ func (s *PrefixSet) All6() iter.Seq[netip.Prefix] {
 func (s *PrefixSet) AllCompact4() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
-		s.tree4.walk(key[keyBits4]{}, func(n *tree[bool, keyBits4]) bool {
+		s.tree4.walk(key[keybits4]{}, func(n *tree[bool, keybits4]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.ToPrefix())
 				return true
@@ -86,7 +86,7 @@ func (s *PrefixSet) AllCompact4() iter.Seq[netip.Prefix] {
 func (s *PrefixSet) AllCompact6() iter.Seq[netip.Prefix] {
 	return func(yield func(netip.Prefix) bool) {
 		canYield := true
-		s.tree6.walk(key[keyBits6]{}, func(n *tree[bool, keyBits6]) bool {
+		s.tree6.walk(key[keybits6]{}, func(n *tree[bool, keybits6]) bool {
 			if canYield && n.hasEntry {
 				canYield = yield(n.key.ToPrefix())
 				return true

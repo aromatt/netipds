@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-func k6(content uint128, offset, length uint8) key[keyBits6] {
-	return key[keyBits6]{length, offset, content}
+func k6(content uint128, offset, length uint8) key[keybits6] {
+	return key[keybits6]{length, offset, content}
 }
 
-func k4(content uint32, offset, length uint8) key[keyBits4] {
-	return key[keyBits4]{length, offset, keyBits4{content}}
+func k4(content uint32, offset, length uint8) key[keybits4] {
+	return key[keybits4]{length, offset, keybits4{content}}
 }
 
 func TestKey4FromPrefix(t *testing.T) {
 	tests := []struct {
 		p    netip.Prefix
-		want key[keyBits4]
+		want key[keybits4]
 	}{
 		{pfx("1.2.3.0/24"), k4(uint32(0x01020300), 0, 24)},
 		{pfx("1.2.3.4/32"), k4(uint32(0x01020304), 0, 32)},
@@ -50,7 +50,7 @@ func TestKey4ToPrefix(t *testing.T) {
 func TestKey6FromPrefix(t *testing.T) {
 	tests := []struct {
 		p    netip.Prefix
-		want key[keyBits6]
+		want key[keybits6]
 	}{
 		{pfx("::1/128"), k6(uint128{0, 1}, 0, 128)},
 		{pfx("::2/127"), k6(uint128{0, 2}, 0, 127)},
@@ -100,7 +100,7 @@ func TestKey4Bit(t *testing.T) {
 }
 func TestKey6String(t *testing.T) {
 	tests := []struct {
-		k    key[keyBits6]
+		k    key[keybits6]
 		want string
 	}{
 		{k6(uint128{0, 0}, 0, 0), "0,0-0"},
@@ -131,7 +131,7 @@ func TestKey6String(t *testing.T) {
 
 func TestKey6Bit(t *testing.T) {
 	tests := []struct {
-		k    key[keyBits6]
+		k    key[keybits6]
 		i    uint8
 		want bit
 	}{
@@ -178,9 +178,9 @@ func TestKey6IsPrefixOf(t *testing.T) {
 
 func TestKey6Truncated(t *testing.T) {
 	tests := []struct {
-		k    key[keyBits6]
+		k    key[keybits6]
 		n    uint8
-		want key[keyBits6]
+		want key[keybits6]
 	}{
 		{k6(uint128{0, 0}, 0, 0), 0, k6(uint128{0, 0}, 0, 0)},
 		{k6(uint128{0, 0}, 0, 1), 1, k6(uint128{0, 0}, 0, 1)},
@@ -200,8 +200,8 @@ func TestKey6Truncated(t *testing.T) {
 
 func TestKey6Rooted(t *testing.T) {
 	tests := []struct {
-		k    key[keyBits6]
-		want key[keyBits6]
+		k    key[keybits6]
+		want key[keybits6]
 	}{
 		{k6(uint128{0, 0}, 0, 0), k6(uint128{0, 0}, 0, 0)},
 		{k6(uint128{0, 1}, 64, 128), k6(uint128{0, 1}, 0, 128)},
@@ -216,9 +216,9 @@ func TestKey6Rooted(t *testing.T) {
 
 func TestKey6Rest(t *testing.T) {
 	tests := []struct {
-		k    key[keyBits6]
+		k    key[keybits6]
 		i    uint8
-		want key[keyBits6]
+		want key[keybits6]
 	}{
 		{k6(uint128{0, 0}, 0, 0), 0, k6(uint128{0, 0}, 0, 0)},
 		{k6(uint128{1, 0}, 64, 64), 64, k6(uint128{1, 0}, 64, 64)},
@@ -233,9 +233,9 @@ func TestKey6Rest(t *testing.T) {
 
 func TestKey6Next(t *testing.T) {
 	tests := []struct {
-		k         key[keyBits6]
-		wantLeft  key[keyBits6]
-		wantRight key[keyBits6]
+		k         key[keybits6]
+		wantLeft  key[keybits6]
+		wantRight key[keybits6]
 	}{
 		{
 			k:         k6(uint128{0, 0}, 0, 0),

@@ -6,8 +6,7 @@ import (
 )
 
 // key stores the string of bits which represent the full path to a node in a
-// prefix tree. The key is stored in the most-significant bits of the content
-// field.
+// prefix tree. The key is stored, big-endian, in the content field.
 //
 // offset stores the starting position of the key segment owned by the node.
 //
@@ -15,14 +14,14 @@ import (
 //
 // The content field should not have any bits set beyond len (newKey enforces
 // this).
-type key[B keyBits[B]] struct {
+type key[B keybits[B]] struct {
 	len     uint8
 	offset  uint8
 	content B
 }
 
 // newKey returns a new key with the content truncated to length bits.
-func newKey[B keyBits[B]](content B, offset, length uint8) key[B] {
+func newKey[B keybits[B]](content B, offset, length uint8) key[B] {
 	return key[B]{length, offset, content.BitsClearedFrom(length)}
 }
 
@@ -101,12 +100,12 @@ func (k key[B]) ToPrefix() netip.Prefix {
 }
 
 // key4FromPrefix returns the key that represents the provided Prefix.
-func key4FromPrefix(p netip.Prefix) key[keyBits4] {
+func key4FromPrefix(p netip.Prefix) key[keybits4] {
 	a4 := p.Addr().As4()
-	return newKey(keyBits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
+	return newKey(keybits4{beUint32(a4[:])}, 0, uint8(p.Bits()))
 }
 
 // key6FromPrefix returns the key that represents the provided Prefix.
-func key6FromPrefix(p netip.Prefix) key[keyBits6] {
+func key6FromPrefix(p netip.Prefix) key[keybits6] {
 	return newKey(u128From16(p.Addr().As16()), 0, uint8(p.Bits()))
 }
