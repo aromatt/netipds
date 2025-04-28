@@ -89,6 +89,7 @@ func (k keybits4) ToAddr() netip.Addr {
 	return netip.AddrFrom4(a4)
 }
 
+// keybits6 is for IPv6 keys.
 type keybits6 = uint128
 
 func (k keybits6) IsZero() bool {
