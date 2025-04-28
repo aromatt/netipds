@@ -9,40 +9,6 @@ import (
 	"testing"
 )
 
-func TestPrefixSetAll6(t *testing.T) {
-	tests := []struct {
-		add  []netip.Prefix
-		want []netip.Prefix
-	}{
-		{pfxs(), pfxs()},
-		{pfxs("::0/128"), pfxs("::0/128")},
-		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128")},
-		{pfxs("::0/127", "::0/128"), pfxs("::0/127", "::0/128")},
-		{pfxs("::0/126", "::0/127"), pfxs("::0/126", "::0/127")},
-		{pfxs("::0/1", "::0/128"), pfxs("::0/1", "::0/128")},
-		{pfxs("8000::/1"), pfxs("8000::/1")},
-		{pfxs("::0/1", "8000::/1"), pfxs("::0/1", "8000::/1")},
-		{pfxs("0::0/127", "::0/128", "::1/128"), pfxs("0::0/127", "::0/128", "::1/128")},
-		{pfxs("0::0/127", "::0/128", "::2/128"), pfxs("0::0/127", "::0/128", "::2/128")},
-	}
-	for _, tt := range tests {
-		psb := &PrefixSetBuilder{}
-		for _, p := range tt.add {
-			tErr(psb.Add(p), t)
-		}
-		ps := psb.PrefixSet()
-
-		seqAll6 := ps.All6()
-		checkPrefixSeq(t, seqAll6, tt.want)
-		checkYieldFalse(t, seqAll6)
-
-		// All should yield the same items since only IPv6s were added
-		seqAll := ps.All()
-		checkPrefixSeq(t, seqAll, tt.want)
-		checkYieldFalse(t, seqAll)
-	}
-}
-
 func TestPrefixSetAll4(t *testing.T) {
 	tests := []struct {
 		add  []netip.Prefix
@@ -76,6 +42,40 @@ func TestPrefixSetAll4(t *testing.T) {
 		seqAll4 := ps.All4()
 		checkPrefixSeq(t, seqAll4, tt.want)
 		checkYieldFalse(t, seqAll4)
+	}
+}
+
+func TestPrefixSetAll6(t *testing.T) {
+	tests := []struct {
+		add  []netip.Prefix
+		want []netip.Prefix
+	}{
+		{pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/127", "::0/128"), pfxs("::0/127", "::0/128")},
+		{pfxs("::0/126", "::0/127"), pfxs("::0/126", "::0/127")},
+		{pfxs("::0/1", "::0/128"), pfxs("::0/1", "::0/128")},
+		{pfxs("8000::/1"), pfxs("8000::/1")},
+		{pfxs("::0/1", "8000::/1"), pfxs("::0/1", "8000::/1")},
+		{pfxs("0::0/127", "::0/128", "::1/128"), pfxs("0::0/127", "::0/128", "::1/128")},
+		{pfxs("0::0/127", "::0/128", "::2/128"), pfxs("0::0/127", "::0/128", "::2/128")},
+	}
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			tErr(psb.Add(p), t)
+		}
+		ps := psb.PrefixSet()
+
+		seqAll6 := ps.All6()
+		checkPrefixSeq(t, seqAll6, tt.want)
+		checkYieldFalse(t, seqAll6)
+
+		// All should yield the same items since only IPv6s were added
+		seqAll := ps.All()
+		checkPrefixSeq(t, seqAll, tt.want)
+		checkYieldFalse(t, seqAll)
 	}
 }
 
@@ -162,6 +162,42 @@ func TestPrefixSetAllCompact4(t *testing.T) {
 		seq4 := ps.AllCompact4()
 		checkPrefixSeq(t, seq4, tt.want)
 		checkYieldFalse(t, seq4)
+	}
+}
+
+func TestPrefixSetAllCompact6(t *testing.T) {
+	tests := []struct {
+		add  []netip.Prefix
+		want []netip.Prefix
+	}{
+		{pfxs(), pfxs()},
+		{pfxs("::0/128"), pfxs("::0/128")},
+		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128")},
+		{pfxs("::0/127", "::0/128"), pfxs("::0/127")},
+		{pfxs("::0/126", "::0/127"), pfxs("::0/126")},
+		{pfxs("::0/1", "::0/128"), pfxs("::0/1")},
+		{pfxs("8000::/1"), pfxs("8000::/1")},
+		{pfxs("::0/1", "8000::/1"), pfxs("::0/1", "8000::/1")},
+		{
+			pfxs("0::0/127", "::0/128", "::1/128"),
+			pfxs("::0/127"),
+		},
+		{
+			pfxs("0::0/127", "::0/128", "::2/128"),
+			pfxs("::0/127", "::2/128"),
+		},
+	}
+
+	for _, tt := range tests {
+		psb := &PrefixSetBuilder{}
+		for _, p := range tt.add {
+			tErr(psb.Add(p), t)
+		}
+		ps := psb.PrefixSet()
+
+		seq6 := ps.AllCompact6()
+		checkPrefixSeq(t, seq6, tt.want)
+		checkYieldFalse(t, seq6)
 	}
 }
 
