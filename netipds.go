@@ -198,6 +198,10 @@ func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
 
 // Filter returns a new PrefixMap containing the entries of m that are
 // encompassed by s.
+//
+// For example, if m contains 1.2.3.4/32 and 1.2.0.0/16, then filtering by a
+// PrefixSet that includes 1.2.3.0/24 would retain 1.2.3.4/32 and remove
+// 1.2.0.0/16.
 func (m *PrefixMap[T]) Filter(s *PrefixSet) *PrefixMap[T] {
 	t4 := m.tree4.filterCopy(&s.tree4)
 	t6 := m.tree6.filterCopy(&s.tree6)
@@ -253,8 +257,11 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 
 // Filter removes all Prefixes that are not encompassed by o from s.
 //
-// When filtering, a Prefix in o has no effect on its parent in s. To remove
-// subsets of Prefixes, see [PrefixSetBuilder.Subtract] and
+// For example, if s contains 1.2.3.4/32 and 1.2.0.0/16, then filtering by a
+// PrefixSet that includes 1.2.3.0/24 would retain 1.2.3.4/32 and remove
+// 1.2.0.0/16.
+//
+// To remove sections of Prefixes, see [PrefixSetBuilder.Subtract] and
 // [PrefixSetBuilder.SubtractPrefix].
 func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 	s.tree4.filter(&o.tree4)

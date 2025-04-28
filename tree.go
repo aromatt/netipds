@@ -614,8 +614,10 @@ func (t *tree[T, B]) filter(o *tree[bool, B]) {
 
 // filterCopy returns a recursive copy of t that includes only keys that are
 // encompassed by o.
+//
 // TODO: I think this can be done more efficiently by walking t and o
 // at the same time.
+//
 // TODO: does it make sense to have both this method and filter()?
 func (t *tree[T, B]) filterCopy(o *tree[bool, B]) *tree[T, B] {
 	ret := &tree[T, B]{}

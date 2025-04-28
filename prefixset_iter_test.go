@@ -42,6 +42,12 @@ func TestPrefixSetAll4(t *testing.T) {
 		seqAll4 := ps.All4()
 		checkPrefixSeq(t, seqAll4, tt.want)
 		checkYieldFalse(t, seqAll4)
+
+		// All should yield the same items since only IPv4s were added
+		seqAll := ps.All()
+		checkPrefixSeq(t, seqAll, tt.want)
+		checkYieldFalse(t, seqAll)
+
 	}
 }
 
@@ -162,6 +168,12 @@ func TestPrefixSetAllCompact4(t *testing.T) {
 		seq4 := ps.AllCompact4()
 		checkPrefixSeq(t, seq4, tt.want)
 		checkYieldFalse(t, seq4)
+
+		// AllCompact should yield the same items since only IPv4s were added
+		seqAll := ps.AllCompact()
+		checkPrefixSeq(t, seqAll, tt.want)
+		checkYieldFalse(t, seqAll)
+
 	}
 }
 
@@ -198,6 +210,11 @@ func TestPrefixSetAllCompact6(t *testing.T) {
 		seq6 := ps.AllCompact6()
 		checkPrefixSeq(t, seq6, tt.want)
 		checkYieldFalse(t, seq6)
+
+		// AllCompact should yield the same items since only IPv6s were added
+		seqAll := ps.AllCompact()
+		checkPrefixSeq(t, seqAll, tt.want)
+		checkYieldFalse(t, seqAll)
 	}
 }
 

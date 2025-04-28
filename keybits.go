@@ -5,10 +5,10 @@ import (
 	"net/netip"
 )
 
-// keybits is an interface over different-length bit strings for use as keys in
-// the binary radix tree.
+// keybits is an interface over different-width integer types for use as keys
+// in the binary radix tree.
 //
-// T is expected to be the concrete type of the implementing struct.
+// T must be the same as the implementing struct type itself.
 type keybits[T comparable] interface {
 	comparable
 

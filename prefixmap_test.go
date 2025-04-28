@@ -699,6 +699,9 @@ func TestPrefixMapFilter(t *testing.T) {
 		// Filtering uses encompassment; the filter covers "::0/127" but does
 		// not encompass it.
 		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), wantMap(true)},
+
+		// Example from method documentation
+		{pfxs("1.2.3.4/32", "1.2.0.0/16"), pfxs("1.2.3.0/24"), wantMap(true, "1.2.3.4/32")},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}

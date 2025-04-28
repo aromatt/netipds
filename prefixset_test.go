@@ -632,6 +632,9 @@ func TestPrefixSetFilter(t *testing.T) {
 
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{pfxs("1.2.3.4/32"), pfxs("::ffff:1.2.3.4/32"), pfxs()},
+
+		// Example from method documentation
+		{pfxs("1.2.3.4/32", "1.2.0.0/16"), pfxs("1.2.3.0/24"), pfxs("1.2.3.4/32")},
 	}
 	for _, tt := range tests {
 		psb := &PrefixSetBuilder{}
