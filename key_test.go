@@ -98,6 +98,56 @@ func TestKey4Bit(t *testing.T) {
 	}
 
 }
+
+func TestKey6Bit(t *testing.T) {
+	tests := []struct {
+		k    key[keybits6]
+		i    uint8
+		want bit
+	}{
+		{k6(uint128{0, 0}, 0, 128), 0, bitL},
+		{k6(uint128{0, 1}, 0, 128), 0, bitL},
+		{k6(uint128{1 << 63, 0}, 0, 128), 0, bitR},
+		{k6(uint128{1 << 62, 0}, 0, 128), 1, bitR},
+		{k6(uint128{0, 1 << 63}, 0, 128), 64, bitR},
+		{k6(uint128{0, 1}, 0, 128), 127, bitR},
+		{k6(uint128{0, 2}, 0, 128), 126, bitR},
+		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, bitR},
+		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, bitR},
+		// i > 127 => bitL
+		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 128, bitL},
+	}
+	for _, tt := range tests {
+		if got := tt.k.Bit(tt.i); got != tt.want {
+			t.Errorf("%v.bit(%d) = %v, want %v",
+				tt.k, tt.i, got, tt.want)
+		}
+	}
+}
+
+func TestKey4String(t *testing.T) {
+	tests := []struct {
+		k    key[keybits4]
+		want string
+	}{
+		{k4(0, 0, 0), "0,0-0"},
+		{k4(0, 0, 1), "0,0-1"},
+		{k4(0x80000000, 0, 1), "1,0-1"},
+		{k4(0x80000000, 0, 32), "80000000,0-32"},
+		{k4(1, 0, 32), "1,0-32"},
+		{k4(0x80000001, 0, 32), "80000001,0-32"},
+		{k4(0x00800000, 0, 32), "800000,0-32"},
+		{k4(0x80000000, 0, 8), "80,0-8"},
+		{k4(0x00800000, 8, 16), "80,8-16"},
+		{k4(0x00000001, 31, 32), "1,31-32"},
+	}
+	for _, tt := range tests {
+		if got := tt.k.String(); got != tt.want {
+			t.Errorf("got %q, want %q", got, tt.want)
+		}
+	}
+}
+
 func TestKey6String(t *testing.T) {
 	tests := []struct {
 		k    key[keybits6]
@@ -125,32 +175,6 @@ func TestKey6String(t *testing.T) {
 	for _, tt := range tests {
 		if got := tt.k.String(); got != tt.want {
 			t.Errorf("got %q, want %q", got, tt.want)
-		}
-	}
-}
-
-func TestKey6Bit(t *testing.T) {
-	tests := []struct {
-		k    key[keybits6]
-		i    uint8
-		want bit
-	}{
-		{k6(uint128{0, 0}, 0, 128), 0, bitL},
-		{k6(uint128{0, 1}, 0, 128), 0, bitL},
-		{k6(uint128{1 << 63, 0}, 0, 128), 0, bitR},
-		{k6(uint128{1 << 62, 0}, 0, 128), 1, bitR},
-		{k6(uint128{0, 1 << 63}, 0, 128), 64, bitR},
-		{k6(uint128{0, 1}, 0, 128), 127, bitR},
-		{k6(uint128{0, 2}, 0, 128), 126, bitR},
-		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 0, bitR},
-		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 127, bitR},
-		// i > 127 => bitL
-		{k6(uint128{^uint64(0), ^uint64(0)}, 0, 128), 128, bitL},
-	}
-	for _, tt := range tests {
-		if got := tt.k.Bit(tt.i); got != tt.want {
-			t.Errorf("%v.bit(%d) = %v, want %v",
-				tt.k, tt.i, got, tt.want)
 		}
 	}
 }

@@ -1,9 +1,5 @@
 package netipds
 
-import (
-	"fmt"
-)
-
 // tree is a binary radix tree.
 type tree[T any, B keybits[B]] struct {
 	key      key[B]
@@ -78,26 +74,6 @@ func (t *tree[T, B]) copy() *tree[T, B] {
 	}
 	ret.setValueFrom(t)
 	return ret
-}
-
-func (t *tree[T, B]) stringImpl(indent string, pre string, hideVal bool) string {
-	var ret string
-	if hideVal {
-		ret = fmt.Sprintf("%s%s%s\n", indent, pre, t.key.String())
-	} else {
-		ret = fmt.Sprintf("%s%s%s: %v\n", indent, pre, t.key.String(), t.value)
-	}
-	if t.left != nil {
-		ret += t.left.stringImpl(indent+"  ", "L:", hideVal)
-	}
-	if t.right != nil {
-		ret += t.right.stringImpl(indent+"  ", "R:", hideVal)
-	}
-	return ret
-}
-
-func (t *tree[T, B]) String() string {
-	return t.stringImpl("", "", false)
 }
 
 // size returns the number of nodes within t that have values.
@@ -234,7 +210,7 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 		}
 	}
 	// Consider the children of both t and o
-	for _, bit := range eachBit {
+	for _, bit := range [2]bit{bitL, bitR} {
 		tChild, oChild := t.child(bit), o.child(bit)
 		if *oChild != nil {
 			if *tChild == nil {
@@ -272,7 +248,7 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 			t.setValueFrom(o)
 		}
 
-		for _, bit := range eachBit {
+		for _, bit := range [2]bit{bitL, bitR} {
 			tChild, oChild := t.child(bit), o.child(bit)
 			if *oChild != nil {
 				tNext := &t
@@ -339,7 +315,7 @@ func (t *tree[T, B]) intersectTreeImpl(
 		}
 
 		// Consider the children of t and o
-		for _, bit := range eachBit {
+		for _, bit := range [2]bit{bitL, bitR} {
 			tChild, oChild := t.child(bit), o.child(bit)
 			switch {
 			case *tChild == nil && *oChild != nil && (t.hasEntry || tPathHasEntry):
