@@ -477,7 +477,7 @@ func (t *tree[T, B]) pathNext(path uint128) *tree[T, B] {
 
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
-	u128 := k.content.U128()
+	u128 := k.content.Uint128()
 	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
 		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
@@ -491,7 +491,7 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
-	u128 := k.content.U128()
+	u128 := k.content.Uint128()
 	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
@@ -503,7 +503,7 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses returns true if this tree includes a key which completely
 // encompasses or is equal to the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
-	u128 := k.content.U128()
+	u128 := k.content.Uint128()
 	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
@@ -514,7 +514,7 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
-	u128 := k.content.U128()
+	u128 := k.content.Uint128()
 	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
 		if ok = n.hasEntry && n.key.IsPrefixOf(k); ok {
 			return n.key, n.value, ok
@@ -525,7 +525,7 @@ func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) parentOf(k key[B]) (outKey key[B], val T, ok bool) {
-	u128 := k.content.U128()
+	u128 := k.content.Uint128()
 	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
 		if n.hasEntry && n.key.IsPrefixOf(k) {
 			outKey, val, ok = n.key, n.value, true

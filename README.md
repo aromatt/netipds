@@ -5,23 +5,37 @@
 
 This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
-family by adding two immutable, trie-based collection types for [netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
-* `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data with network hierarchy awareness
-* `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways (unions, intersections, etc)
+family by adding two immutable, trie-based collection types for
+[netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
+* `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data
+  with network hierarchy awareness
+* `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways
+  (unions, intersections, etc)
 
 Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree),
 which enables a rich set of efficient queries about prefix containment, hierarchy,
 and overlap.
 
 ### Goals
-* **Efficiency.** This package aims to provide fast, immutable collection types for IP networks. According to the benchmarks at [iprbench](https://github.com/gaissmai/iprbench), it is one of the fastest and most memory-efficient packages among its peers.
-* **Integration with `net/netip`.** This package is built on the shoulders of `net/netip`, leveraging its types and lessons both under the hood and at interfaces. See this excellent [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about the history and benefits of `net/netip`.
-* **Completeness.** Most other IP radix tree libraries lack several of the queries provided by `netipds`.
+* **Efficiency.** This package aims to provide fast, immutable collection types for
+  IP networks. According to the benchmarks at
+  [iprbench](https://github.com/gaissmai/iprbench), it is one of the fastest and most
+  memory-efficient packages among its peers.
+* **Integration with `net/netip`.** This package is built on the shoulders of
+  `net/netip`, leveraging its types and lessons both under the hood and at
+  interfaces. See this excellent
+  [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about
+  the history and benefits of `net/netip`.
+* **Completeness.** Most other IP radix tree libraries lack several of the queries
+  provided by `netipds`.
 
 ### Non-Goals
-* **Mutability.** For use cases requiring continuous mutability, try [kentik/patricia](https://github.com/kentik/patricia) or [gaissmai/bart](https://github.com/gaissmai/bart).
+* **Mutability.** For use cases requiring continuous mutability, try
+  [kentik/patricia](https://github.com/kentik/patricia) or
+  [gaissmai/bart](https://github.com/gaissmai/bart).
 * **Persistence.** This package is for data sets that fit in memory.
-* **Other key types.** The collections in this package support exactly one key type: `netip.Prefix`.
+* **Other key types.** The collections in this package support exactly one key type:
+  `netip.Prefix`.
 
 ## Usage
 Usage is similar to that of [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet):
@@ -66,6 +80,8 @@ m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
                                                  //        1.2.3.0/24:"world"]
 ```
 
+See [docs](https://pkg.go.dev/github.com/aromatt/netipds) for more details.
+
 ### Set Operations with PrefixSet
 `PrefixSet` offers set-specific functionality beyond what can be done with
 `PrefixMap`.
@@ -77,6 +93,14 @@ In particular, during the building stage, you can combine sets in the following 
 |**Union**|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|Every prefix found in either set.|
 |**Intersection**|[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|Every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
 |**Difference**|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
+
+### Note about Value-Copying in PrefixMap
+When generating an immutable PrefixMap from a PrefixMapBuilder (using
+[PrefixMapBuilder.PrefixMap](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMapBuilder.PrefixMap)),
+the builder's values are copied by assignment, so please be careful if you are
+storing pointers (https://github.com/aromatt/netipds/issues/27 aims to improve this).
+
+The same warning applies to any PrefixMap method that returns a new PrefixMap.
 
 ## Related Packages
 

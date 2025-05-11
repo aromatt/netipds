@@ -15,8 +15,14 @@ const (
 	bitR = true
 )
 
-// keybits is an interface over different-width integer types for use as keys
-// in the binary radix tree.
+// keybits is an interface over integer types of different widths for use as
+// keys in a binary radix tree.
+//
+// Using right-sized uints for IPv4 and IPv6 reduces memory usage by
+// 22%, at the cost of a small hit to lookup-performance (~single-digit
+// percentage), as measured by https://github.com/gaissmai/iprbench.
+//
+// The maximum intended width is 128 bits (see uint128.go).
 //
 // T must be the same as the implementing struct type itself.
 type keybits[T comparable] interface {
@@ -48,14 +54,17 @@ type keybits[T comparable] interface {
 	// String returns a string representation of the keybits.
 	String() string
 
-	// U128 returns the keybits as a uint128.
-	U128() uint128
+	// Uint128 returns the keybits as a uint128.
+	//
+	// This is used to offset the performance impact of using generics by
+	// converting all keys to uint128 before hot loops.
+	Uint128() uint128
 
 	// ToAddr returns the keybits as a netip.Addr.
 	ToAddr() netip.Addr
 }
 
-// keybits4 is for IPv4 keys.
+// keybits4 is a 32-bit keybits (for IPv4 keys).
 type keybits4 uint32
 
 func (k keybits4) IsZero() bool {
@@ -89,7 +98,7 @@ func (k keybits4) String() string {
 	return fmt.Sprintf("%x", uint32(k))
 }
 
-func (k keybits4) U128() uint128 {
+func (k keybits4) Uint128() uint128 {
 	return uint128{uint64(k) << 32, 0}
 }
 
@@ -99,7 +108,7 @@ func (k keybits4) ToAddr() netip.Addr {
 	return netip.AddrFrom4(a4)
 }
 
-// keybits6 is for IPv6 keys.
+// keybits6 is a 64-bit keybits (for IPv6 keys).
 type keybits6 = uint128
 
 func (k keybits6) IsZero() bool {
@@ -155,7 +164,7 @@ func (k keybits6) String() string {
 	return content
 }
 
-func (k keybits6) U128() uint128 {
+func (k keybits6) Uint128() uint128 {
 	return k
 }
 

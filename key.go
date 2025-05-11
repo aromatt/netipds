@@ -6,7 +6,7 @@ import (
 )
 
 // key stores the string of bits which represent the full path to a node in a
-// prefix tree. The key is stored, big-endian, in the content field.
+// binary radix tree. The key is stored, big-endian, in the content field.
 //
 // offset stores the starting position of the key segment owned by the node.
 //
@@ -37,7 +37,7 @@ func (k key[B]) String() string {
 	return fmt.Sprintf("%s,%d-%d", k.content.Justify(k.offset, k.len), k.offset, k.len)
 }
 
-// Equal reports whether k and o have the same content and len.
+// EqualFromRoot reports whether k and o have the same content and len.
 func (k key[B]) EqualFromRoot(o key[B]) bool {
 	return k.len == o.len && k.content == o.content
 }
@@ -58,7 +58,7 @@ func (k key[B]) Rest(i uint8) key[B] {
 	return newKey(k.content, i, k.len)
 }
 
-// IsZero reports whether k.len == 0.
+// IsZero reports whether k is effectively a zero key (k.len == 0).
 func (k key[B]) IsZero() bool {
 	return k.len == 0
 }
