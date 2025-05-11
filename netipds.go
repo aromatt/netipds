@@ -66,6 +66,9 @@ func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 // PrefixMap returns an immutable PrefixMap representing the current state of m.
 //
 // The builder remains usable after calling PrefixMap.
+//
+// Values are copied to the PrefixMap using assignment, so use caution if you
+// are storing pointers.
 func (m *PrefixMapBuilder[T]) PrefixMap() *PrefixMap[T] {
 	t4 := m.tree4.copy()
 	t6 := m.tree6.copy()

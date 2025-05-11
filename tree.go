@@ -555,7 +555,7 @@ func (t *tree[T, B]) descendantsOf(k key[B]) (ret *tree[T, B]) {
 
 // ancestorsOf returns the sub-tree containing all ancestors of the provided
 // key. The key itself will be included if it has an entry in the tree.
-// ancestorsOf returns an empty tree if key has no ancestors in the tree.
+// ancestorsOf returns an empty tree if k has no ancestors in the tree.
 func (t *tree[T, B]) ancestorsOf(k key[B]) (ret *tree[T, B]) {
 	ret = &tree[T, B]{}
 	t.walk(k, func(n *tree[T, B]) bool {
