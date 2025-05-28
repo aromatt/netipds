@@ -33,12 +33,33 @@ func TestKey4FromPrefix(t *testing.T) {
 
 func TestKey4ToPrefix(t *testing.T) {
 	tests := []struct {
+		k    key[keybits4]
+		want netip.Prefix
+	}{
+		{k4(uint32(0x01020300), 0, 24), pfx("1.2.3.0/24")},
+		{k4(uint32(0x01020304), 0, 32), pfx("1.2.3.4/32")},
+		{k4(uint32(0), 0, 32), pfx("0.0.0.0/32")},
+		{k4(uint32(0x80000000), 0, 1), pfx("128.0.0.0/1")},
+
+		// zero key => invalid prefix
+		{k4(uint32(0), 0, 0), netip.Prefix{}},
+	}
+	for _, tt := range tests {
+		if got := tt.k.ToPrefix(); got != tt.want {
+			t.Errorf("%v.ToPrefix() = %v, want %v", tt.k, got, tt.want)
+		}
+	}
+}
+
+func TestKey4RoundTrip(t *testing.T) {
+	tests := []struct {
 		p netip.Prefix
 	}{
 		{pfx("0.0.0.0/32")},
 		{pfx("1.2.3.0/24")},
 		{pfx("1.2.3.4/32")},
 		{pfx("128.0.0.0/1")},
+		{pfx("0.0.0.0/0")},
 	}
 	for _, tt := range tests {
 		if got := key4FromPrefix(tt.p).ToPrefix(); got != tt.p {
@@ -66,11 +87,31 @@ func TestKey6FromPrefix(t *testing.T) {
 
 func TestKey6ToPrefix(t *testing.T) {
 	tests := []struct {
+		k    key[keybits6]
+		want netip.Prefix
+	}{
+		{k6(uint128{0, 1}, 0, 128), pfx("::1/128")},
+		{k6(uint128{0, 2}, 0, 127), pfx("::2/127")},
+		{k6(uint128{1 << 63, 0}, 0, 1), pfx("8000::/1")},
+
+		// zero key => invalid prefix
+		{k6(uint128{}, 0, 0), netip.Prefix{}},
+	}
+	for _, tt := range tests {
+		if got := tt.k.ToPrefix(); got != tt.want {
+			t.Errorf("%v.ToPrefix() = %v, want %v", tt.k, got, tt.want)
+		}
+	}
+}
+
+func TestKey6RoundTrip(t *testing.T) {
+	tests := []struct {
 		p netip.Prefix
 	}{
 		{pfx("::0/128")},
 		{pfx("::1/128")},
 		{pfx("::2/127")},
+		{pfx("::0/0")},
 	}
 	for _, tt := range tests {
 		if got := key6FromPrefix(tt.p).ToPrefix(); got != tt.p {
