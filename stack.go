@@ -1,9 +1,15 @@
 package netipds
 
+// The tree can have a depth of 129 because we support storing a node with
+// length 0, e.g., 0.0.0.0/0. If this prefix is in the tree, then it and its
+// children will both have offset 0. This is the only node that may have the
+// same offset as its children. TODO but this probably breaks traversal somewhere!
+const stackMaxDepth = 129
+
 // stack is used for depth-first traversals without recursion or heap
 // allocation.
 type stack[T any] struct {
-	data [128]T
+	data [stackMaxDepth]T
 	// top starts at 0, so it is the index of the next available slot.
 	top int
 }

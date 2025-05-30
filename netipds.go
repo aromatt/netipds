@@ -216,6 +216,16 @@ func (m *PrefixMap[T]) Size() int {
 	return m.size4 + m.size6
 }
 
+// assignOrEmpty assigns the result of a tree operation to the target tree,
+// or sets it to an empty tree if the result is nil.
+func assignOrEmpty[T any, B keybits[B]](target *tree[T, B], result *tree[T, B]) {
+	if result != nil {
+		*target = *result
+	} else {
+		*target = tree[T, B]{}
+	}
+}
+
 // PrefixSetBuilder builds an immutable [PrefixSet].
 //
 // The zero value is a valid PrefixSetBuilder representing a builder with zero
@@ -282,9 +292,9 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.subtractKey(key4FromPrefix(p.Masked()))
+		assignOrEmpty(&s.tree4, s.tree4.subtractKey(key4FromPrefix(p.Masked())))
 	} else {
-		s.tree6.subtractKey(key6FromPrefix(p.Masked()))
+		assignOrEmpty(&s.tree6, s.tree6.subtractKey(key6FromPrefix(p.Masked())))
 	}
 	return nil
 }
@@ -297,8 +307,8 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 // For example, if s is {::0/126}, and we subtract ::0/128, then s will become
 // {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
-	s.tree4 = *s.tree4.subtractTree(&o.tree4)
-	s.tree6 = *s.tree6.subtractTree(&o.tree6)
+	assignOrEmpty(&s.tree4, s.tree4.subtractTree(&o.tree4))
+	assignOrEmpty(&s.tree6, s.tree6.subtractTree(&o.tree6))
 }
 
 // Intersect modifies s so that it contains the intersection of the entries

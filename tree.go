@@ -167,7 +167,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	if t.isEmpty() {
 		return t
 	}
-	// This tree is a child of what's being subtracted; no need to traverse further
+	// t is equal to, or a child of, the subtracted key; all of t will be removed
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
 		return nil
 	}
@@ -200,19 +200,22 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 		return t
 	}
 	if o.hasEntry {
-		// This tree is a child of what's being subtracted; no need to traverse further
+		// We're subtracting a parent of t, so all of t will be removed
 		if o.key.IsPrefixOf(t.key) {
 			return nil
 		}
-		// A descendant of t is being subtracted
+		// We're subtracting a descendant of t
 		if t.key.IsPrefixOf(o.key) {
-			t.insertHole(o.key, t.value)
+			return t.insertHole(o.key, t.value)
 		}
 	}
 	// Consider the children of both t and o
 	for _, bit := range [2]bit{bitL, bitR} {
 		tChild, oChild := t.child(bit), o.child(bit)
+		// If oChild == nil, then nothing will happen in that branch of the tree
 		if *oChild != nil {
+			// If t doesn't have a counterpart to oChild, then fall back to
+			// subtracting oChild from t itself.
 			if *tChild == nil {
 				tChild = &t
 			}
@@ -223,7 +226,7 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 }
 
 func (t *tree[T, B]) isEmpty() bool {
-	return t.key.IsZero() && t.left == nil && t.right == nil
+	return t.key.IsZero() && !t.hasEntry && t.left == nil && t.right == nil
 }
 
 // newParent returns a new node with key k whose sole child is t.
@@ -435,10 +438,8 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 	// Follow provided path directly until it's exhausted
 	n := t
 	for n != nil && n.key.len < path.len {
-		if !n.key.IsZero() {
-			if fn(n) {
-				return
-			}
+		if fn(n) {
+			return
 		}
 		n = *(n.child(path.Bit(n.key.CommonPrefixLen(path))))
 	}
@@ -456,10 +457,8 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 		if n = st.Pop(); n == nil {
 			continue
 		}
-		if !n.key.IsZero() {
-			stop = fn(n)
-		}
-		if n.key.len < 128 && !stop {
+		stop = fn(n)
+		if n.key.len < stackMaxDepth && !stop {
 			st.Push(n.right)
 			st.Push(n.left)
 		}
@@ -478,7 +477,7 @@ func (t *tree[T, B]) pathNext(path uint128) *tree[T, B] {
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
@@ -492,7 +491,7 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -504,7 +503,7 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses or is equal to the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
@@ -515,7 +514,7 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ok = n.hasEntry && n.key.IsPrefixOf(k); ok {
 			return n.key, n.value, ok
 		}
@@ -526,7 +525,7 @@ func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) parentOf(k key[B]) (outKey key[B], val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if n.hasEntry && n.key.IsPrefixOf(k) {
 			outKey, val, ok = n.key, n.value, true
 		}

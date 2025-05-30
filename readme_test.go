@@ -1,7 +1,6 @@
 package netipds
 
 import (
-	"fmt"
 	"net/netip"
 	"testing"
 )
@@ -50,7 +49,7 @@ func TestReadmeExampleLiteral(t *testing.T) {
 	/*** README snippet ends here ***/
 
 	// Appease the compiler
-	fmt.Println(val, ok, p, m)
+	_, _, _, _ = val, ok, p, m
 }
 
 // This is the code from the README example reimagined as an actual test case
