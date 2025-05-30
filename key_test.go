@@ -41,8 +41,8 @@ func TestKey4ToPrefix(t *testing.T) {
 		{k4(uint32(0), 0, 32), pfx("0.0.0.0/32")},
 		{k4(uint32(0x80000000), 0, 1), pfx("128.0.0.0/1")},
 
-		// zero key => invalid prefix
-		{k4(uint32(0), 0, 0), netip.Prefix{}},
+		// zero key => default route
+		{k4(uint32(0), 0, 0), pfx("0.0.0.0/0")},
 	}
 	for _, tt := range tests {
 		if got := tt.k.ToPrefix(); got != tt.want {
@@ -94,8 +94,8 @@ func TestKey6ToPrefix(t *testing.T) {
 		{k6(uint128{0, 2}, 0, 127), pfx("::2/127")},
 		{k6(uint128{1 << 63, 0}, 0, 1), pfx("8000::/1")},
 
-		// zero key => invalid prefix
-		{k6(uint128{}, 0, 0), netip.Prefix{}},
+		// zero key => default route
+		{k6(uint128{}, 0, 0), pfx("::/0")},
 	}
 	for _, tt := range tests {
 		if got := tt.k.ToPrefix(); got != tt.want {

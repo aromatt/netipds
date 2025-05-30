@@ -93,9 +93,6 @@ func (k key[B]) Rooted() key[B] {
 
 // ToPrefix returns the netip.Prefix that represents k.
 func (k key[B]) ToPrefix() netip.Prefix {
-	if k.IsZero() {
-		return netip.Prefix{}
-	}
 	return netip.PrefixFrom(k.content.ToAddr(), int(k.len))
 }
 

@@ -69,8 +69,9 @@ func TestPrefixMapGet(t *testing.T) {
 		{pfxs("::0/128", "::0/127"), pfx("::0/127"), true},
 		{pfxs("::0/128", "::0/127", "::1/128"), pfx("::0/127"), true},
 
-		// TODO: should we allow ::/0 to be used as a key?
-		{pfxs("::/0"), pfx("::/0"), false},
+		// default routes
+		{pfxs("::/0"), pfx("::/0"), true},
+		{pfxs("0.0.0.0/0"), pfx("0.0.0.0/0"), true},
 
 		// IPv4
 		{pfxs("1.2.3.0/24"), pfx("1.2.3.0/24"), true},
@@ -742,6 +743,14 @@ func TestOverlapsPrefix(t *testing.T) {
 		{pfxs("0.0.0.0/32"), pfx("0.0.0.0/31"), true},
 		{pfxs("0.0.0.0/31"), pfx("0.0.0.1/32"), true},
 		{pfxs("0.0.0.0/32", "0.0.0.1/32"), pfx("0.0.0.2/32"), false},
+
+		// Default routes overlap with themselves
+		{pfxs("::0/0"), pfx("::0/0"), true},
+		{pfxs("0.0.0.0/0"), pfx("0.0.0.0/0"), true},
+
+		// Default routes overlap with everything
+		{pfxs("::0/0"), pfx("1234::5678/128"), true},
+		{pfxs("0.0.0.0/0"), pfx("1.2.3.4/32"), true},
 	}
 	for _, tt := range tests {
 		pmb := &PrefixMapBuilder[bool]{}
