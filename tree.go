@@ -128,13 +128,11 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 	switch {
 	// Removing t itself
 	case k.EqualFromRoot(t.key):
-		if t.hasEntry {
-			t.clearValue()
-		}
+		t.clearValue()
 		switch {
 		// No children (deleting a leaf node)
 		case t.left == nil && t.right == nil:
-			return nil
+			return t.nilOrEmptyRoot()
 		// Only one child; merge with it
 		case t.left == nil:
 			t.right.key.offset = t.key.offset
@@ -148,8 +146,7 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 		}
 	// Removing a descendant of t; recurse into the appropriate child
 	case t.key.IsPrefixOf(k):
-		child := t.child(k.Bit(t.key.len))
-		if *child != nil {
+		if child := t.child(k.Bit(t.key.len)); *child != nil {
 			*child = (*child).remove(k)
 		}
 		return t
@@ -169,7 +166,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	}
 	// t is equal to, or a child of, the subtracted key; all of t will be removed
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
-		return nil
+		return t.nilOrEmptyRoot()
 	}
 	// A child of t is being subtracted
 	if t.key.IsPrefixOf(k) {
@@ -180,7 +177,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 			t.insertHole(k, t.value)
 		}
 		if t.right == nil && t.left == nil && !t.hasEntry {
-			return nil
+			return t.nilOrEmptyRoot()
 		}
 	}
 	return t
@@ -202,7 +199,7 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	if o.hasEntry {
 		// We're subtracting a parent of t, so all of t will be removed
 		if o.key.IsPrefixOf(t.key) {
-			return nil
+			return t.nilOrEmptyRoot()
 		}
 		// We're subtracting a descendant of t
 		if t.key.IsPrefixOf(o.key) {
@@ -409,7 +406,7 @@ func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 	switch {
 	// Removing t itself (no descendants will receive v)
 	case t.key.EqualFromRoot(k):
-		return nil
+		return t.nilOrEmptyRoot()
 	// k is a descendant of t; start digging a hole to k
 	case t.key.IsPrefixOf(k):
 		t.clearValue()
@@ -620,4 +617,13 @@ func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 		return false
 	})
 	return ret
+}
+
+// nilOrEmptyRoot returns nil unless t is the root node, in which case it
+// returns a new empty root node.
+func (t *tree[T, B]) nilOrEmptyRoot() *tree[T, B] {
+	if t.key.IsZero() {
+		return &tree[T, B]{}
+	}
+	return nil
 }
