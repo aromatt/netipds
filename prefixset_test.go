@@ -542,9 +542,10 @@ func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
 	tests := []struct {
 		name   string
 		prefix netip.Prefix
+		after  []netip.Prefix
 	}{
-		{"IPv4 default", netip.MustParsePrefix("0.0.0.0/0")},
-		{"IPv6 default", netip.MustParsePrefix("::0/0")},
+		{"IPv4 default", pfx("0.0.0.0/0"), pfxs("0.0.0.0/32", "0.0.0.1/32")},
+		{"IPv6 default", pfx("::0/0"), pfxs("::0/128", "::1/128")},
 	}
 
 	for _, tt := range tests {
@@ -575,6 +576,21 @@ func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
 			}
 			if len(ps.Prefixes()) != 0 {
 				t.Errorf("Prefixes() should return empty slice, got %v", ps.Prefixes())
+			}
+
+			// Add prefixes to empty set and verify
+			// (This tests the use of a PrefixSetBuilder after removing the default route)
+			for _, p := range tt.after {
+				tErr(psb.Add(p), t)
+			}
+			ps = psb.PrefixSet()
+			if len(ps.Prefixes()) != len(tt.after) {
+				t.Errorf("after adding prefixes, got %d prefixes, want %d", len(ps.Prefixes()), len(tt.after))
+			}
+			for _, p := range tt.after {
+				if !ps.Contains(p) {
+					t.Errorf("after adding, set should contain %v", p)
+				}
 			}
 		})
 	}

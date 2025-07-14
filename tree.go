@@ -1,6 +1,11 @@
 package netipds
 
 // tree is a binary radix tree.
+//
+// A valid tree has a non-nil root node having key.length == 0.
+//
+// The root node may have an entry (this enables natural support for 0.0.0.0/0
+// and ::0/0).
 type tree[T any, B keybits[B]] struct {
 	key      key[B]
 	hasEntry bool
@@ -133,6 +138,11 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 		// No children (deleting a leaf node)
 		case t.left == nil && t.right == nil:
 			return t.nilOrEmptyRoot()
+		// Root node: we must not replace the root node of the tree with a
+		// non-zero-key node. If we did, then [tree.nilOrEmptyRoot] would not
+		// be an effective guard against return nil to users.
+		case t.isRoot():
+			return t
 		// Only one child; merge with it
 		case t.left == nil:
 			t.right.key.offset = t.key.offset
@@ -222,8 +232,10 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	return t
 }
 
+// isEmpty returns true if t is a completely empty tree (no entry and no
+// children)
 func (t *tree[T, B]) isEmpty() bool {
-	return t.key.IsZero() && !t.hasEntry && t.left == nil && t.right == nil
+	return !t.hasEntry && t.left == nil && t.right == nil
 }
 
 // newParent returns a new node with key k whose sole child is t.
@@ -620,10 +632,24 @@ func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 	return ret
 }
 
+// isRoot returns true iff t is a root node.
+func (t *tree[T, B]) isRoot() bool {
+	return t.key.IsZero()
+}
+
 // nilOrEmptyRoot returns nil unless t is the root node, in which case it
-// returns a new empty root node.
+// returns a new empty root node. This is useful in recursive functions that
+// would otherwise return nil to remove a node: it ensures users of tree never
+// receive a nil.
+//
+// This relies on an invariant: tree's root node must always have a zero-length
+// key. Otherwise, nilOrEmptyRoot will fail to identify it as the root node,
+// and could return nil to a user.
+//
+// Note: this method should be the only method of tree containing the statement
+// `return nil`.
 func (t *tree[T, B]) nilOrEmptyRoot() *tree[T, B] {
-	if t.key.IsZero() {
+	if t.isRoot() {
 		return &tree[T, B]{}
 	}
 	return nil

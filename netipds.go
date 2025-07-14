@@ -291,9 +291,9 @@ func (s *PrefixSetBuilder) Remove(p netip.Prefix) error {
 		return fmt.Errorf("prefix is not valid: %v", p)
 	}
 	if p.Addr().Is4() {
-		s.tree4.remove(key4FromPrefix(p.Masked()))
+		s.tree4 = *s.tree4.remove(key4FromPrefix(p.Masked()))
 	} else {
-		s.tree6.remove(key6FromPrefix(p.Masked()))
+		s.tree6 = *s.tree6.remove(key6FromPrefix(p.Masked()))
 	}
 	return nil
 }
