@@ -1,9 +1,13 @@
 package netipds
 
-// The tree can have a depth of 129 because we support storing a node with
-// length 0, e.g., 0.0.0.0/0. If this prefix is in the tree, then it and its
-// children will both have offset 0. This is the only node that may have the
-// same offset as its children. TODO but this probably breaks traversal somewhere!
+// The max depth *would* be 128 to match the maximum length of a key in our
+// tree, but it is 129 because there is always a root node with a length of
+// zero.
+//
+// The root node may contain an entry: we use it to support the special
+// prefixes 0.0.0.0/0 and ::/0. Since the root node has a length of zero, it
+// does not own any of the available 128 bits, therefore the tree can have a
+// depth of 129.
 const stackMaxDepth = 129
 
 // stack is used for depth-first traversals without recursion or heap
