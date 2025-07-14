@@ -31,8 +31,11 @@ func (k key[B]) Bit(i uint8) bit {
 }
 
 // String prints the portion of k.content from offset to len, as hex,
-// followed by ",<len>-<offset>". The least significant bit in the output is
-// the bit at position (h.len - 1). Leading zeros are omitted.
+// followed by ",<offset>-<len>". The least significant bit in the output is
+// the bit at position (k.len - 1). Leading zeros are omitted.
+//
+// This format is intended to be helpful for debugging without using characters
+// that already have meaning in IP/CIDR notation.
 func (k key[B]) String() string {
 	return fmt.Sprintf("%s,%d-%d", k.content.Justify(k.offset, k.len), k.offset, k.len)
 }
@@ -93,9 +96,6 @@ func (k key[B]) Rooted() key[B] {
 
 // ToPrefix returns the netip.Prefix that represents k.
 func (k key[B]) ToPrefix() netip.Prefix {
-	if k.IsZero() {
-		return netip.Prefix{}
-	}
 	return netip.PrefixFrom(k.content.ToAddr(), int(k.len))
 }
 

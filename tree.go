@@ -1,6 +1,11 @@
 package netipds
 
 // tree is a binary radix tree.
+//
+// A valid tree has a non-nil root node having key.length == 0.
+//
+// The root node may have an entry (this enables natural support for 0.0.0.0/0
+// and ::0/0).
 type tree[T any, B keybits[B]] struct {
 	key      key[B]
 	hasEntry bool
@@ -128,13 +133,16 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 	switch {
 	// Removing t itself
 	case k.EqualFromRoot(t.key):
-		if t.hasEntry {
-			t.clearValue()
-		}
+		t.clearValue()
 		switch {
 		// No children (deleting a leaf node)
 		case t.left == nil && t.right == nil:
-			return nil
+			return t.nilOrEmptyRoot()
+		// Root node: we must not replace the root node of the tree with a
+		// non-zero-key node. If we did, then [tree.nilOrEmptyRoot] would not
+		// be an effective guard against return nil to users.
+		case t.isRoot():
+			return t
 		// Only one child; merge with it
 		case t.left == nil:
 			t.right.key.offset = t.key.offset
@@ -148,8 +156,7 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 		}
 	// Removing a descendant of t; recurse into the appropriate child
 	case t.key.IsPrefixOf(k):
-		child := t.child(k.Bit(t.key.len))
-		if *child != nil {
+		if child := t.child(k.Bit(t.key.len)); *child != nil {
 			*child = (*child).remove(k)
 		}
 		return t
@@ -167,11 +174,11 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	if t.isEmpty() {
 		return t
 	}
-	// This tree is a child of what's being subtracted; no need to traverse further
+	// t is equal to, or a child of, the subtracted key; all of t will be removed
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
-		return nil
+		return t.nilOrEmptyRoot()
 	}
-	// A child of t is being subtracted
+	// A descendant of t is being subtracted
 	if t.key.IsPrefixOf(k) {
 		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
@@ -180,7 +187,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 			t.insertHole(k, t.value)
 		}
 		if t.right == nil && t.left == nil && !t.hasEntry {
-			return nil
+			return t.nilOrEmptyRoot()
 		}
 	}
 	return t
@@ -200,19 +207,22 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 		return t
 	}
 	if o.hasEntry {
-		// This tree is a child of what's being subtracted; no need to traverse further
+		// We're subtracting a parent of t, so all of t will be removed
 		if o.key.IsPrefixOf(t.key) {
-			return nil
+			return t.nilOrEmptyRoot()
 		}
-		// A descendant of t is being subtracted
+		// We're subtracting a descendant of t
 		if t.key.IsPrefixOf(o.key) {
-			t.insertHole(o.key, t.value)
+			return t.insertHole(o.key, t.value)
 		}
 	}
 	// Consider the children of both t and o
 	for _, bit := range [2]bit{bitL, bitR} {
 		tChild, oChild := t.child(bit), o.child(bit)
+		// If oChild == nil, then nothing will happen in that branch of the tree
 		if *oChild != nil {
+			// If t doesn't have a counterpart to oChild, then fall back to
+			// subtracting oChild from t itself.
 			if *tChild == nil {
 				tChild = &t
 			}
@@ -222,8 +232,10 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	return t
 }
 
+// isEmpty returns true if t is a completely empty tree (no entry and no
+// children)
 func (t *tree[T, B]) isEmpty() bool {
-	return t.key.IsZero() && t.left == nil && t.right == nil
+	return !t.hasEntry && t.left == nil && t.right == nil
 }
 
 // newParent returns a new node with key k whose sole child is t.
@@ -403,12 +415,13 @@ func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
 
 // insertHole removes k and sets t, and all of its descendants, to v.
 func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
-	switch {
 	// Removing t itself (no descendants will receive v)
-	case t.key.EqualFromRoot(k):
-		return nil
+	if t.key.EqualFromRoot(k) {
+		return t.nilOrEmptyRoot()
+	}
+
 	// k is a descendant of t; start digging a hole to k
-	case t.key.IsPrefixOf(k):
+	if t.key.IsPrefixOf(k) {
 		t.clearValue()
 		// Create a new sibling to receive v if needed, then continue traversing
 		bit := k.Bit(t.key.len)
@@ -417,11 +430,11 @@ func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
 		}
 		*child = newTree[T](t.key.Next(bit)).insertHole(k, v)
-		return t
-	// Nothing to do
-	default:
-		return t
 	}
+
+	// Otherwise, nothing to do
+
+	return t
 }
 
 // walk traverses the tree starting at this tree's root, following the
@@ -435,10 +448,8 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 	// Follow provided path directly until it's exhausted
 	n := t
 	for n != nil && n.key.len < path.len {
-		if !n.key.IsZero() {
-			if fn(n) {
-				return
-			}
+		if fn(n) {
+			return
 		}
 		n = *(n.child(path.Bit(n.key.CommonPrefixLen(path))))
 	}
@@ -456,10 +467,8 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 		if n = st.Pop(); n == nil {
 			continue
 		}
-		if !n.key.IsZero() {
-			stop = fn(n)
-		}
-		if n.key.len < 128 && !stop {
+		stop = fn(n)
+		if n.key.len < stackMaxDepth && !stop {
 			st.Push(n.right)
 			st.Push(n.left)
 		}
@@ -478,7 +487,7 @@ func (t *tree[T, B]) pathNext(path uint128) *tree[T, B] {
 // get returns the value associated with the exact key provided, if it exists.
 func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if n.key.len >= k.len {
 			if n.key.EqualFromRoot(k) && n.hasEntry {
 				val, ok = n.value, true
@@ -492,7 +501,7 @@ func (t *tree[T, B]) get(k key[B]) (val T, ok bool) {
 // contains returns true if this tree includes the exact key provided.
 func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ret = n.key.EqualFromRoot(k) && n.hasEntry; ret {
 			break
 		}
@@ -504,7 +513,7 @@ func (t *tree[T, B]) contains(k key[B]) (ret bool) {
 // encompasses or is equal to the provided key.
 func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ret = n.hasEntry && n.key.IsPrefixOf(k); ret {
 			break
 		}
@@ -515,7 +524,7 @@ func (t *tree[T, B]) encompasses(k key[B]) (ret bool) {
 // rootOf returns the shortest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if ok = n.hasEntry && n.key.IsPrefixOf(k); ok {
 			return n.key, n.value, ok
 		}
@@ -526,7 +535,7 @@ func (t *tree[T, B]) rootOf(k key[B]) (outKey key[B], val T, ok bool) {
 // parentOf returns the longest-prefix ancestor of the key provided, if any.
 func (t *tree[T, B]) parentOf(k key[B]) (outKey key[B], val T, ok bool) {
 	u128 := k.content.Uint128()
-	for n := t.pathNext(u128); n != nil; n = n.pathNext(u128) {
+	for n := t; n != nil; n = n.pathNext(u128) {
 		if n.hasEntry && n.key.IsPrefixOf(k) {
 			outKey, val, ok = n.key, n.value, true
 		}
@@ -621,4 +630,27 @@ func (t *tree[T, B]) overlapsKey(k key[B]) bool {
 		return false
 	})
 	return ret
+}
+
+// isRoot returns true iff t is a root node.
+func (t *tree[T, B]) isRoot() bool {
+	return t.key.IsZero()
+}
+
+// nilOrEmptyRoot returns nil unless t is the root node, in which case it
+// returns a new empty root node. This is useful in recursive functions that
+// would otherwise return nil to remove a node: it ensures users of tree never
+// receive a nil.
+//
+// This relies on an invariant: tree's root node must always have a zero-length
+// key. Otherwise, nilOrEmptyRoot will fail to identify it as the root node,
+// and could return nil to a user.
+//
+// Note: this method should be the only method of tree containing the statement
+// `return nil`.
+func (t *tree[T, B]) nilOrEmptyRoot() *tree[T, B] {
+	if t.isRoot() {
+		return &tree[T, B]{}
+	}
+	return nil
 }
