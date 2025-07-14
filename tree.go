@@ -403,12 +403,13 @@ func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
 
 // insertHole removes k and sets t, and all of its descendants, to v.
 func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
-	switch {
 	// Removing t itself (no descendants will receive v)
-	case t.key.EqualFromRoot(k):
+	if t.key.EqualFromRoot(k) {
 		return t.nilOrEmptyRoot()
+	}
+
 	// k is a descendant of t; start digging a hole to k
-	case t.key.IsPrefixOf(k):
+	if t.key.IsPrefixOf(k) {
 		t.clearValue()
 		// Create a new sibling to receive v if needed, then continue traversing
 		bit := k.Bit(t.key.len)
@@ -417,11 +418,11 @@ func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
 		}
 		*child = newTree[T](t.key.Next(bit)).insertHole(k, v)
-		return t
-	// Nothing to do
-	default:
-		return t
 	}
+
+	// Otherwise, nothing to do
+
+	return t
 }
 
 // walk traverses the tree starting at this tree's root, following the
