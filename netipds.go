@@ -334,8 +334,8 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 // affected Prefixes. This may add elements to fill in gaps around the
 // subtracted Prefixes.
 //
-// For example, if s is {::0/126}, and we subtract ::0/128, then s will become
-// {::1/128, ::2/127}.
+// For example, if s is {::0/126}, and we subtract {::0/128}, then s will
+// become {::1/128, ::2/127}.
 func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 	s.tree4 = *s.tree4.subtractTree(&o.tree4)
 	s.tree6 = *s.tree6.subtractTree(&o.tree6)
