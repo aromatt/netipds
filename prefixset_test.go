@@ -671,6 +671,10 @@ func TestPrefixSetIntersect(t *testing.T) {
 		{pfxs("::2/127"), pfxs("::0/126", "::0/128"), pfxs("::2/127")},
 		{pfxs("::2/127", "::3/128"), pfxs("::0/126", "::0/128"), pfxs("::2/127", "::3/128")},
 
+		// Exercise case where t has only left child and o has only right child
+		// (see [tree.intersectTreeImpl])
+		{pfxs("::0/1"), pfxs("8000::/1"), pfxs()},
+
 		// IPv4
 		{pfxs("1.2.3.0/24"), pfxs("1.2.3.4/32"), pfxs("1.2.3.4/32")},
 		{pfxs("1.2.3.0/24"), pfxs("1.2.0.0/32"), pfxs()},
@@ -789,6 +793,7 @@ func TestPrefixSetRemove(t *testing.T) {
 		{pfxs("::0/128"), pfxs(), pfxs("::0/128")},
 		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
 		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+
 		// Remove removes exact prefix, not entire subnet
 		{pfxs("::0/128"), pfxs("::0/127"), pfxs("::0/128")},
 
@@ -798,6 +803,10 @@ func TestPrefixSetRemove(t *testing.T) {
 
 		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
 		{pfxs("1.2.3.4/32"), pfxs("::ffff:1.2.3.4/128"), pfxs("1.2.3.4/32")},
+
+		// Remove a node that has left == nil && right != nil (not covered by
+		// any other test case)
+		{pfxs("8000::/1", "C000::/2"), pfxs("8000::/1"), pfxs("C000::/2")},
 
 		// Default routes
 		{pfxs("::0/0"), pfxs("::0/0"), pfxs()},

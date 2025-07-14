@@ -178,7 +178,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
 		return t.nilOrEmptyRoot()
 	}
-	// A child of t is being subtracted
+	// A descendant of t is being subtracted
 	if t.key.IsPrefixOf(k) {
 		child := t.child(k.Bit(t.key.len))
 		if *child != nil {
