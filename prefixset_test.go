@@ -9,18 +9,15 @@ func TestPrefixSetInvalidPrefix(t *testing.T) {
 	psb := &PrefixSetBuilder{}
 	invalidPrefix := netip.Prefix{}
 
-	err := psb.Add(invalidPrefix)
-	if err == nil {
+	if psb.Add(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
-	err = psb.Remove(invalidPrefix)
-	if err == nil {
+	if psb.Remove(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
-	err = psb.SubtractPrefix(invalidPrefix)
-	if err == nil {
+	if psb.SubtractPrefix(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 

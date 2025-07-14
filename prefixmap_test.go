@@ -49,17 +49,16 @@ func TestPrefixMapInvalidPrefix(t *testing.T) {
 	pmb := &PrefixMapBuilder[bool]{}
 	invalidPrefix := netip.Prefix{}
 
-	err := pmb.Set(invalidPrefix, true)
-	if err == nil {
+	if pmb.Set(invalidPrefix, true) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
-	err = pmb.Remove(invalidPrefix)
-	if err == nil {
+	if pmb.Remove(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
 	pm := pmb.PrefixMap()
+
 	if _, ok := pm.Get(invalidPrefix); ok {
 		t.Errorf("Expected ok == false for invalid prefix")
 	}
