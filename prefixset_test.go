@@ -5,6 +5,60 @@ import (
 	"testing"
 )
 
+func TestPrefixSetInvalidPrefix(t *testing.T) {
+	psb := &PrefixSetBuilder{}
+	invalidPrefix := netip.Prefix{}
+
+	err := psb.Add(invalidPrefix)
+	if err == nil {
+		t.Errorf("Expected err != nil")
+	}
+
+	err = psb.Remove(invalidPrefix)
+	if err == nil {
+		t.Errorf("Expected err != nil")
+	}
+
+	err = psb.SubtractPrefix(invalidPrefix)
+	if err == nil {
+		t.Errorf("Expected err != nil")
+	}
+
+	ps := psb.PrefixSet()
+
+	if ps.Size() != 0 {
+		t.Errorf("Expected ps.Size() to be false")
+	}
+
+	if ps.Contains(invalidPrefix) {
+		t.Errorf("Expected ps.Contains(%s) to be false", invalidPrefix)
+	}
+
+	if ps.Encompasses(invalidPrefix) {
+		t.Errorf("Expected ps.Encompasses(%s) to be false", invalidPrefix)
+	}
+
+	if ps.OverlapsPrefix(invalidPrefix) {
+		t.Errorf("Expected ps.OverlapsPrefix(%s) to be false", invalidPrefix)
+	}
+
+	if _, ok := ps.RootOf(invalidPrefix); ok {
+		t.Errorf("Expected ps.RootOf(%s) to return ok=false", invalidPrefix)
+	}
+
+	if _, ok := ps.ParentOf(invalidPrefix); ok {
+		t.Errorf("Expected ps.ParentOf(%s) to return ok=false", invalidPrefix)
+	}
+
+	if ps.DescendantsOf(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected ps.DescendantsOf(%s) to return empty slice", invalidPrefix)
+	}
+
+	if ps.AncestorsOf(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected ps.AncestorsOf(%s) to return empty slice", invalidPrefix)
+	}
+}
+
 func TestPrefixSetAddContains(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix

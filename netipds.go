@@ -87,7 +87,12 @@ type PrefixMap[T any] struct {
 }
 
 // Get returns the value associated with the exact Prefix provided, if any.
-func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
+//
+// Get returns (zero val, false) if p is invalid.
+func (m *PrefixMap[T]) Get(p netip.Prefix) (val T, ok bool) {
+	if !p.IsValid() {
+		return
+	}
 	if p.Addr().Is4() {
 		return m.tree4.get(key4FromPrefix(p))
 	}
@@ -95,7 +100,12 @@ func (m *PrefixMap[T]) Get(p netip.Prefix) (T, bool) {
 }
 
 // Contains returns true if this map includes the exact Prefix provided.
+//
+// Contains returns false if p is invalid.
 func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return m.tree4.contains(key4FromPrefix(p))
 	}
@@ -104,7 +114,12 @@ func (m *PrefixMap[T]) Contains(p netip.Prefix) bool {
 
 // Encompasses returns true if this map includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
+//
+// Encompasses returns false if p is invalid.
 func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return m.tree4.encompasses(key4FromPrefix(p))
 	}
@@ -112,7 +127,12 @@ func (m *PrefixMap[T]) Encompasses(p netip.Prefix) bool {
 }
 
 // OverlapsPrefix returns true if this map includes a Prefix which overlaps p.
+//
+// OverlapsPrefix returns false if p is invalid.
 func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return m.tree4.overlapsKey(key4FromPrefix(p))
 	}
@@ -121,7 +141,12 @@ func (m *PrefixMap[T]) OverlapsPrefix(p netip.Prefix) bool {
 
 // RootOf returns the shortest-prefix ancestor of p in m, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
+//
+// RootOf returns (netip.Prefix{}, zero val, false) if p is invalid.
 func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool) {
+	if !p.IsValid() {
+		return
+	}
 	if p.Addr().Is4() {
 		var k key[keybits4]
 		k, val, ok = m.tree4.rootOf(key4FromPrefix(p))
@@ -140,7 +165,12 @@ func (m *PrefixMap[T]) RootOf(p netip.Prefix) (root netip.Prefix, val T, ok bool
 
 // ParentOf returns the longest-prefix ancestor of p in m, if any. If p itself
 // has an entry, then p's entry is returned.
+//
+// ParentOf returns (netip.Prefix, zero val, false) if p is invalid.
 func (m *PrefixMap[T]) ParentOf(p netip.Prefix) (parent netip.Prefix, val T, ok bool) {
+	if !p.IsValid() {
+		return
+	}
 	if p.Addr().Is4() {
 		var k key[keybits4]
 		k, val, ok = m.tree4.parentOf(key4FromPrefix(p))
@@ -178,7 +208,12 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 
 // DescendantsOf returns a PrefixMap containing all descendants of p in m,
 // including p itself if it has an entry.
+//
+// DescendantsOf returns an empty PrefixMap if p is invalid.
 func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
+	if !p.IsValid() {
+		return &PrefixMap[T]{}
+	}
 	if p.Addr().Is4() {
 		t := m.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
@@ -189,7 +224,12 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 
 // AncestorsOf returns a PrefixMap containing all ancestors of p in m,
 // including p itself if it has an entry.
+//
+// AncestorsOf returns an empty PrefixMap if p is invalid.
 func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
+	if !p.IsValid() {
+		return &PrefixMap[T]{}
+	}
 	if p.Addr().Is4() {
 		t := m.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixMap[T]{tree4: *t, size4: t.size()}
@@ -341,7 +381,12 @@ type PrefixSet struct {
 }
 
 // Contains returns true if this set includes the exact Prefix provided.
+//
+// Contains returns false if p is invalid.
 func (s *PrefixSet) Contains(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return s.tree4.contains(key4FromPrefix(p))
 	}
@@ -350,7 +395,12 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 
 // Encompasses returns true if this set includes a Prefix which completely
 // encompasses p. The encompassing Prefix may be p itself.
+//
+// Encompasses returns false if p is invalid.
 func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return s.tree4.encompasses(key4FromPrefix(p))
 	}
@@ -358,7 +408,12 @@ func (s *PrefixSet) Encompasses(p netip.Prefix) bool {
 }
 
 // OverlapsPrefix returns true if this set includes a Prefix which overlaps p.
+//
+// OverlapsPrefix returns false if p is invalid.
 func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
+	if !p.IsValid() {
+		return false
+	}
 	if p.Addr().Is4() {
 		return s.tree4.overlapsKey(key4FromPrefix(p))
 	}
@@ -367,7 +422,12 @@ func (s *PrefixSet) OverlapsPrefix(p netip.Prefix) bool {
 
 // RootOf returns the shortest-prefix ancestor of p in s, if any.
 // If p itself has an entry and has no ancestors, then p's entry is returned.
+//
+// RootOf returns (netip.Prefix{}, false) if p is invalid.
 func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
+	if !p.IsValid() {
+		return
+	}
 	if p.Addr().Is4() {
 		var k key[keybits4]
 		k, _, ok = s.tree4.rootOf(key4FromPrefix(p))
@@ -386,7 +446,12 @@ func (s *PrefixSet) RootOf(p netip.Prefix) (root netip.Prefix, ok bool) {
 
 // ParentOf returns the longest-prefix ancestor of p in s, if any. If p itself
 // has an entry, then p's entry is returned.
+//
+// ParentOf returns (netip.Prefix, false) if p is invalid.
 func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
+	if !p.IsValid() {
+		return
+	}
 	if p.Addr().Is4() {
 		var k key[keybits4]
 		k, _, ok = s.tree4.parentOf(key4FromPrefix(p))
@@ -405,7 +470,12 @@ func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 
 // DescendantsOf returns a PrefixSet containing all descendants of p in s,
 // including p itself if it has an entry.
+//
+// DescendantsOf returns an empty PrefixSet if p is invalid.
 func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
+	if !p.IsValid() {
+		return &PrefixSet{}
+	}
 	if p.Addr().Is4() {
 		t := s.tree4.descendantsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}
@@ -416,7 +486,12 @@ func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 
 // AncestorsOf returns a PrefixSet containing all ancestors of p in s,
 // including p itself if it has an entry.
+//
+// AncestorsOf returns an empty PrefixSet if p is invalid.
 func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
+	if !p.IsValid() {
+		return &PrefixSet{}
+	}
 	if p.Addr().Is4() {
 		t := s.tree4.ancestorsOf(key4FromPrefix(p))
 		return &PrefixSet{tree4: *t, size4: t.size()}

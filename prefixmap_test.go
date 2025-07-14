@@ -45,6 +45,58 @@ func tErr(err error, t *testing.T) {
 	}
 }
 
+func TestPrefixMapInvalidPrefix(t *testing.T) {
+	pmb := &PrefixMapBuilder[bool]{}
+	invalidPrefix := netip.Prefix{}
+
+	err := pmb.Set(invalidPrefix, true)
+	if err == nil {
+		t.Errorf("Expected err != nil")
+	}
+
+	err = pmb.Remove(invalidPrefix)
+	if err == nil {
+		t.Errorf("Expected err != nil")
+	}
+
+	pm := pmb.PrefixMap()
+	if _, ok := pm.Get(invalidPrefix); ok {
+		t.Errorf("Expected ok == false for invalid prefix")
+	}
+
+	if pm.Contains(invalidPrefix) {
+		t.Errorf("Expected Contains(invalidPrefix) == false")
+	}
+
+	if pm.Encompasses(invalidPrefix) {
+		t.Errorf("Expected Encompasses(invalidPrefix) == false")
+	}
+
+	if pm.OverlapsPrefix(invalidPrefix) {
+		t.Errorf("Expected OverlapsPrefix(invalidPrefix) == false")
+	}
+
+	if _, _, ok := pm.RootOf(invalidPrefix); ok {
+		t.Errorf("Expected RootOf(invalidPrefix) to return ok == false")
+	}
+
+	if _, _, ok := pm.ParentOf(invalidPrefix); ok {
+		t.Errorf("Expected ParentOf(invalidPrefix) to return ok == false")
+	}
+
+	if pm.DescendantsOf(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected DescendantsOf(invalidPrefix) to return empty map")
+	}
+
+	if pm.AncestorsOf(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected AncestorsOf(invalidPrefix) to return empty map")
+	}
+
+	if pm.ToMap()[invalidPrefix] {
+		t.Errorf("Expected ToMap() to not contain invalid prefix")
+	}
+}
+
 func TestPrefixMapGet(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
