@@ -691,6 +691,47 @@ func TestPrefixSetIntersect(t *testing.T) {
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/1"), pfxs("0.0.0.0/1")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.1/32"), pfxs("0.0.0.1/32")},
+
+		// a:    0b1*, 0b110*
+		// b:    0b11*
+		// want: 0b11*, 0b110*
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("192.0.0.0/2"),
+			want: pfxs("192.0.0.0/2", "192.0.0.0/3"),
+		},
+
+		// a:    0b1*, 0b110*
+		// b:    0b111*
+		// want: 0b111*
+		// (0b110* is not encompassed by b)
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("224.0.0.0/3"),
+			want: pfxs("224.0.0.0/3"),
+		},
+
+		// a:    0b1*, 0b110*
+		// b:    0b1110*
+		// want: 0b1110*
+		// (0b110* is not encompassed by b)
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("224.0.0.0/4"),
+			want: pfxs("224.0.0.0/4"),
+		},
+
+		// Examples from property-based test that failed in old implementation
+		{
+			a:    pfxs("224.0.0.0/3", "224.0.0.0/6"),
+			b:    pfxs("234.0.0.0/28", "206.0.0.0/8"),
+			want: pfxs("234.0.0.0/28"),
+		},
+		{
+			a:    pfxs("224.0.0.0/3", "224.0.0.0/6"),
+			b:    pfxs("206.0.0.0/8", "128.0.0.0/23", "234.0.0.0/28"),
+			want: pfxs("234.0.0.0/28"),
+		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
