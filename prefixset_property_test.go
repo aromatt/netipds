@@ -1,9 +1,12 @@
 package netipds
 
 import (
+	"math/big"
 	"math/rand"
 	"net/netip"
 	"testing"
+
+	"go4.org/netipx"
 )
 
 // randomPrefixes returns n random prefixes of the specified IP version.
@@ -33,6 +36,27 @@ func randomPrefixes(rnd *rand.Rand, n int, ipv6 bool) []netip.Prefix {
 		ps = append(ps, netip.PrefixFrom(addr, plen).Masked())
 	}
 	return ps
+}
+
+// countIPs returns the total number of IP addresses covered by the prefixes
+func countIPs(prefixes []netip.Prefix) *big.Int {
+	total := big.NewInt(0)
+	for _, p := range prefixes {
+		if p.Addr().Is4() {
+			// IPv4: 2^(32-prefixLen) addresses
+			hostBits := 32 - p.Bits()
+			count := big.NewInt(1)
+			count.Lsh(count, uint(hostBits))
+			total.Add(total, count)
+		} else {
+			// IPv6: 2^(128-prefixLen) addresses
+			hostBits := 128 - p.Bits()
+			count := big.NewInt(1)
+			count.Lsh(count, uint(hostBits))
+			total.Add(total, count)
+		}
+	}
+	return total
 }
 
 // TestPrefixSetMergeRandom tests the merger of two large random PrefixSets.
@@ -111,6 +135,200 @@ func TestPrefixSetMergeRandom(t *testing.T) {
 				for merged := range mergedMap {
 					if _, ok := expMap[merged]; !ok {
 						t.Errorf("unexpected prefix in merged: %s", merged)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestPrefixSetSubtractRandom tests the subtraction of two large random PrefixSets.
+func TestPrefixSetSubtractRandom(t *testing.T) {
+	tries := 100
+	size := 1000
+	tests := []struct {
+		name string
+		ipv6 bool
+	}{
+		{"IPv4", false},
+		{"IPv6", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for seed := 0; seed < tries; seed++ {
+				rnd := rand.New(rand.NewSource(int64(seed)))
+				a := randomPrefixes(rnd, size, tt.ipv6)
+				b := randomPrefixes(rnd, size, tt.ipv6)
+
+				// Build random PrefixSets
+				psbA, psbB := &PrefixSetBuilder{}, &PrefixSetBuilder{}
+				for _, p := range a {
+					if err := psbA.Add(p); err != nil {
+						t.Fatalf("Add(a) failed: %v", err)
+					}
+				}
+				for _, p := range b {
+					if err := psbB.Add(p); err != nil {
+						t.Fatalf("Add(b) failed: %v", err)
+					}
+				}
+
+				psA := psbA.PrefixSet()
+				psB := psbB.PrefixSet()
+
+				// Create a fresh builder for the subtraction
+				subtractBuilder := &PrefixSetBuilder{}
+				for _, p := range psA.Prefixes() {
+					if err := subtractBuilder.Add(p); err != nil {
+						t.Fatalf("Add to subtract builder failed: %v", err)
+					}
+				}
+				subtractBuilder.Subtract(psB)
+				subtracted := subtractBuilder.PrefixSet().Prefixes()
+
+				// Build expected set using netipx.IPSet as oracle
+				var oracleBuilder netipx.IPSetBuilder
+				for _, p := range psA.Prefixes() {
+					oracleBuilder.AddPrefix(p)
+				}
+				for _, p := range psB.Prefixes() {
+					oracleBuilder.RemovePrefix(p)
+				}
+				oracleSet, err := oracleBuilder.IPSet()
+				if err != nil {
+					t.Fatalf("Oracle IPSet build failed: %v", err)
+				}
+
+				expected := make(map[string]struct{})
+				for _, p := range oracleSet.Prefixes() {
+					expected[p.String()] = struct{}{}
+				}
+
+				// Convert subtracted result to map for easy comparison
+				subtractedMap := make(map[string]struct{})
+				for _, p := range subtracted {
+					subtractedMap[p.String()] = struct{}{}
+				}
+
+				// Check size of subtracted set
+				if len(subtracted) != len(expected) {
+					t.Errorf("size mismatch - subtracted=%d, expected=%d",
+						len(subtracted), len(expected))
+				}
+
+				// Check every expected prefix is in subtracted
+				for exp := range expected {
+					if _, ok := subtractedMap[exp]; !ok {
+						t.Errorf("missing prefix in subtracted: %s", exp)
+					}
+				}
+
+				// Check no unexpected prefixes in subtracted
+				for sub := range subtractedMap {
+					if _, ok := expected[sub]; !ok {
+						t.Errorf("unexpected prefix in subtracted: %s", sub)
+					}
+				}
+			}
+		})
+	}
+}
+
+func builder(t *testing.T, ps []netip.Prefix) *PrefixSetBuilder {
+	b := &PrefixSetBuilder{}
+	for _, p := range ps {
+		if err := b.Add(p); err != nil {
+			t.Fatalf("buildSet: Add(%v) failed: %v", p, err)
+		}
+	}
+	return b
+}
+
+func buildSet(t *testing.T, ps []netip.Prefix) *PrefixSet {
+	return builder(t, ps).PrefixSet()
+}
+
+func intersect(t *testing.T, a, b []netip.Prefix) *PrefixSet {
+	psA := builder(t, a)
+	psA.Intersect(buildSet(t, b))
+	return psA.PrefixSet()
+}
+
+// assertSamePrefixesSlices fails if the two PrefixSets do not have the same
+// Prefixes() result.
+func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
+	t.Helper()
+	bPrefixes := b.Prefixes()
+	for i, p := range a.Prefixes() {
+		if p != bPrefixes[i] {
+			t.Fatalf("prefix slices differ; " + msg)
+		}
+	}
+}
+
+// TestPrefixSetIntersectRandom tests the intersection of two large random
+// PrefixSets. It validates expected properties of intersection:
+// 1. Intersection should be commutative: A & B = B & A
+// 2. Intersection with empty set should be empty
+// 3. Intersection with self should equal self: A & A = A
+// 4. Size of intersection should not exceed size of either operand
+// 5. Intersection should not contain any prefixes that are not encompassed by both sets
+func TestPrefixSetIntersectRandom(t *testing.T) {
+	tries := 100
+	size := 1000
+	tests := []struct {
+		name string
+		ipv6 bool
+	}{
+		{"IPv4", false},
+		{"IPv6", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for seed := 0; seed < tries; seed++ {
+				rnd := rand.New(rand.NewSource(int64(seed)))
+				a := randomPrefixes(rnd, size, tt.ipv6)
+				b := randomPrefixes(rnd, size, tt.ipv6)
+
+				psA := buildSet(t, a)
+				psB := buildSet(t, b)
+				psAB := intersect(t, a, b)
+				psBA := intersect(t, b, a)
+
+				// Property 1: Intersection should be commutative: A & B = B & A
+				assertSamePrefixes(t, psAB, psBA,
+					"intersection not commutative: A & B != B & A")
+
+				// Property 2: Intersection with empty set should be empty
+				psEmpty := intersect(t, a, []netip.Prefix{})
+				if psEmpty.Size() != 0 {
+					t.Errorf("Intersection with empty set should be empty, got size %d",
+						psEmpty.Size())
+				}
+
+				// Property 3: Intersection with self should equal self
+				assertSamePrefixes(t, intersect(t, a, a), psA,
+					"intersection with self should equal self: A & A != A")
+
+				// Property 4: IP address count of intersection should not
+				// exceed that of either operand
+				countA := countIPs(psA.PrefixesCompact())
+				countB := countIPs(psB.PrefixesCompact())
+				countInter := countIPs(psAB.PrefixesCompact())
+				if countInter.Cmp(countA) > 0 {
+					t.Errorf("Intersection IP count %s exceeds first operand IP count %s",
+						countInter.String(), countA.String())
+				}
+				if countInter.Cmp(countB) > 0 {
+					t.Errorf("Intersection IP count %s exceeds second operand IP count %s",
+						countInter.String(), countB.String())
+				}
+
+				// Property 5: Intersection should not contain any prefixes
+				// that are not encompassed by both sets
+				for _, p := range psAB.PrefixesCompact() {
+					if !psA.Encompasses(p) || !psB.Encompasses(p) {
+						t.Errorf("Prefix %s in intersection not encompassed by both sets", p)
 					}
 				}
 			}
