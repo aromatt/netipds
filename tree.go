@@ -308,115 +308,29 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 	}
 }
 
-func (t *tree[T, B]) intersectTreeImpl(
-	o *tree[T, B],
-	tPathHasEntry, oPathHasEntry bool,
-) *tree[T, B] {
-
-	// If o is an empty tree, then any intersection with it is also empty
-	if o.isEmpty() {
-		return &tree[T, B]{}
-	}
-
-	if t.key.EqualFromRoot(o.key) {
-		// Consider t and o themselves.
-		// If there is no entry in o at t.key or above it, then remove t's
-		// entry.
-		//
-		// TODO should this be t.remove(t.key)? Could we end up with an
-		// unnecessary prefix node?
-		if t.hasEntry && !(o.hasEntry || oPathHasEntry) {
-			t.clearValue()
-			// We need to remember that t had an entry here so that o's
-			// descendants are kept
-			tPathHasEntry = true
-		}
-
-		// Consider the children of t and o
-		for _, bit := range [2]bit{bitL, bitR} {
-			tChild, oChild := t.child(bit), o.child(bit)
-			switch {
-			case *tChild == nil && *oChild != nil && (t.hasEntry || tPathHasEntry):
-				*tChild = (*oChild).copy()
-			case *tChild != nil && *oChild == nil && !(o.hasEntry || oPathHasEntry):
-				*tChild = nil
-			case *tChild != nil && *oChild != nil:
-				*tChild = (*tChild).intersectTreeImpl(
-					*oChild,
-					t.hasEntry || tPathHasEntry,
-					o.hasEntry || oPathHasEntry,
-				)
-			}
-		}
-		return t
-	}
-
-	common := t.key.CommonPrefixLen(o.key)
-	switch {
-	// t.key is a prefix of o.key
-	case common == t.key.len:
-		if t.hasEntry {
-			if !oPathHasEntry {
-				t.clearValue()
-			}
-			t = t.insert(o.key, o.value)
-		}
-
-		// t forks in the middle of o.key. To take the intersection, we
-		// need to traverse t toward o.key and prune the other child of t.
-		//
-		// The bit of o.key just after the common prefix determines which
-		// of t's children to follow and which to remove.
-		// e.g. t=00, o=000 -> follow left, remove right
-		tChildFollow, tChildRemove := t.children(o.key.Bit(common))
-
-		// Traverse t in the direction of o.key.
-		if *tChildFollow != nil {
-			*tChildFollow = (*tChildFollow).intersectTreeImpl(o,
-				t.hasEntry || tPathHasEntry,
-				o.hasEntry || oPathHasEntry,
-			)
-		}
-
-		// Remove the child of t that diverges from o.
-		//
-		// Exception: if o has an ancestor entry, then we don't need to remove
-		// anything under t. TODO: is this check necessary?
-		if !oPathHasEntry {
-			*tChildRemove = nil
-		}
-
-	// o.key is a prefix of t.key
-	case common == o.key.len:
-		// o forks in the middle of t.key. Similar to above.
-		oChildFollow := o.child(t.key.Bit(common))
-
-		// Traverse o in the direction of t.key.
-		//
-		// We don't need to visit t's children here; if there is intersection
-		// under t, it will be handled within the call below by one of the
-		// above cases.
-		if *oChildFollow != nil {
-			t = t.intersectTreeImpl(*oChildFollow,
-				t.hasEntry || tPathHasEntry,
-				o.hasEntry || oPathHasEntry,
-			)
-		}
-	// Neither is a prefix of the other, so the intersection is empty
-	default:
-		t = nil
-	}
-
-	return t
-}
-
-// intersectTree modifies t so that it is the intersection of the entries of t
-// and o: an entry is included iff it (1) is present in both trees or (2) is
-// present in one tree and has a parent entry in the other tree.
-//
-// TODO: same problem as subtractTree; only makes sense for PrefixSets.
+// intersectTree returns the intersection of t and o as a new tree.
+// An entry is included in the result iff it is encompassed by both t and o.
 func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
-	return t.intersectTreeImpl(o, false, false)
+	var path key[B]
+	var result *tree[T, B] = &tree[T, B]{}
+
+	// Include every entry in t that o encompasses
+	t.walk(path, func(n *tree[T, B]) bool {
+		if n.hasEntry && o.encompasses(n.key) {
+			result = result.insert(n.key.Rooted(), n.value)
+		}
+		return false
+	})
+
+	// Include every entry in o that t encompasses
+	o.walk(path, func(n *tree[T, B]) bool {
+		if n.hasEntry && t.encompasses(n.key) {
+			result = result.insert(n.key.Rooted(), n.value)
+		}
+		return false
+	})
+
+	return result
 }
 
 // insertHole removes k and sets t, and all of its descendants, to v.
