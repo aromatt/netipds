@@ -766,6 +766,14 @@ func TestPrefixSetMerge(t *testing.T) {
 		{pfxs("::0/0"), pfxs("::0/1"), pfxs("::0/0", "::0/1")},
 		{pfxs("0.0.0.0/0"), pfxs(), pfxs("0.0.0.0/0")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/1"), pfxs("0.0.0.0/0", "0.0.0.0/1")},
+
+		// Ensure children are preserved in zero-overlap scenario
+		// ("neither is a prefix of the other" case).
+		{
+			pfxs("10.0.0.0/16"),
+			pfxs("20.0.0.0/16", "20.0.1.0/24"), // parent + child
+			pfxs("10.0.0.0/16", "20.0.0.0/16", "20.0.1.0/24"),
+		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
