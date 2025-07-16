@@ -342,8 +342,8 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 }
 
 // Intersect modifies s so that it contains the intersection of the entries
-// in s and o: to be included in the result, a Prefix must either (a) exist in
-// both sets or (b) exist in one set and have an ancestor in the other.
+// in s and o: to be included in the result, a Prefix must by encompassed by
+// both sets.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree4 = *s.tree4.intersectTree(&o.tree4)
 	s.tree6 = *s.tree6.intersectTree(&o.tree6)
