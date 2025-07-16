@@ -299,10 +299,11 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 	// Neither is a prefix of the other
 	default:
 		// Insert a new parent above t, and create a new sibling for t having
-		// o's key and value.
-		return t.newParent(t.key.Truncated(common)).setChild(
-			newTree[T](o.key.Rest(common)).setValueFrom(o),
-		)
+		// o's key and value. We need a full copy of o in order to preserve all
+		// of its children.
+		oCopy := o.copy()
+		oCopy.key = o.key.Rest(common)
+		return t.newParent(t.key.Truncated(common)).setChild(oCopy)
 	}
 }
 
