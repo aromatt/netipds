@@ -221,12 +221,16 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 		tChild, oChild := t.child(bit), o.child(bit)
 		// If oChild == nil, then nothing will happen in that branch of the tree
 		if *oChild != nil {
-			// If t doesn't have a counterpart to oChild, then fall back to
-			// subtracting oChild from t itself.
-			if *tChild == nil {
-				tChild = &t
+			// If t has a counterpart to oChild, then recurse into it...
+			if *tChild != nil {
+				*tChild = (*tChild).subtractTree(*oChild)
+			} else {
+				// ... otherwise, subtract from t itself
+				t = t.subtractTree(*oChild)
+				if t == nil {
+					break
+				}
 			}
-			*tChild = (*tChild).subtractTree(*oChild)
 		}
 	}
 	return t

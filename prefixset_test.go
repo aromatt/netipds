@@ -9,18 +9,15 @@ func TestPrefixSetInvalidPrefix(t *testing.T) {
 	psb := &PrefixSetBuilder{}
 	invalidPrefix := netip.Prefix{}
 
-	err := psb.Add(invalidPrefix)
-	if err == nil {
+	if psb.Add(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
-	err = psb.Remove(invalidPrefix)
-	if err == nil {
+	if psb.Remove(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
-	err = psb.SubtractPrefix(invalidPrefix)
-	if err == nil {
+	if psb.SubtractPrefix(invalidPrefix) == nil {
 		t.Errorf("Expected err != nil")
 	}
 
@@ -465,50 +462,51 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 
 }
 
+var subtractPrefixTests = []struct {
+	set      []netip.Prefix
+	subtract []netip.Prefix
+	want     []netip.Prefix
+}{
+	{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
+	{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
+	{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+	{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
+	{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
+	{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
+	{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
+
+	// Subtract from empty set
+	{pfxs(), pfxs("::0/1"), pfxs()},
+
+	// IPv4
+	{
+		set:      pfxs("1.2.3.0/30"),
+		subtract: pfxs("1.2.3.0/32"),
+		want:     pfxs("1.2.3.1/32", "1.2.3.2/31"),
+	},
+
+	// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+	{
+		set:      pfxs("1.2.3.0/30"),
+		subtract: pfxs("::ffff:1.2.3.0/128"),
+		want:     pfxs("1.2.3.0/30"),
+	},
+
+	// Default routes - themselves
+	{pfxs("::0/0"), pfxs(), pfxs("::0/0")},
+	{pfxs("0.0.0.0/0"), pfxs(), pfxs("0.0.0.0/0")},
+	{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
+	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
+
+	// Default routes - subsets of themselves
+	{pfxs("::0/0"), pfxs("::0/2"), pfxs("4000::0/2", "8000::/1")},
+	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/2"), pfxs("64.0.0.0/2", "128.0.0.0/1")},
+}
+
 func TestPrefixSetSubtractPrefix(t *testing.T) {
-	tests := []struct {
-		set      []netip.Prefix
-		subtract []netip.Prefix
-		want     []netip.Prefix
-	}{
-		{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
-		{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
-		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
-		{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
-		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
-		{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
-		{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
-		{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
-		{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
-
-		// Subtract from empty set
-		{pfxs(), pfxs("::0/1"), pfxs()},
-
-		// IPv4
-		{
-			set:      pfxs("1.2.3.0/30"),
-			subtract: pfxs("1.2.3.0/32"),
-			want:     pfxs("1.2.3.1/32", "1.2.3.2/31"),
-		},
-
-		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
-		{
-			set:      pfxs("1.2.3.0/30"),
-			subtract: pfxs("::ffff:1.2.3.0/128"),
-			want:     pfxs("1.2.3.0/30"),
-		},
-
-		// Default routes - themselves
-		{pfxs("::0/0"), pfxs(), pfxs("::0/0")},
-		{pfxs("0.0.0.0/0"), pfxs(), pfxs("0.0.0.0/0")},
-		{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
-		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
-
-		// Default routes - subsets of themselves
-		{pfxs("::0/0"), pfxs("::0/2"), pfxs("4000::0/2", "8000::/1")},
-		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/2"), pfxs("64.0.0.0/2", "128.0.0.0/1")},
-	}
-	for _, tt := range tests {
+	for _, tt := range subtractPrefixTests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
@@ -596,44 +594,48 @@ func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
 	}
 }
 
+var subtractTests = []struct {
+	set      []netip.Prefix
+	subtract []netip.Prefix
+	want     []netip.Prefix
+}{
+	{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
+	{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
+	{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+	{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
+	{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
+	{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
+	{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
+	{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
+	{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
+	{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
+	{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
+	{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
+	{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
+
+	// This test covers https://github.com/aromatt/netipds/issues/31
+	{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
+
+	// Subtract from empty set
+	{pfxs(), pfxs(), pfxs()},
+	{pfxs(), pfxs("::0/1"), pfxs()},
+
+	// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+	{
+		set:      pfxs("1.2.3.0/30"),
+		subtract: pfxs("::ffff:1.2.3.0/128"),
+		want:     pfxs("1.2.3.0/30"),
+	},
+
+	// Default routes
+	{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
+	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
+}
+
 func TestPrefixSetSubtract(t *testing.T) {
-	tests := []struct {
-		set      []netip.Prefix
-		subtract []netip.Prefix
-		want     []netip.Prefix
-	}{
-		{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
-		{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
-		{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
-		{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
-		{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
-		{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
-		{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
-		{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
-		{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
-		{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
-		{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
-		{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
-		{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
-		{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
-		{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
-
-		// Subtract from empty set
-		{pfxs(), pfxs(), pfxs()},
-		{pfxs(), pfxs("::0/1"), pfxs()},
-
-		// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
-		{
-			set:      pfxs("1.2.3.0/30"),
-			subtract: pfxs("::ffff:1.2.3.0/128"),
-			want:     pfxs("1.2.3.0/30"),
-		},
-
-		// Default routes
-		{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
-		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
-	}
-	for _, tt := range tests {
+	for _, tt := range subtractTests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
