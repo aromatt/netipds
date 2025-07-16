@@ -615,6 +615,9 @@ var subtractTests = []struct {
 	{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
 	{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
 
+	// This test covers https://github.com/aromatt/netipds/issues/31
+	{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
+
 	// Subtract from empty set
 	{pfxs(), pfxs(), pfxs()},
 	{pfxs(), pfxs("::0/1"), pfxs()},
