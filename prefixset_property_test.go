@@ -59,6 +59,50 @@ func countIPs(prefixes []netip.Prefix) *big.Int {
 	return total
 }
 
+func builder(t *testing.T, ps []netip.Prefix) *PrefixSetBuilder {
+	b := &PrefixSetBuilder{}
+	for _, p := range ps {
+		if err := b.Add(p); err != nil {
+			t.Fatalf("buildSet: Add(%v) failed: %v", p, err)
+		}
+	}
+	return b
+}
+
+func buildSet(t *testing.T, ps []netip.Prefix) *PrefixSet {
+	return builder(t, ps).PrefixSet()
+}
+
+func intersect(t *testing.T, a, b []netip.Prefix) *PrefixSet {
+	psA := builder(t, a)
+	psA.Intersect(buildSet(t, b))
+	return psA.PrefixSet()
+}
+
+func merge(t *testing.T, a, b []netip.Prefix) *PrefixSet {
+	psA := builder(t, a)
+	psA.Merge(buildSet(t, b))
+	return psA.PrefixSet()
+}
+
+func subtract(t *testing.T, a, b []netip.Prefix) *PrefixSet {
+	psA := builder(t, a)
+	psA.Subtract(buildSet(t, b))
+	return psA.PrefixSet()
+}
+
+// assertSamePrefixesSlices fails if the two PrefixSets do not have the same
+// Prefixes() result.
+func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
+	t.Helper()
+	bPrefixes := b.Prefixes()
+	for i, p := range a.Prefixes() {
+		if p != bPrefixes[i] {
+			t.Fatalf("prefix slices differ; " + msg)
+		}
+	}
+}
+
 // TestPrefixSetMergeRandom tests the merger of two large random PrefixSets.
 func TestPrefixSetMergeRandom(t *testing.T) {
 	tries := 100
@@ -77,39 +121,20 @@ func TestPrefixSetMergeRandom(t *testing.T) {
 				a := randomPrefixes(rnd, size, tt.ipv6)
 				b := randomPrefixes(rnd, size, tt.ipv6)
 
-				// Build random PrefixSets
-				psbA, psbB := &PrefixSetBuilder{}, &PrefixSetBuilder{}
-				for _, p := range a {
-					if err := psbA.Add(p); err != nil {
-						t.Fatalf("Add(a) failed: %v", err)
-					}
-				}
-				for _, p := range b {
-					if err := psbB.Add(p); err != nil {
-						t.Fatalf("Add(b) failed: %v", err)
-					}
-				}
-
-				psA := psbA.PrefixSet()
-				psB := psbB.PrefixSet()
+				psA := buildSet(t, a)
+				psB := buildSet(t, b)
 
 				// Create a fresh builder for the merge
-				mergeBuilder := &PrefixSetBuilder{}
-				for _, p := range psA.Prefixes() {
-					if err := mergeBuilder.Add(p); err != nil {
-						t.Fatalf("Add to merge builder failed: %v", err)
-					}
-				}
-				mergeBuilder.Merge(psB)
-				merged := mergeBuilder.PrefixSet().Prefixes()
+				psAB := merge(t, a, b)
+				merged := psAB.Prefixes()
 
-				// Build expected set
-				expMap := make(map[string]struct{})
+				// Build expected set as simple union (preserving all individual prefixes)
+				expected := make(map[string]struct{})
 				for _, p := range psA.Prefixes() {
-					expMap[p.String()] = struct{}{}
+					expected[p.String()] = struct{}{}
 				}
 				for _, p := range psB.Prefixes() {
-					expMap[p.String()] = struct{}{}
+					expected[p.String()] = struct{}{}
 				}
 
 				// Convert merged result to map for easy comparison
@@ -119,13 +144,13 @@ func TestPrefixSetMergeRandom(t *testing.T) {
 				}
 
 				// Check size of merged set
-				if len(merged) != len(expMap) {
+				if len(merged) != len(expected) {
 					t.Errorf("size mismatch - merged=%d, expected=%d",
-						len(merged), len(expMap))
+						len(merged), len(expected))
 				}
 
 				// Check every expected prefix is in merged
-				for exp := range expMap {
+				for exp := range expected {
 					if _, ok := mergedMap[exp]; !ok {
 						t.Errorf("missing prefix in merged: %s", exp)
 					}
@@ -133,7 +158,7 @@ func TestPrefixSetMergeRandom(t *testing.T) {
 
 				// Check no unexpected prefixes in merged
 				for merged := range mergedMap {
-					if _, ok := expMap[merged]; !ok {
+					if _, ok := expected[merged]; !ok {
 						t.Errorf("unexpected prefix in merged: %s", merged)
 					}
 				}
@@ -160,47 +185,26 @@ func TestPrefixSetSubtractRandom(t *testing.T) {
 				a := randomPrefixes(rnd, size, tt.ipv6)
 				b := randomPrefixes(rnd, size, tt.ipv6)
 
-				// Build random PrefixSets
-				psbA, psbB := &PrefixSetBuilder{}, &PrefixSetBuilder{}
-				for _, p := range a {
-					if err := psbA.Add(p); err != nil {
-						t.Fatalf("Add(a) failed: %v", err)
-					}
-				}
-				for _, p := range b {
-					if err := psbB.Add(p); err != nil {
-						t.Fatalf("Add(b) failed: %v", err)
-					}
-				}
-
-				psA := psbA.PrefixSet()
-				psB := psbB.PrefixSet()
+				psA := buildSet(t, a)
+				psB := buildSet(t, b)
 
 				// Create a fresh builder for the subtraction
-				subtractBuilder := &PrefixSetBuilder{}
-				for _, p := range psA.Prefixes() {
-					if err := subtractBuilder.Add(p); err != nil {
-						t.Fatalf("Add to subtract builder failed: %v", err)
-					}
-				}
-				subtractBuilder.Subtract(psB)
-				subtracted := subtractBuilder.PrefixSet().Prefixes()
+				subtracted := subtract(t, a, b).Prefixes()
 
 				// Build expected set using netipx.IPSet as oracle
-				var oracleBuilder netipx.IPSetBuilder
+				var ipsb netipx.IPSetBuilder
 				for _, p := range psA.Prefixes() {
-					oracleBuilder.AddPrefix(p)
+					ipsb.AddPrefix(p)
 				}
 				for _, p := range psB.Prefixes() {
-					oracleBuilder.RemovePrefix(p)
+					ipsb.RemovePrefix(p)
 				}
-				oracleSet, err := oracleBuilder.IPSet()
+				ipset, err := ipsb.IPSet()
 				if err != nil {
 					t.Fatalf("Oracle IPSet build failed: %v", err)
 				}
-
 				expected := make(map[string]struct{})
-				for _, p := range oracleSet.Prefixes() {
+				for _, p := range ipset.Prefixes() {
 					expected[p.String()] = struct{}{}
 				}
 
@@ -231,38 +235,6 @@ func TestPrefixSetSubtractRandom(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func builder(t *testing.T, ps []netip.Prefix) *PrefixSetBuilder {
-	b := &PrefixSetBuilder{}
-	for _, p := range ps {
-		if err := b.Add(p); err != nil {
-			t.Fatalf("buildSet: Add(%v) failed: %v", p, err)
-		}
-	}
-	return b
-}
-
-func buildSet(t *testing.T, ps []netip.Prefix) *PrefixSet {
-	return builder(t, ps).PrefixSet()
-}
-
-func intersect(t *testing.T, a, b []netip.Prefix) *PrefixSet {
-	psA := builder(t, a)
-	psA.Intersect(buildSet(t, b))
-	return psA.PrefixSet()
-}
-
-// assertSamePrefixesSlices fails if the two PrefixSets do not have the same
-// Prefixes() result.
-func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
-	t.Helper()
-	bPrefixes := b.Prefixes()
-	for i, p := range a.Prefixes() {
-		if p != bPrefixes[i] {
-			t.Fatalf("prefix slices differ; " + msg)
-		}
 	}
 }
 
