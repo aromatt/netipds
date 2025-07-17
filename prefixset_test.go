@@ -56,7 +56,7 @@ func TestPrefixSetInvalidPrefix(t *testing.T) {
 	}
 }
 
-func TestPrefixSetAddContains(t *testing.T) {
+func TestPrefixSetContains(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -505,7 +505,7 @@ var subtractPrefixTests = []struct {
 	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/2"), pfxs("64.0.0.0/2", "128.0.0.0/1")},
 }
 
-func TestPrefixSetSubtractPrefix(t *testing.T) {
+func TestPrefixSetBuilderSubtractPrefix(t *testing.T) {
 	for _, tt := range subtractPrefixTests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
@@ -535,7 +535,7 @@ func TestPrefixSet1MPrefixes(t *testing.T) {
 	}
 }
 
-func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
+func TestPrefixSetBuilderRemoveDefaultRoute(t *testing.T) {
 	// Test removing default routes specifically to catch tree structure bugs
 	tests := []struct {
 		name   string
@@ -583,7 +583,8 @@ func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
 			}
 			ps = psb.PrefixSet()
 			if len(ps.Prefixes()) != len(tt.after) {
-				t.Errorf("after adding prefixes, got %d prefixes, want %d", len(ps.Prefixes()), len(tt.after))
+				t.Errorf("after adding prefixes, got %d prefixes, want %d",
+					len(ps.Prefixes()), len(tt.after))
 			}
 			for _, p := range tt.after {
 				if !ps.Contains(p) {
@@ -637,7 +638,7 @@ var subtractTests = []struct {
 	{pfxs("128.0.0.0/1"), pfxs("0.0.0.0/2"), pfxs("128.0.0.0/1")},
 }
 
-func TestPrefixSetSubtract(t *testing.T) {
+func TestPrefixSetBuilderSubtract(t *testing.T) {
 	for _, tt := range subtractTests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
@@ -652,7 +653,7 @@ func TestPrefixSetSubtract(t *testing.T) {
 	}
 }
 
-func TestPrefixSetIntersect(t *testing.T) {
+func TestPrefixSetBuilderIntersect(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix
 		b    []netip.Prefix
@@ -760,7 +761,7 @@ func TestPrefixSetIntersect(t *testing.T) {
 	}
 }
 
-func TestPrefixSetMerge(t *testing.T) {
+func TestPrefixSetBuilderMerge(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix
 		b    []netip.Prefix
@@ -842,7 +843,7 @@ func TestPrefixSetMerge(t *testing.T) {
 	}
 }
 
-func TestPrefixSetRemove(t *testing.T) {
+func TestPrefixSetBuilderRemove(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
 		remove []netip.Prefix
@@ -890,7 +891,7 @@ func TestPrefixSetRemove(t *testing.T) {
 	}
 }
 
-func TestPrefixSetFilter(t *testing.T) {
+func TestPrefixSetBuilderFilter(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
 		filter []netip.Prefix
