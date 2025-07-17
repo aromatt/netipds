@@ -312,8 +312,8 @@ func (s *PrefixSetBuilder) Filter(o *PrefixSet) {
 }
 
 // SubtractPrefix modifies s so that p and all of its descendants are removed,
-// leaving behind any remaining portions of affected Prefixes. This may add
-// entries to fill in gaps around the subtracted Prefix.
+// leaving behind any remaining portions of affected Prefixes. This may add new
+// child Prefixes to fill in gaps around the subtracted IP space.
 //
 // For example, if s is {::0/126}, and ::0/128 is subtracted, then s will
 // become {::1/128, ::2/127}.
@@ -329,10 +329,10 @@ func (s *PrefixSetBuilder) SubtractPrefix(p netip.Prefix) error {
 	return nil
 }
 
-// Subtract modifies s so that the Prefixes in o, and all of their
-// descendants, are removed from s, leaving behind any remaining portions of
-// affected Prefixes. This may add entries to fill in gaps around the
-// subtracted Prefixes.
+// Subtract modifies s so that the Prefixes in o, and all of their descendants,
+// are removed from s, leaving behind any remaining portions of affected
+// Prefixes. This may add new child Prefixes to fill in gaps around the
+// subtracted IP space.
 //
 // For example, if s is {::0/126}, and {::0/128} is subtracted, then s will
 // become {::1/128, ::2/127}.
@@ -341,9 +341,9 @@ func (s *PrefixSetBuilder) Subtract(o *PrefixSet) {
 	s.tree6 = *s.tree6.subtractTree(&o.tree6)
 }
 
-// Intersect modifies s so that it contains the intersection of the entries
-// in s and o: to be included in the result, a Prefix must by encompassed by
-// both sets.
+// Intersect modifies s so that it contains the hierarchical intersection of
+// the Prefixes in s and o: to be included in the result, a Prefix must be
+// encompassed by both sets.
 func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree4 = *s.tree4.intersectTree(&o.tree4)
 	s.tree6 = *s.tree6.intersectTree(&o.tree6)

@@ -287,9 +287,6 @@ func (t *tree[T, B]) newParent(k key[B]) *tree[T, B] {
 }
 
 // mergeTree modifies t so that it is the union of the entries of t and o.
-//
-// TODO: same problem as subtractTree; only makes sense for PrefixSets.
-// TODO: lots of duplicated code here
 func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 	// If o is empty, then the union is just t
 	if o.isEmpty() {
