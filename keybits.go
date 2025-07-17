@@ -2,6 +2,7 @@ package netipds
 
 import (
 	"fmt"
+	"math/bits"
 	"net/netip"
 )
 
@@ -77,6 +78,10 @@ func (k keybits4) BitsClearedFrom(bit uint8) keybits4 {
 
 func (k keybits4) Bit(i uint8) bit {
 	return k&(1<<(31-i)) != 0
+}
+
+func u32CommonPrefixLen(a, b uint32) uint8 {
+	return uint8(bits.LeadingZeros32(a ^ b))
 }
 
 func (k keybits4) CommonPrefixLen(o keybits4) uint8 {

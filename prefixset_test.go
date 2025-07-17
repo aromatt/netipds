@@ -632,6 +632,9 @@ var subtractTests = []struct {
 	// Default routes
 	{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
 	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
+
+	// Subtract a non-overlapping prefix
+	{pfxs("128.0.0.0/1"), pfxs("0.0.0.0/2"), pfxs("128.0.0.0/1")},
 }
 
 func TestPrefixSetSubtract(t *testing.T) {
@@ -731,6 +734,11 @@ func TestPrefixSetIntersect(t *testing.T) {
 			a:    pfxs("224.0.0.0/3", "224.0.0.0/6"),
 			b:    pfxs("206.0.0.0/8", "128.0.0.0/23", "234.0.0.0/28"),
 			want: pfxs("234.0.0.0/28"),
+		},
+		{
+			a:    pfxs("0.0.0.0/2", "0.0.0.0/0", "181.168.80.0/20"),
+			b:    pfxs("24.192.0.0/10", "0.0.0.0/1", "177.1.2.6/32"),
+			want: pfxs("0.0.0.0/1", "0.0.0.0/2", "24.192.0.0/10", "177.1.2.6/32"),
 		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
