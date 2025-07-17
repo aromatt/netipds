@@ -196,11 +196,6 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 // subtractTree removes all entries from t that have counterparts in o. If a
 // child of t is removed, then new nodes may be created to fill in the gaps
 // around the removed node.
-//
-// TODO: this method only makes sense in the context of a PrefixSet.
-// "subtracting" a whole key-value entry from another isn't meaningful. So
-// maybe we need two types of trees: value-bearing ones, and others that just
-// have value-less entries.
 func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	// Subtracting from empty tree yields empty tree
 	if t.isEmpty() {
@@ -237,6 +232,44 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 			}
 		}
 	}
+	return t
+}
+
+// insertHole removes k and sets t, and all of its descendants, to v.
+func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
+	// Removing t itself (no descendants will receive v)
+	if t.key.EqualFromRoot(k) {
+		return t.nilOrEmptyRoot()
+	}
+
+	// k is a descendant of t; start digging a hole to k
+	if t.key.IsPrefixOf(k) {
+		t.clearValue()
+		bit := k.Bit(t.key.len)
+		child, sibling := t.children(bit)
+
+		// If there's no child in the direction of k and we're not currently under
+		// an entry, then k is already in a hole
+		if *child == nil && !tPathHasEntry {
+			return t
+		}
+
+		// Create a new sibling to receive v if needed, then continue traversing
+		if *sibling == nil {
+			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
+		}
+
+		// (child could be nil if we were carving a hole out of an entry)
+		if *child == nil {
+			*child = newTree[T](t.key.Next(bit))
+		}
+
+		// Continue digging hole
+		*child = (*child).insertHole(k, v, t.hasEntry || tPathHasEntry)
+	}
+
+	// Otherwise, nothing to do
+
 	return t
 }
 
@@ -334,44 +367,6 @@ func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
 	})
 
 	return result
-}
-
-// insertHole removes k and sets t, and all of its descendants, to v.
-func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
-	// Removing t itself (no descendants will receive v)
-	if t.key.EqualFromRoot(k) {
-		return t.nilOrEmptyRoot()
-	}
-
-	// k is a descendant of t; start digging a hole to k
-	if t.key.IsPrefixOf(k) {
-		t.clearValue()
-		bit := k.Bit(t.key.len)
-		child, sibling := t.children(bit)
-
-		// If there's no child in the direction of k and we're not currently under
-		// an entry, then k is already in a hole
-		if *child == nil && !tPathHasEntry {
-			return t
-		}
-
-		// Create a new sibling to receive v if needed, then continue traversing
-		if *sibling == nil {
-			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
-		}
-
-		// child could be nil if we were carving a hole out of an entry
-		if *child == nil {
-			*child = newTree[T](t.key.Next(bit))
-		}
-
-		// Continue digging hole
-		*child = (*child).insertHole(k, v, t.hasEntry || tPathHasEntry)
-	}
-
-	// Otherwise, nothing to do
-
-	return t
 }
 
 // walk traverses the tree starting at this tree's root, following the
