@@ -58,6 +58,10 @@ func (m *PrefixMapBuilder[T]) Remove(p netip.Prefix) error {
 }
 
 // Filter removes all Prefixes that are not encompassed by s from m.
+//
+// For example, if m contains 1.2.3.4/32 and 1.2.0.0/16, then filtering by a
+// PrefixSet that includes 1.2.3.0/24 would retain 1.2.3.4/32 and remove
+// 1.2.0.0/16.
 func (m *PrefixMapBuilder[T]) Filter(s *PrefixSet) {
 	m.tree4.filter(&s.tree4)
 	m.tree6.filter(&s.tree6)
@@ -349,7 +353,7 @@ func (s *PrefixSetBuilder) Intersect(o *PrefixSet) {
 	s.tree6 = *s.tree6.intersectTree(&o.tree6)
 }
 
-// Merge modifies s so that it contains the union of the entries in s and o.
+// Merge modifies s so that it contains the union of the entries of s and o.
 func (s *PrefixSetBuilder) Merge(o *PrefixSet) {
 	s.tree4 = *s.tree4.mergeTree(&o.tree4)
 	s.tree6 = *s.tree6.mergeTree(&o.tree6)

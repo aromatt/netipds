@@ -10,7 +10,7 @@ import (
 	"pgregory.net/rapid"
 )
 
-const rapidSize = 500
+const rapidSize = 1000
 
 // genIPv4Prefix yields a random IPv4 prefix (normalized to its network address).
 func genIPv4Prefix(t *rapid.T) netip.Prefix {
@@ -103,10 +103,6 @@ func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
 			t.Fatalf("prefix slices differ; " + msg)
 		}
 	}
-}
-
-func assertSameIPs(t *testing.T, a, b *PrefixSet, msg string) {
-	t.Helper()
 }
 
 // testPrefixSetMergeRandom tests the merger of two large random PrefixSets.
