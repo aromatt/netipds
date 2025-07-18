@@ -6,12 +6,12 @@
 This package builds on the
 [netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
 family by adding two immutable, trie-based collection types for IP prefixes (CIDRs):
-* `PrefixMap[T]` - for associating data with IP prefixes and fetching that data
+* `PrefixMap[T]` - for associating data with prefixes and fetching that data
   with network hierarchy awareness
 * `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways
   (unions, intersections, etc)
 
-Both provide a rich set of efficient queries enabled by a binary [radix
+Both provide a rich set of queries enabled by a binary [radix
 tree](https://en.wikipedia.org/wiki/Radix_tree).
 
 ### Goals
@@ -105,13 +105,13 @@ other CIDR trie libraries.
 ### Membership Queries
 Both PrefixMaps and PrefixSets support the following queries:
 
-* [Contains](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Contains) - Collection contains an exact match.
-* [Encompasses](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Encompasses) - Collection contains supernet.
-* [OverlapsPrefix](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.OverlapsPrefix) - Collection overlaps at all.
-* [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Get the longest-prefix match.
-* [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Get the shortest-prefix match.
-* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Get all supernets.
-* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Get all subnets.
+* [Contains](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Contains) - Ask if the collection contains an exact prefix.
+* [Encompasses](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Encompasses) - Ask if the collection contains any supernets of a prefix.
+* [OverlapsPrefix](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.OverlapsPrefix) - Ask if the collection has any overlap with a prefix.
+* [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Get the collection's longest-prefix match of a prefix.
+* [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Get the collection's shortest-prefix match of a prefix.
+* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Get all of a prefix's supernets found in the collection.
+* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Get all of a prefix's subnets found in the collection.
 
 ### Combining Sets and Maps
 During the build stage, `netipds` collections can be combined in the following ways:
@@ -148,8 +148,8 @@ types using a builder pattern, and offers a slightly different set of features.
 
 ### [tailscale/art](https://github.com/tailscale/art)
 
-A precursor to bart, this package is also based on Knuth's ART algorithm. It provides
-good lookup performance and a barebones API.
+An inspiration for bart, this package is also based on Knuth's ART algorithm. It
+provides good lookup performance and a barebones API.
 
 It is not actively maintained; in fact, Tailscale uses bart in some of its
 open-source systems.
@@ -163,25 +163,32 @@ By contrast, `netipds` aims to provide immutable collections with good performan
 and a comprehensive API.
 
 ## Performance
-The benchmarks at [gaissmai/iprbench](https://github.com/gaissmai/iprbench) provide
-insight into `netipds`'s performance compared to several other libraries.
+The benchmark suite at [gaissmai/iprbench](https://github.com/gaissmai/iprbench)
+compares several "IP routing table implementations," including `netipds`.
 
-### Lookup Time
-`netipds` performs longest-prefix-match (LPM) lookups in tens of nanoseconds, on par
-with [tailscale/art](github.com/tailscale/art) and only 2x the LPM-optimized
-[gaissmai/bart](https://github.com/gaissmai/bart).
+As with any benchmark, these results do not necessarily reflect real-world
+performance, but here are some highlights from the iprbench results:
 
-### Memory Usage
-`netipds` uses about 66 bytes per entry, which is two orders of magnitude smaller
-than [tailscale/art](github.com/tailscale/art) and only 18% larger than
-[gaissmai/bart](https://github.com/gaissmai/bart).
+* **Lookup time.** `netipds` performs longest-prefix-match (LPM) lookups in tens of
+  nanoseconds, on par with `art` and only 2x the LPM-optimized `bart`.
 
-### Update Time
-`netipds` uses builders to construct immutable collections, so it is not optimized
-for update time. Still, its builders provide serviceable update time at about 2.5x
-[tailscale/art](github.com/tailscale/art), 7x
-[gaissmai/bart](https://github.com/gaissmai/bart), and still less than some
-libraries.
+* **Memory usage.** `netipds` uses about 66 bytes per entry, which is two orders of
+  magnitude smaller than `art` and only 18% larger than `bart`.
+
+* **Update time.** `netipds` uses builders to construct immutable collections, so it
+  is not optimized for update time. Still, its builders provide serviceable update
+  time at about 2.5x `art`, 7x `bart`, and still better than some libraries.
+
+<details>
+<summary>Benchmark Plots</summary>
+<br>
+
+![LPM vs size](docs/images/benchplot_lpm_vs_size.png)
+
+![Update vs LPM](docs/images/benchplot_update_vs_lpm.png)
+
+![Update vs size](docs/images/benchplot_update_vs_size.png)
+</details>
 
 ## Pre-1.0 Breaking Changes
 The following versions have breaking API changes:
