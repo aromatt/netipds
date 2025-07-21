@@ -135,7 +135,7 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 	if !p.IsValid() {
 		return fmt.Errorf("prefix is not valid: %v", p)
 	}
-    ...
+	...
 ```
 
 This design is intended to be familiar and unopinionated, allowing you to decide how
@@ -168,7 +168,7 @@ error-batching adds unnecessary machinery, is not what all users want, and is ea
 implemented on top of the `netipds` API.
 
 ### 3. Fail fast
-Finally, if you want to build a collection from unvalidated prefixes and let `netipds`
+Finally, if you want to build a collection from unvetted prefixes and let `netipds`
 tell you about the invalid ones, you can do that, too:
 ```go
 for _, p := range prefixes {
