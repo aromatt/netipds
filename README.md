@@ -4,12 +4,12 @@
 [![codecov](https://codecov.io/gh/aromatt/netipds/graph/badge.svg?token=WJ1JHSM05F)](https://codecov.io/gh/aromatt/netipds)
 
 This package builds on the
-[netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
+[netip](https://pkg.go.dev/net/netip) / [netipx](https://pkg.go.dev/go4.org/netipx)
 family by adding two immutable, trie-based collection types for IP prefixes (CIDRs):
-* `PrefixMap[T]` - for associating data with prefixes and fetching that data
-  with network hierarchy awareness
-* `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways
-  (unions, intersections, etc)
+* `PrefixMap[T]` - a map from `netip.Prefix` to `T` with methods for fetching based on
+  network relationships (subnets, supernets, longest-match, etc.)
+* `PrefixSet` - a set of `netip.Prefix` values supporting CIDR-aware set operations
+  (union, intersection, difference)
 
 Both provide a rich set of queries enabled by a binary [radix
 tree](https://en.wikipedia.org/wiki/Radix_tree).
@@ -71,7 +71,7 @@ builder.Set(px("1.2.3.0/24"), "world")
 pm := builder.PrefixMap()
 
 // Fetch an exact entry from the PrefixMap.
-val, ok := pm.Get(px("1.0.0.0/16"))              // => ("hello", true)
+val, ok := pm.Get(px("1.2.0.0/16"))              // => ("hello", true)
 
 // Ask if the PrefixMap contains an exact
 // entry.
@@ -120,6 +120,63 @@ During the build stage, `netipds` collections can be combined in the following w
 * [Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect) - Performs a hierarchical intersection of two sets. The result includes every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.
 * [Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract) - Subtracts one set's IP space from the other, adding new child prefixes if necessary to fill in gaps around subtracted IP space.
 
+## Errors
+Not all values of `netip.Prefix` are valid. In fact, the zero prefix is invalid.
+
+Collection libraries like `netipds` use different patterns for error handling;
+`netipds` uses the following approach:
+
+_If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
+`netipds` returns an error, and the builder remains valid._
+
+For example:
+```go
+func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
+	if !p.IsValid() {
+		return fmt.Errorf("prefix is not valid: %v", p)
+	}
+    ...
+```
+
+This design is intended to be familiar and unopinionated, allowing you to decide how
+to handle bad input. Here are a few reasonable approaches:
+
+### 1. Silently skip invalid prefixes
+This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart).
+
+```go
+for _, p := range prefixes {
+    _ = builder.Add(p)
+}
+```
+Presumably, you have already validated your prefixes before building your collection.
+
+### 2. Batch errors
+This pattern is used by [netipx](https://pkg.go.dev/go4.org/netipx).
+```go
+var errs []error
+for _, p := range prefixes {
+    if err := builder.Add(p); err != nil {
+        errs = append(errs, err)
+    }
+}
+// later...
+return errors.Join(errs...)
+```
+While `netipds` tries to follow the idioms of `netipx` in general, forcing
+error-batching adds unnecessary machinery, is not what all users want, and is easily
+implemented on top of the `netipds` API.
+
+### 3. Fail fast
+Finally, if you want to build a collection from unvalidated prefixes and let `netipds`
+tell you about the invalid ones, you can do that, too:
+```go
+for _, p := range prefixes {
+    if err := builder.Add(p); err != nil {
+        return err
+    }
+}
+```
 
 ## Note about Value-Copying in PrefixMap
 When generating an immutable PrefixMap from a PrefixMapBuilder (using
