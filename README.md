@@ -122,12 +122,11 @@ During the build stage, `netipds` collections can be combined in the following w
 
 ## Errors
 Not all values of `netip.Prefix` are valid. In fact, the zero prefix is invalid.
-
 Collection libraries like `netipds` use different patterns for error handling;
 `netipds` uses the following approach:
 
-_If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
-`netipds` returns an error, and the builder remains valid._
+**If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
+`netipds` returns an error, and the builder remains valid.**
 
 For example:
 ```go
