@@ -140,8 +140,7 @@ further, that if it is not valid, whether the user would prefer to handle, ignor
 defer an error conveying this information.
 
 So, `netipds` gives the user the opportunity to handle such an error as soon as
-`netipds` is aware of it. This preserves the user's freedom to handle it however they
-choose.
+possible. This preserves the user's freedom to handle it however they choose.
 
 </details>
 
