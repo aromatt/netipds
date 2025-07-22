@@ -122,11 +122,26 @@ During the build stage, `netipds` collections can be combined in the following w
 
 ## Errors
 Not all values of `netip.Prefix` are valid. In fact, the zero prefix is invalid.
-CIDR collection libraries use different patterns for error handling; `netipds` uses
-the following approach:
+
+CIDR collection libraries such as `netipds` handle invalid prefixes in a variety of
+ways. `netipds` takes the following approach:
 
 **If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
 `netipds` returns an error, and the builder remains valid.**
+
+<details><summary>Rationale</summary>
+When the user calls a method and provides a prefix, they are signaling an expectation
+that the prefix is -- or at least _might be_ -- valid, and that the receiver should
+do something with it.
+
+`netipds` cannot assume that the user knows whether the prefix is valid or not, and
+further, that if it is not valid, whether the user would prefer to handle, ignore or
+defer an error conveying this information.
+
+So, `netipds` gives the user the opportunity to handle such an error as soon as
+`netipds` is aware of it. This preserves the user's freedom to handle it however they
+choose.
+</details>
 
 For example:
 ```go
@@ -138,20 +153,23 @@ func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
 ```
 
 This design is intended to be familiar and unopinionated, allowing you to decide how
-to handle bad input. Here are a few reasonable approaches:
+to handle bad input. Here are a few reasonable patterns:
 
 ### 1. Silently skip invalid prefixes
-This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart).
+This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart), which
+does not return errors at all -- invalid prefixes result in no-ops.
 
 ```go
 for _, p := range prefixes {
     _ = builder.Add(p)
 }
 ```
-Presumably, you have already validated your prefixes before building your collection.
+If you use this pattern, then presumably, you have already validated your prefixes
+before building your collection.
 
 ### 2. Batch errors
-This pattern is used by [netipx](https://pkg.go.dev/go4.org/netipx).
+This pattern is used by [netipx](https://pkg.go.dev/go4.org/netipx), which
+accumulates errors during the build phase, then returns them as a batch.
 ```go
 var errs []error
 for _, p := range prefixes {
@@ -168,7 +186,7 @@ implemented on top of the `netipds` API.
 
 ### 3. Fail fast
 Finally, if you want to build a collection from unvetted prefixes and let `netipds`
-tell you about the invalid ones, you can do that, too:
+tell you about the invalid ones right away, you can do that, too:
 ```go
 for _, p := range prefixes {
     if err := builder.Add(p); err != nil {
