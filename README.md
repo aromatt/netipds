@@ -130,9 +130,10 @@ ways. `netipds` takes the following approach:
 `netipds` returns an error, and the builder remains valid.**
 
 <details><summary>Rationale</summary>
+
 When the user calls a method and provides a prefix, they are signaling an expectation
-that the prefix is -- or at least _might be_ -- valid, and that the receiver should
-do something with it.
+that the prefix is — or at least <i>might be</i> — valid, and that the receiver
+should do something with it.
 
 `netipds` cannot assume that the user knows whether the prefix is valid or not, and
 further, that if it is not valid, whether the user would prefer to handle, ignore or
@@ -141,6 +142,7 @@ defer an error conveying this information.
 So, `netipds` gives the user the opportunity to handle such an error as soon as
 `netipds` is aware of it. This preserves the user's freedom to handle it however they
 choose.
+
 </details>
 
 For example:
