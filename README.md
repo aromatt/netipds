@@ -6,10 +6,9 @@
 This package builds on the
 [netip](https://pkg.go.dev/net/netip) / [netipx](https://pkg.go.dev/go4.org/netipx)
 family by adding two immutable, trie-based collection types for IP prefixes (CIDRs):
-* `PrefixMap[T]` - a map from `netip.Prefix` to `T` with methods for fetching based on
-  network relationships (subnets, supernets, longest-match, etc.)
-* `PrefixSet` - a set of `netip.Prefix` values supporting CIDR-aware set operations
-  (union, intersection, difference)
+* `PrefixMap[T]` - a map from `netip.Prefix` to `T` supporting CIDR-based retrieval
+  (longest-match, subnets, supernets, etc.)
+* `PrefixSet` - a set of `netip.Prefix` values supporting [semantic combination](#combining-sets-and-maps)
 
 Both provide a rich set of queries enabled by a binary [radix
 tree](https://en.wikipedia.org/wiki/Radix_tree).
@@ -99,19 +98,16 @@ m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
 See [docs](https://pkg.go.dev/github.com/aromatt/netipds) for more details.
 
 ## API Tour
-`netipds` provides a comprehensive API including several operations not found in most
-other CIDR trie libraries.
-
 ### Membership Queries
 Both PrefixMaps and PrefixSets support the following queries:
 
 * [Contains](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Contains) - Ask if the collection contains an exact prefix.
 * [Encompasses](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Encompasses) - Ask if the collection contains any supernets of a prefix.
 * [OverlapsPrefix](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.OverlapsPrefix) - Ask if the collection has any overlap with a prefix.
-* [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Get the collection's longest-prefix match of a prefix.
-* [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Get the collection's shortest-prefix match of a prefix.
-* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Get all of a prefix's supernets found in the collection.
-* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Get all of a prefix's subnets found in the collection.
+* [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Fetch a prefix's smallest supernet in the collection (longest-prefix match).
+* [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Fetch a prefix's largest supernet in the collection (shortest-prefix match).
+* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Fetch all of a prefix's supernets in the collection.
+* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Fetch all of a prefix's subnets in the collection.
 
 ### Combining Sets and Maps
 During the build stage, `netipds` collections can be combined in the following ways:
@@ -121,44 +117,37 @@ During the build stage, `netipds` collections can be combined in the following w
 * [Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract) - Subtracts one set's IP space from the other, adding new child prefixes if necessary to fill in gaps around subtracted IP space.
 
 ## Errors
-Not all values of `netip.Prefix` are valid. In fact, the zero prefix is invalid.
+Not every possible value of `netip.Prefix` is a valid IP prefix. For example,
+`netip.Prefix{}` is invalid.
 
-CIDR collection libraries such as `netipds` handle invalid prefixes in a variety of
+CIDR collection libraries such as `netipds` handle invalid prefixes in different
 ways. `netipds` takes the following approach:
 
-**If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
-`netipds` returns an error, and the builder remains valid.**
+_If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
+then an error is returned immediately and the builder remains valid._
 
 <details><summary>Rationale</summary>
 
-When the user calls a method and provides a prefix, they are signaling an expectation
-that the prefix is — or at least <i>might be</i> — valid, and that the receiver
-should do something with it.
+When the user passes a `netip.Prefix` to a `netipds` method, they are signaling an
+expectation that the prefix is — or at least <i>might be</i> — valid, and that the
+receiver should do something with it.
 
-`netipds` cannot assume that the user knows whether the prefix is valid or not, and
-further, that if it is not valid, whether the user would prefer to handle, ignore or
-defer an error conveying this information.
+`netipds` cannot assume (1) that the user knows whether the prefix is valid, and (2)
+that if it is _not_ valid, whether the user would prefer to ignore it, find out right
+away, or find out later.
 
-So, `netipds` gives the user the opportunity to handle such an error as soon as
-possible. This preserves the user's freedom to handle it however they choose.
+The only way to preserve the user's ability to choose how to handle invalid-prefix
+errors is to return them right away.
 
 </details>
-
-For example:
-```go
-func (m *PrefixMapBuilder[T]) Set(p netip.Prefix, v T) error {
-	if !p.IsValid() {
-		return fmt.Errorf("prefix is not valid: %v", p)
-	}
-	...
-```
 
 This design is intended to be familiar and unopinionated, allowing you to decide how
 to handle bad input. Here are a few reasonable patterns:
 
+
 ### 1. Silently skip invalid prefixes
 This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart), which
-does not return errors at all -- invalid prefixes result in no-ops.
+does not return errors at all (invalid prefixes result in no-ops).
 
 ```go
 for _, p := range prefixes {
@@ -181,8 +170,9 @@ for _, p := range prefixes {
 // later...
 return errors.Join(errs...)
 ```
-While `netipds` tries to follow the idioms of `netipx` in general, forcing
-error-batching adds unnecessary machinery, is not what all users want, and is easily
+
+`netipds` tries to follow the idioms of `netipx` in general, but forced
+error-batching adds extra machinery, is not what all users want, and is easily
 implemented on top of the `netipds` API.
 
 ### 3. Fail fast
@@ -214,12 +204,12 @@ commutativity and exact parity against reference implementations.
 
 ### [gaissmai/bart](https://github.com/gaissmai/bart)
 
-This package uses a different trie implementation based on the ART algorithm (Knuth).
-It provides mutability while optimizing for lookup time and memory usage. Its API
-also provides several useful methods.
+This package uses a variant of Donald Knuth's ART algorithm. It provides mutability
+while optimizing for lookup time and memory usage. Its API also provides several
+useful methods.
 
 By contrast, `netipds` uses a traditional trie implementation, provides immutable
-types using a builder pattern, and offers a slightly different set of features.
+types using a builder pattern, and offers additional features.
 
 ### [tailscale/art](https://github.com/tailscale/art)
 
@@ -234,8 +224,8 @@ open-source systems.
 This package focuses on providing mutability while minimizing garbage collection
 cost.
 
-By contrast, `netipds` aims to provide immutable collections with good performance
-and a comprehensive API.
+By contrast, `netipds` aims to provide immutable collections with a more
+comprehensive API.
 
 ## Performance
 The benchmark suite at [gaissmai/iprbench](https://github.com/gaissmai/iprbench)
