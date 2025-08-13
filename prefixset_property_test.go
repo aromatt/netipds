@@ -10,35 +10,49 @@ import (
 	"pgregory.net/rapid"
 )
 
-const rapidSize = 1000
+// genPrefixLen uses rapid.IntRange to generate a random prefix length, biased
+// toward small networks and biased against /0.
+//
+// rapid.IntRange is biased toward small values and the max value. But small
+// prefixes == large networks, which collapses the explored input space down to
+// degenerate edge cases. For example:
+//   - If a PrefixSetBuilder contains /0, then PrefixSetBuilder.Intersect(b)
+//     will always include all of b.
+//   - If a PrefixSet contains /0, then subtracting it from a PrefixSetBuilder
+//     will always result in an empty set.
+func genPrefixLen(t *rapid.T, maxLen int) int {
+	val := rapid.IntRange(0, maxLen).Filter(func(v int) bool {
+		if v < maxLen {
+			return true
+		}
+		// 5 because ~0 and 10 are over-represented
+		return rapid.IntRange(0, 10).Draw(t, "roll for /0") == 5
+	}).Draw(t, "prefix len")
+	return maxLen - val
+}
 
-// genIPv4Prefix yields a random IPv4 prefix (normalized to its network address).
 func genIPv4Prefix(t *rapid.T) netip.Prefix {
-	// generate 4 random bytes
 	var raw [4]byte
 	for i := range raw {
 		raw[i] = byte(rapid.Byte().Draw(t, fmt.Sprintf("byte %d", i)))
 	}
-	// random mask length 0–32
-	plen := int(rapid.IntRange(0, 32).Draw(t, "prefix length"))
-	return netip.PrefixFrom(netip.AddrFrom4(raw), plen).Masked()
+	return netip.PrefixFrom(netip.AddrFrom4(raw), genPrefixLen(t, 32)).Masked()
 }
 
 func genIPv6Prefix(t *rapid.T) netip.Prefix {
-	// generate 16 random bytes
 	var raw [16]byte
 	for i := range raw {
 		raw[i] = byte(rapid.Byte().Draw(t, fmt.Sprintf("byte %d", i)))
 	}
-	// random mask length 0–128
-	plen := int(rapid.IntRange(0, 128).Draw(t, "prefix length"))
-	return netip.PrefixFrom(netip.AddrFrom16(raw), plen).Masked()
+	return netip.PrefixFrom(netip.AddrFrom16(raw), genPrefixLen(t, 128)).Masked()
 }
 
-// countIPs returns the total number of IP addresses covered by the prefixes
-func countIPs(prefixes []netip.Prefix) *big.Int {
+// countIPs returns the total number of IP addresses covered by a PrefixSet.
+//
+// Note: this depends on the correctness of PrefixSet.PrefixesCompact.
+func countIPs(s *PrefixSet) *big.Int {
 	total := big.NewInt(0)
-	for _, p := range prefixes {
+	for _, p := range s.PrefixesCompact() {
 		if p.Addr().Is4() {
 			// IPv4: 2^(32-prefixLen) addresses
 			hostBits := 32 - p.Bits()
@@ -74,30 +88,49 @@ func buildSet(t *testing.T, ps []netip.Prefix) *PrefixSet {
 
 func intersect(t *testing.T, a, b []netip.Prefix) *PrefixSet {
 	t.Helper()
-	psA := builder(t, a)
-	psA.Intersect(buildSet(t, b))
-	return psA.PrefixSet()
+	psbA := builder(t, a)
+	psbA.Intersect(buildSet(t, b))
+	return psbA.PrefixSet()
 }
 
 func merge(t *testing.T, a, b []netip.Prefix) *PrefixSet {
 	t.Helper()
-	psA := builder(t, a)
-	psA.Merge(buildSet(t, b))
-	return psA.PrefixSet()
+	psbA := builder(t, a)
+	psbA.Merge(buildSet(t, b))
+	return psbA.PrefixSet()
 }
 
 func subtract(t *testing.T, a, b []netip.Prefix) *PrefixSet {
 	t.Helper()
-	psA := builder(t, a)
-	psA.Subtract(buildSet(t, b))
-	return psA.PrefixSet()
+	psbA := builder(t, a)
+	psbA.Subtract(buildSet(t, b))
+	return psbA.PrefixSet()
+}
+
+// ipsetSubtract subtracts the IP space of PrefixSet b from PrefixSet a
+// using netipx.IPSetBuilder. It returns a new netipx.IPSet containing the
+// result of the subtraction.
+func ipsetSubtract(a, b *PrefixSet) (*netipx.IPSet, error) {
+	var ipsb netipx.IPSetBuilder
+	for _, p := range a.Prefixes() {
+		ipsb.AddPrefix(p)
+	}
+	for _, p := range b.Prefixes() {
+		ipsb.RemovePrefix(p)
+	}
+	return ipsb.IPSet()
 }
 
 // assertSamePrefixesSlices fails if the two PrefixSets do not have the same
 // Prefixes() result.
 func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
 	t.Helper()
+	aPrefixes := a.Prefixes()
 	bPrefixes := b.Prefixes()
+	if len(aPrefixes) != len(bPrefixes) {
+		t.Fatalf("prefix slices differ in length: |a| = %d, |b| = %d; %s",
+			len(aPrefixes), len(bPrefixes), msg)
+	}
 	for i, p := range a.Prefixes() {
 		if p != bPrefixes[i] {
 			t.Fatalf("prefix slices differ; " + msg)
@@ -105,17 +138,29 @@ func assertSamePrefixes(t *testing.T, a, b *PrefixSet, msg string) {
 	}
 }
 
+// prefixSetToIPset converts a PrefixSet to a netipx.IPSet.
+func prefixSetToIPset(ps *PrefixSet) *netipx.IPSet {
+	ipsb := &netipx.IPSetBuilder{}
+	for _, p := range ps.Prefixes() {
+		ipsb.AddPrefix(p)
+	}
+	ipset, err := ipsb.IPSet()
+	if err != nil {
+		panic(fmt.Sprintf("prefixSetToIPset: IPSet() failed: %v", err))
+	}
+	return ipset
+}
+
 // testPrefixSetMergeRandom tests the merger of two large random PrefixSets.
 // It validates expected properties of merging:
-// 1. Merging should be commutative: A + B = B + A
-// 2. Merging with empty set should equal original set
-// 3. Merging with self should equal self: A + A = A
-// 4. Size of merged set should not exceed sum of sizes
-// 5. Merged set should contain exactly the union of the operands
-func testPrefixSetMergeRandom(t *testing.T, gen *rapid.Generator[netip.Prefix], size int) {
+//  1. Merging should be commutative: A + B = B + A
+//  2. Merging with empty set should equal original set
+//  3. Merging with self should equal self: A + A = A
+//  4. Merged set should contain exactly the union of the operands
+func testPrefixSetMergeRandom(t *testing.T, gen *rapid.Generator[netip.Prefix]) {
 	rapid.Check(t, func(rt *rapid.T) {
-		a := rapid.SliceOfN(gen, size, size).Draw(rt, "a")
-		b := rapid.SliceOfN(gen, size, size).Draw(rt, "b")
+		a := rapid.SliceOfN(gen, 10, 1000).Draw(rt, "a")
+		b := rapid.SliceOfN(gen, 10, 1000).Draw(rt, "b")
 
 		psA := buildSet(t, a)
 		psB := buildSet(t, b)
@@ -129,16 +174,11 @@ func testPrefixSetMergeRandom(t *testing.T, gen *rapid.Generator[netip.Prefix], 
 			"merging not commutative: A + B != B + A")
 
 		// Property 2: Merging with empty set should equal original set
-		psEmptyA := merge(t, a, []netip.Prefix{})
-		if psEmptyA.Size() != psA.Size() {
-			t.Errorf("Merging with empty set should equal original set, got size %d, expected %d",
-				psEmptyA.Size(), psA.Size())
-		}
-		psEmptyB := merge(t, []netip.Prefix{}, b)
-		if psEmptyB.Size() != psB.Size() {
-			t.Errorf("Merging with empty set should equal original set, got size %d, expected %d",
-				psEmptyB.Size(), psB.Size())
-		}
+		msg := "expected merging with empty set to have no effect"
+		assertSamePrefixes(t, psA, merge(t, a, []netip.Prefix{}), msg)
+		assertSamePrefixes(t, psA, merge(t, []netip.Prefix{}, a), msg)
+		assertSamePrefixes(t, psB, merge(t, b, []netip.Prefix{}), msg)
+		assertSamePrefixes(t, psB, merge(t, []netip.Prefix{}, b), msg)
 
 		// Property 3: Merging with self should equal self: A + A = A
 		assertSamePrefixes(t, merge(t, a, a), psA,
@@ -146,13 +186,7 @@ func testPrefixSetMergeRandom(t *testing.T, gen *rapid.Generator[netip.Prefix], 
 		assertSamePrefixes(t, merge(t, b, b), psB,
 			"merging with self should equal self: B + B != B")
 
-		// Property 4: Size of merged set should not exceed sum of sizes
-		if psAB.Size() > psA.Size()+psB.Size() {
-			t.Errorf("Merged size %d exceeds sum of sizes %d + %d",
-				psAB.Size(), psA.Size(), psB.Size())
-		}
-
-		// Property 5: Merged set should contain exactly the union of the operands
+		// Property 4: Merged set should contain exactly the union of the operands
 
 		// Build expected set as simple union (preserving all individual prefixes)
 		expected := make(map[string]struct{})
@@ -193,24 +227,24 @@ func testPrefixSetMergeRandom(t *testing.T, gen *rapid.Generator[netip.Prefix], 
 }
 
 func TestPrefixSetMergePropIPv4(t *testing.T) {
-	testPrefixSetMergeRandom(t, rapid.Custom(genIPv4Prefix), rapidSize)
+	testPrefixSetMergeRandom(t, rapid.Custom(genIPv4Prefix))
 }
 
 func TestPrefixSetMergePropIPv6(t *testing.T) {
-	testPrefixSetMergeRandom(t, rapid.Custom(genIPv6Prefix), rapidSize)
+	testPrefixSetMergeRandom(t, rapid.Custom(genIPv6Prefix))
 }
 
 // testPrefixSetSubtractProp tests IP space subtraction of two random PrefixSets.
 // This validates properties of IP address space subtraction (not set subtraction):
-// 1. Subtracting empty set has no effect
-// 2. Subtracting self removes all IPs
-// 3. Result contains no IP addresses that are in B's IP space
-// 4. Result contains only IP addresses that were in A's IP space
-// 5. Should match netipx.IPSet behavior
-func testPrefixSetSubtractProp(t *testing.T, gen *rapid.Generator[netip.Prefix], size int) {
+//  1. Subtracting empty set has no effect
+//  2. Subtracting self removes all IPs
+//  3. Result contains no IP addresses that are in B's IP space
+//  4. Result contains only IP addresses that were in A's IP space
+//  5. Result has same IP space coverage as netipx.IPSet implementation
+func testPrefixSetSubtractProp(t *testing.T, gen *rapid.Generator[netip.Prefix]) {
 	rapid.Check(t, func(rt *rapid.T) {
-		a := rapid.SliceOfN(gen, size, size).Draw(rt, "a")
-		b := rapid.SliceOfN(gen, size, size).Draw(rt, "b")
+		a := rapid.SliceOfN(gen, 1, 1000).Draw(rt, "a")
+		b := rapid.SliceOfN(gen, 1, 1000).Draw(rt, "b")
 		psA := buildSet(t, a)
 		psB := buildSet(t, b)
 
@@ -219,7 +253,7 @@ func testPrefixSetSubtractProp(t *testing.T, gen *rapid.Generator[netip.Prefix],
 
 		// Property 1: Subtracting empty set preserves original IP space
 		psAMinusEmpty := subtract(t, a, []netip.Prefix{})
-		assertSamePrefixes(t, psSubtracted, psAMinusEmpty,
+		assertSamePrefixes(t, psA, psAMinusEmpty,
 			"expected subtracting empty set to have no effect")
 
 		// Property 2: Subtracting self removes all IP space
@@ -227,65 +261,56 @@ func testPrefixSetSubtractProp(t *testing.T, gen *rapid.Generator[netip.Prefix],
 			t.Errorf("Self subtraction should remove all IPs")
 		}
 
-		// Property 3: Result contains no IP addresses that are in B's IP space
-		// Check this by ensuring no prefix in (A - B) is encompassed by B
+		// Property 3: Result contains no IP addresses that are in B's IP space.
+		// Check this by ensuring no prefix in (A - B) is encompassed by B.
 		for _, p := range psSubtracted.Prefixes() {
 			if psB.Encompasses(p) {
 				t.Errorf("Subtracted result contains prefix %s that is encompassed by B", p)
 			}
 		}
 
-		// Property 4: Result contains only IP addresses that were in A's IP space
-		// Check this by ensuring every prefix in (A - B) is encompassed by A
+		// Property 4: Result contains only IP addresses that were in A's IP space.
+		// Check this by ensuring every prefix in (A - B) is encompassed by A.
 		for _, p := range psSubtracted.Prefixes() {
 			if !psA.Encompasses(p) {
 				t.Errorf("Subtracted result contains prefix %s that is not encompassed by A", p)
 			}
 		}
 
-		// Property 5: Should match netipx.IPSet behavior
-		var ipsb netipx.IPSetBuilder
-		for _, p := range psA.Prefixes() {
-			ipsb.AddPrefix(p)
-		}
-		for _, p := range psB.Prefixes() {
-			ipsb.RemovePrefix(p)
-		}
-		ipset, err := ipsb.IPSet()
+		// Property 5: Result has same IP space coverage as netipx.IPSet implementation
+		ipset, err := ipsetSubtract(psA, psB)
 		if err != nil {
 			t.Fatalf("Oracle IPSet build failed: %v", err)
 		}
 
 		// Compare IP space coverage
-		countExpected := countIPs(ipset.Prefixes())
-		countSubtractedIPs := countIPs(psSubtracted.PrefixesCompact())
-
-		if countExpected.Cmp(countSubtractedIPs) != 0 {
-			t.Errorf("IP space mismatch - subtracted covers %s IPs, expected %s IPs",
-				countSubtractedIPs.String(), countExpected.String())
+		netipdsIpSet := prefixSetToIPset(psSubtracted)
+		if !netipdsIpSet.Equal(ipset) {
+			t.Errorf("IP space mismatch against netipx implementation:\nA: %v\nB: %v\nExpected: %v\nActual: %v",
+				a, b, ipset.Prefixes(), netipdsIpSet.Prefixes())
 		}
 	})
 }
 
 func TestPrefixSetSubtractPropIPv4(t *testing.T) {
-	testPrefixSetSubtractProp(t, rapid.Custom(genIPv4Prefix), rapidSize)
+	testPrefixSetSubtractProp(t, rapid.Custom(genIPv4Prefix))
 }
 
 func TestPrefixSetSubtractPropIPv6(t *testing.T) {
-	testPrefixSetSubtractProp(t, rapid.Custom(genIPv6Prefix), rapidSize)
+	testPrefixSetSubtractProp(t, rapid.Custom(genIPv6Prefix))
 }
 
-// testPrefixSetIntersectRandom tests the intersection of two large random
+// testPrefixSetIntersectProp tests the intersection of two large random
 // PrefixSets. It validates expected properties of intersection:
-// 1. Intersection should be commutative: A & B = B & A
-// 2. Intersection with empty set should be empty
-// 3. Intersection with self should equal self: A & A = A
-// 4. Size of intersection should not exceed size of either operand
-// 5. Intersection should not contain any prefixes that are not encompassed by both sets
-func testPrefixSetIntersectRandom(t *testing.T, gen *rapid.Generator[netip.Prefix], size int) {
+//  1. Intersection should be commutative: A & B = B & A
+//  2. Intersection with empty set should be empty
+//  3. Intersection with self should equal self: A & A = A
+//  4. Size of intersection should not exceed size of either operand
+//  5. Intersection should not contain any prefixes that are not encompassed by both sets
+func testPrefixSetIntersectProp(t *testing.T, gen *rapid.Generator[netip.Prefix]) {
 	rapid.Check(t, func(rt *rapid.T) {
-		a := rapid.SliceOfN(gen, size, size).Draw(rt, "a")
-		b := rapid.SliceOfN(gen, size, size).Draw(rt, "b")
+		a := rapid.SliceOfN(gen, 10, 1000).Draw(rt, "a")
+		b := rapid.SliceOfN(gen, 10, 1000).Draw(rt, "b")
 
 		// Build intersection and prefix set separately; even though a single builder
 		// could be used for both, that property is not under test here.
@@ -319,9 +344,9 @@ func testPrefixSetIntersectRandom(t *testing.T, gen *rapid.Generator[netip.Prefi
 
 		// Property 4: IP address count of intersection should not
 		// exceed that of either operand
-		countA := countIPs(psA.PrefixesCompact())
-		countB := countIPs(psB.PrefixesCompact())
-		countInter := countIPs(psAB.PrefixesCompact())
+		countA := countIPs(psA)
+		countB := countIPs(psB)
+		countInter := countIPs(psAB)
 		if countInter.Cmp(countA) > 0 {
 			t.Errorf("Intersection IP count %s exceeds first operand IP count %s",
 				countInter.String(), countA.String())
@@ -342,16 +367,16 @@ func testPrefixSetIntersectRandom(t *testing.T, gen *rapid.Generator[netip.Prefi
 }
 
 func TestPrefixSetIntersectPropIPv4(t *testing.T) {
-	testPrefixSetIntersectRandom(t, rapid.Custom(genIPv4Prefix), rapidSize)
+	testPrefixSetIntersectProp(t, rapid.Custom(genIPv4Prefix))
 }
 
 func TestPrefixSetIntersectPropIPv6(t *testing.T) {
-	testPrefixSetIntersectRandom(t, rapid.Custom(genIPv6Prefix), rapidSize)
+	testPrefixSetIntersectProp(t, rapid.Custom(genIPv6Prefix))
 }
 
-func TestPrefixSetContainsRapid(t *testing.T) {
+func TestPrefixSetContainsProp(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
-		a := rapid.SliceOfN(rapid.Custom(genIPv4Prefix), rapidSize, rapidSize).Draw(rt, "a")
+		a := rapid.SliceOfN(rapid.Custom(genIPv4Prefix), 10, 1000).Draw(rt, "a")
 		psA := buildSet(t, a)
 		for _, p := range a {
 			if !psA.Contains(p) {
