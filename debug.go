@@ -1,4 +1,4 @@
-//go:build debug
+//foo go:build debug
 
 package netipds
 

@@ -210,41 +210,52 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 		switch {
 		// We're subtracting a parent of t, so all of t will be removed
 		case o.key.IsPrefixOf(t.key):
-			println("  o is prefix of t")
+			println("  ST o is prefix of t")
 			return t.nilOrEmptyRoot()
 		// We're subtracting a descendant of t, so create a hole there
 		case t.key.IsPrefixOf(o.key):
-			println("  t is prefix of o")
+			println("  ST t is prefix of o. Inserting a hole!")
 			return t.insertHole(o.key, t.value, t.hasEntry)
 		// No overlap; nothing to do
 		default:
-			println("  no overlap")
+			println("  ST no overlap")
 			return t
 		}
 	}
 	// Consider the children of both t and o
-children:
+	// TODO if o has both children and both have entries, then we don't need to
+	// insert holes; we just need to remove both of t's children.
+	var tNext, oNext **tree[T, B]
 	for _, bit := range [2]bit{bitL, bitR} {
-		tChild, oChild := t.child(bit), o.child(bit)
+		switch {
+		// (t would be nil if subtracting o's child ended up removing t)
+		case t == nil:
+			break
+		// If t and o are counterparts, traverse their children in lock-step
+		case t.key.EqualFromRoot(o.key):
+			tNext, oNext = t.child(bit), o.child(bit)
+		// If t is an ancestor of o, then consider both of o's children against t
+		case t.key.IsPrefixOf(o.key):
+			tNext, oNext = &t, o.child(bit)
+		default:
+			panic("didn't expect this to happen") // TODO
+		}
 		switch {
 		// both children exist
-		case *tChild != nil && *oChild != nil:
-			println("  both children exist")
-			*tChild = (*tChild).subtractTree(*oChild)
+		case *tNext != nil && *oNext != nil:
+			println("  ST both t", t.key.String(), "and o", o.key.String(), "have a child at", bit)
+			*tNext = (*tNext).subtractTree(*oNext)
 		// t has a child but o does not; subtract o from t's child
-		case *tChild != nil && *oChild == nil:
-			println("  t has a child but o does not")
-			*tChild = (*tChild).subtractTree(o)
+		case *tNext != nil && *oNext == nil:
+			println("  ST t has a child but o does not")
+			*tNext = (*tNext).subtractTree(o)
 		// o has a child but t does not; subtract o's child from t
-		case *tChild == nil && *oChild != nil:
-			println("  o has a child but t does not")
-			t = t.subtractTree(*oChild)
-			if t == nil {
-				break children
-			}
+		case *tNext == nil && *oNext != nil:
+			println("  ST o has a child but t does not")
+			t = t.subtractTree(*oNext)
 		// no children to consider
-		case *tChild == nil && *oChild == nil:
-			println("  no children to consider")
+		case *tNext == nil && *oNext == nil:
+			println("  ST no children to consider")
 			// nothing to do
 		}
 	}
@@ -258,6 +269,7 @@ func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
 
 	// Removing t itself (no descendants will receive v)
 	case t.key.EqualFromRoot(k):
+		println("  IH removing t itself")
 		return t.nilOrEmptyRoot()
 
 	// k is a descendant of t; start digging a hole to k
@@ -277,23 +289,28 @@ func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
 
 		// Create a new sibling to receive v if needed, then continue traversing
 		if *sibling == nil {
-			println("  IH *sibling == nil")
 			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
+			println("  IH *sibling == nil; creating sibling:", (*sibling).key.String())
 		}
 
 		// (child could be nil if we were carving a hole out of an entry)
 		if *child == nil {
 			*child = newTree[T](t.key.Next(bit))
+			println("  IH *child == nil; creating child before continuing to dig:",
+				(*child).key.String())
 		}
 
 		// Continue digging hole
+		println("  IH continue digging hole")
 		*child = (*child).insertHole(k, v, t.hasEntry || tPathHasEntry)
 
 	// k is an ancestor of t; remove t's entire branch
 	case k.IsPrefixOf(t.key):
+		println("  IH remove t's entire branch")
 		return t.nilOrEmptyRoot()
 
 	default:
+		println("  IH nothing to do")
 		// Nothing to do
 	}
 

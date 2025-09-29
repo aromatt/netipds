@@ -640,24 +640,68 @@ var subtractTests = []struct {
 	//// Failing example discovered by property-based test. This test case
 	//// failed to match the netipx implementation.
 	//{
-	//	// 64/3 == 010
-	//	// 0/3  == 000
-	//	// 0/2  == 00
-	//	set:      pfxs("64.0.0.0/3", "0.0.0.0/3"),
-	//	subtract: pfxs("0.0.0.0/2"),
-	//	want:     pfxs("64.0.0.0/32"),
+	//	set:      pfxs("64.0.0.0/3", "0.0.0.0/3"), // 010, 000
+	//	subtract: pfxs("0.0.0.0/2"),               // 00
+	//	want:     pfxs("64.0.0.0/3"),              // 010
 	//},
 
-	// A: [0.0.0.0/1]
-	// B: [14.236.0.0/21 25.0.0.0/13]
-	// Expected: [0.0.0.0/5 8.0.0.0/6 12.0.0.0/7 14.0.0.0/9 14.128.0.0/10 14.192.0.0/11 14.224.0.0/13 14.232.0.0/14 14.236.8.0/21 14.236.16.0/20 14.236.32.0/19 14.236.64.0/18 14.236.128.0/17 14.237.0.0/16 14.238.0.0/15 14.240.0.0/12 15.0.0.0/8 16.0.0.0/5 24.0.0.0/8 25.8.0.0/13 25.16.0.0/12 25.32.0.0/11 25.64.0.0/10 25.128.0.0/9 26.0.0.0/7 28.0.0.0/6 32.0.0.0/3 64.0.0.0/2]
-	// Actual: [0.0.0.0/5 8.0.0.0/6 12.0.0.0/7 14.0.0.0/9 14.128.0.0/10 14.192.0.0/11 14.224.0.0/13 14.232.0.0/14 14.236.8.0/21 14.236.16.0/20 14.236.32.0/19 14.236.64.0/18 14.236.128.0/17 14.237.0.0/16 14.238.0.0/15 14.240.0.0/12 15.0.0.0/8 16.0.0.0/4 32.0.0.0/3 64.0.0.0/2]
-
+	// Failing example discovered by property-based test. This test case failed
+	// to match the netipx implementation.
+	//
+	// In this example, we start with a single node, then subtract both
+	// grandchildren on one side, leaving only the immediate child on the other
+	// side.
 	{
-		set:      pfxs("0.0.0.0/2"),
-		subtract: pfxs("0.0.0.0/4", "16.0.0.0/4"),
-		want:     pfxs(),
+		set:      pfxs("0.0.0.0/2"),               // 00
+		subtract: pfxs("0.0.0.0/4", "16.0.0.0/4"), // 0000, 0001
+		want:     pfxs("32.0.0.0/3"),              // 001
+		// actual:                                 // 0001, 001
 	},
+	// What does the current algorithm do?
+	// subtractTree gets to:
+	//   t: 00
+	//   o: ...0
+	// then calls insertHole on those (insertHole 0,3-4 into 0,0-2)
+	// IH adds children to 00 (..0 and ..1) and follows ..0
+	// IH adds children to ..0 (...0 and ...1) and follows ...0 but returns from that
+	//
+	// subtractTree then sees that both t 00 and o 000 have a child at 1 and goes to:
+	//   t: ..1 (created by insertHole)
+	//   o: ...1
+	// ST says no overlap, and no children to consider.
+	// This is ok: ..1 is ok to keep
+	//
+	// The problem is that it never compares t 0001 to o 0001
+	//
+	// After the first hole is inserted and it comes back out to t 00, it needs
+	// to see that 00 ALSO matches o 0001.
+	//
+	// A couple of ideas:
+	//  1. Keep track of whether t is updated, and keep calling subtractTree until
+	//     no changes are made. This way, after 0001 is inserted in t, it would then
+	//     run subtractTree on t 00 o ...1, and remove t 0001.
+	//  2. Do this breadth-first instead of depth-first. Right now we're doing a
+	//     best-effort dual traversal, so you end up with t and o at different
+	//     depths (like t 00 and o ...0).
+	//  3. When considering children, we should really be considering more (all?)
+	//     combinations of t and o children. At least, if t is an ancestor of o,
+	//     it doesn't really make sense to compare same-side children of t and o.
+	//     Only if t and o are exact counterparts does it make sense to recurse in
+	//     lock-step. If t is an ancestor of o, then we really should be comparing
+	//     both of t's children to o itself, right?
+	//     - UPDATE: this was pretty easy to implement, but it has this problem:
+	//               you volley the problem over to the other bit. We make the same
+	//               mistake on the other side now. The problem persists: when
+	//               we insert a hole, we do it without knowledge of whether we're
+	//               creating stuff that's also supposed to be subtracted.
+	//  4. Use a mark-and-delete approach: you traverse both trees to figure out
+	//     what holes need to be created and which nodes of t need to be completely
+	//     removed.
+	//
+	//  Option 2 seems most correct.
+	//
+	//
+
 }
 
 func TestPrefixSetBuilderSubtract(t *testing.T) {
