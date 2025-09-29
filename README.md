@@ -4,17 +4,14 @@
 [![codecov](https://codecov.io/gh/aromatt/netipds/graph/badge.svg?token=WJ1JHSM05F)](https://codecov.io/gh/aromatt/netipds)
 
 This package builds on the
-[netip](https://pkg.go.dev/net/netip)/[netipx](https://pkg.go.dev/go4.org/netipx)
-family by adding two immutable, trie-based collection types for
-[netip.Prefix](https://pkg.go.dev/net/netip#Prefix):
-* `PrefixMap[T]` - for associating data with IPs and prefixes and fetching that data
-  with network hierarchy awareness
-* `PrefixSet` - for storing sets of prefixes and combining those sets in useful ways
-  (unions, intersections, etc)
+[netip](https://pkg.go.dev/net/netip) / [netipx](https://pkg.go.dev/go4.org/netipx)
+family by adding two immutable, trie-based collection types for IP prefixes (CIDRs):
+* `PrefixMap[T]` - a map from `netip.Prefix` to `T` supporting CIDR-based retrieval
+  (longest-match, subnets, supernets, etc.)
+* `PrefixSet` - a set of `netip.Prefix` values supporting [semantic combination](#combining-sets-and-maps)
 
-Both are backed by a binary [radix tree](https://en.wikipedia.org/wiki/Radix_tree),
-which enables a rich set of efficient queries about prefix containment, hierarchy,
-and overlap.
+Both provide a rich set of queries enabled by a binary [radix
+tree](https://en.wikipedia.org/wiki/Radix_tree).
 
 ### Goals
 * **Efficiency.** This package aims to provide fast, immutable collection types for
@@ -26,8 +23,8 @@ and overlap.
   interfaces. See this excellent
   [post](https://tailscale.com/blog/netaddr-new-ip-type-for-go) by Tailscale about
   the history and benefits of `net/netip`.
-* **Completeness.** Most other IP radix tree libraries lack several of the queries
-  provided by `netipds`.
+* **Completeness.** Most open-source CIDR collection libraries lack several of the
+  operations provided by `netipds`.
 
 ### Non-Goals
 * **Mutability.** For use cases requiring continuous mutability, try
@@ -38,10 +35,27 @@ and overlap.
   `netip.Prefix`.
 
 ## Usage
-Usage is similar to that of [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet):
-to construct a `PrefixMap` or `PrefixSet`, use the respective builder type.
+Like [netipx.IPSet](https://pkg.go.dev/go4.org/netipx#IPSet), `netipds` uses a
+builder pattern to construct immutable PrefixMaps and PrefixSets.
 
-### Example
+Basic Example
+```go
+// Build a PrefixMap
+builder := PrefixMapBuilder[string]{}
+builder.Set(netip.MustParsePrefix("1.2.0.0/16"), "hello")
+
+// This returns an immutable snapshot of the
+// builder's state. The builder remains usable.
+pm := builder.PrefixMap()
+
+// Fetch an exact entry from the PrefixMap.
+val, ok := pm.Get(netip.MustParsePrefix("1.2.0.0/16"))    // => ("hello", true)
+```
+
+<details>
+<summary>Extended Example</summary>
+<br>
+
 ```go
 // Make our examples more readable
 px := netip.MustParsePrefix
@@ -56,7 +70,7 @@ builder.Set(px("1.2.3.0/24"), "world")
 pm := builder.PrefixMap()
 
 // Fetch an exact entry from the PrefixMap.
-val, ok := pm.Get(px("1.0.0.0/16"))              // => ("hello", true)
+val, ok := pm.Get(px("1.2.0.0/16"))              // => ("hello", true)
 
 // Ask if the PrefixMap contains an exact
 // entry.
@@ -79,22 +93,100 @@ m := pm.AncestorsOf(px("1.2.3.4/32")).ToMap()    // => map[1.2.0.0/16:"hello"
 m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
                                                  //        1.2.3.0/24:"world"]
 ```
+</details>
 
 See [docs](https://pkg.go.dev/github.com/aromatt/netipds) for more details.
 
-### Set Operations with PrefixSet
-`PrefixSet` offers set-specific functionality beyond what can be done with
-`PrefixMap`.
+## API Tour
+### Membership Queries
+Both PrefixMaps and PrefixSets support the following queries:
 
-In particular, during the building stage, you can combine sets in the following ways:
+* [Contains](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Contains) - Ask if the collection contains an exact prefix.
+* [Encompasses](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Encompasses) - Ask if the collection contains any supernets of a prefix.
+* [OverlapsPrefix](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.OverlapsPrefix) - Ask if the collection has any overlap with a prefix.
+* [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Fetch a prefix's smallest supernet in the collection (longest-prefix match).
+* [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Fetch a prefix's largest supernet in the collection (shortest-prefix match).
+* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Fetch all of a prefix's supernets in the collection.
+* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Fetch all of a prefix's subnets in the collection.
 
-|Operation|Method|Result|
-|---|---|---|
-|**Union**|[PrefixSetBuilder.Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge)|Every prefix found in either set.|
-|**Intersection**|[PrefixSetBuilder.Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect)|Every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.|
-|**Difference**|[PrefixSetBuilder.Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract)|The difference between the two sets. When a child is subtracted from a parent, the child itself is removed, and new elements are added to fill in remaining space.|
+### Combining Sets and Maps
+During the build stage, `netipds` collections can be combined in the following ways:
+* [Filter](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMapBuilder.Filter) - Filters a collection, removing all prefixes not encompassed by the provided set.
+* [Merge](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Merge) - Merges two sets. The result is the union of the two sets.
+* [Intersect](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Intersect) - Performs a hierarchical intersection of two sets. The result includes every prefix that either (1) exists in both sets or (2) exists in one set and has an ancestor in the other.
+* [Subtract](https://pkg.go.dev/github.com/aromatt/netipds#PrefixSetBuilder.Subtract) - Subtracts one set's IP space from the other, adding new child prefixes if necessary to fill in gaps around subtracted IP space.
 
-### Note about Value-Copying in PrefixMap
+## Errors
+Not every possible value of `netip.Prefix` is a valid IP prefix. For example,
+`netip.Prefix{}` is invalid.
+
+CIDR collection libraries such as `netipds` handle invalid prefixes in different
+ways. `netipds` takes the following approach:
+
+_If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
+then an error is returned immediately and the builder remains valid._
+
+<details><summary>Rationale</summary>
+
+When the user passes a `netip.Prefix` to a `netipds` method, they are signaling an
+expectation that the prefix is — or at least <i>might be</i> — valid, and that the
+receiver should do something with it.
+
+`netipds` cannot assume (1) that the user knows whether the prefix is valid, and (2)
+that if it is _not_ valid, whether the user would prefer to ignore it, find out right
+away, or find out later.
+
+The only way to preserve the user's ability to choose how to handle invalid-prefix
+errors is to return them right away.
+
+</details>
+
+This design is intended to be familiar and unopinionated, allowing you to decide how
+to handle bad input. Here are a few reasonable patterns:
+
+
+### 1. Silently skip invalid prefixes
+This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart), which
+does not return errors at all (invalid prefixes result in no-ops).
+
+```go
+for _, p := range prefixes {
+    _ = builder.Add(p)
+}
+```
+If you use this pattern, then presumably, you have already validated your prefixes
+before building your collection.
+
+### 2. Batch errors
+This pattern is used by [netipx](https://pkg.go.dev/go4.org/netipx), which
+accumulates errors during the build phase, then returns them as a batch.
+```go
+var errs []error
+for _, p := range prefixes {
+    if err := builder.Add(p); err != nil {
+        errs = append(errs, err)
+    }
+}
+// later...
+return errors.Join(errs...)
+```
+
+`netipds` tries to follow the idioms of `netipx` in general, but forced
+error-batching adds extra machinery, is not what all users want, and is easily
+implemented on top of the `netipds` API.
+
+### 3. Fail fast
+Finally, if you want to build a collection from unvetted prefixes and let `netipds`
+tell you about the invalid ones right away, you can do that, too:
+```go
+for _, p := range prefixes {
+    if err := builder.Add(p); err != nil {
+        return err
+    }
+}
+```
+
+## Note about Value-Copying in PrefixMap
 When generating an immutable PrefixMap from a PrefixMapBuilder (using
 [PrefixMapBuilder.PrefixMap](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMapBuilder.PrefixMap)),
 the builder's values are copied by assignment, so please be careful if you are
@@ -102,28 +194,66 @@ storing pointers (https://github.com/aromatt/netipds/issues/27 aims to improve t
 
 The same warning applies to any PrefixMap method that returns a new PrefixMap.
 
+## Tests
+In addition to 100% line coverage in unit tests, `netipds` includes [property-based
+tests](prefixset_property_test.go).
+
+These tests generate large sets of random inputs and test for properties such as
+commutativity and exact parity against reference implementations.
 ## Related Packages
-
-### [kentik/patricia](https://github.com/kentik/patricia)
-
-This package uses a similar underlying data structure, but its goal is to provide
-mutability while minimizing garbage collection cost.
-
-By contrast, `netipds` aims to provide immutable collection types that integrate well
-with the netip family and offer a comprehensive API.
 
 ### [gaissmai/bart](https://github.com/gaissmai/bart)
 
-This package uses a different trie implementation based on the ART algorithm (Knuth).
-It provides mutability while optimizing for lookup time and memory usage. Its API
-also provides useful methods such as `Subnets`, `Supernets`, `Union`, and iterators.
+This package uses a variant of Donald Knuth's ART algorithm. It provides mutability
+while optimizing for lookup time and memory usage. Its API also provides several
+useful methods.
 
 By contrast, `netipds` uses a traditional trie implementation, provides immutable
-types, and offers additional set operations.
+types using a builder pattern, and offers additional features.
 
-### Additional Packages
-See [gaissmai/iprbench](https://github.com/gaissmai/iprbench) for more libraries and
-benchmarks comparing them.
+### [tailscale/art](https://github.com/tailscale/art)
+
+An inspiration for bart, this package is also based on Knuth's ART algorithm. It
+provides good lookup performance and a barebones API.
+
+It is not actively maintained; in fact, Tailscale uses bart in some of its
+open-source systems.
+
+### [kentik/patricia](https://github.com/kentik/patricia)
+
+This package focuses on providing mutability while minimizing garbage collection
+cost.
+
+By contrast, `netipds` aims to provide immutable collections with a more
+comprehensive API.
+
+## Performance
+The benchmark suite at [gaissmai/iprbench](https://github.com/gaissmai/iprbench)
+compares several "IP routing table implementations," including `netipds`.
+
+As with any benchmark, these results do not necessarily reflect real-world
+performance, but here are some highlights from the iprbench results:
+
+* **Lookup time.** `netipds` performs longest-prefix-match (LPM) lookups in tens of
+  nanoseconds, on par with `art` and only 2x the LPM-optimized `bart`.
+
+* **Memory usage.** `netipds` uses about 66 bytes per entry, which is two orders of
+  magnitude smaller than `art` and only 18% larger than `bart`.
+
+* **Update time.** `netipds` uses builders to construct immutable collections, so it
+  is not optimized for update time. Still, its builders provide serviceable update
+  time at about 2.5x `art`, 7x `bart`, and still better than some libraries.
+
+<details>
+<summary>Benchmark Plots</summary>
+<br>
+
+![LPM vs size](docs/images/benchplot_lpm_vs_size.png)
+
+![Update vs LPM](docs/images/benchplot_update_vs_lpm.png)
+
+![Update vs size](docs/images/benchplot_update_vs_size.png)
+</details>
 
 ## Pre-1.0 Breaking Changes
 The following versions have breaking API changes:

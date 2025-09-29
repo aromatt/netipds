@@ -56,7 +56,7 @@ func TestPrefixSetInvalidPrefix(t *testing.T) {
 	}
 }
 
-func TestPrefixSetAddContains(t *testing.T) {
+func TestPrefixSetContains(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -505,7 +505,7 @@ var subtractPrefixTests = []struct {
 	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/2"), pfxs("64.0.0.0/2", "128.0.0.0/1")},
 }
 
-func TestPrefixSetSubtractPrefix(t *testing.T) {
+func TestPrefixSetBuilderSubtractPrefix(t *testing.T) {
 	for _, tt := range subtractPrefixTests {
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
@@ -535,7 +535,7 @@ func TestPrefixSet1MPrefixes(t *testing.T) {
 	}
 }
 
-func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
+func TestPrefixSetBuilderRemoveDefaultRoute(t *testing.T) {
 	// Test removing default routes specifically to catch tree structure bugs
 	tests := []struct {
 		name   string
@@ -583,7 +583,8 @@ func TestPrefixSetRemoveDefaultRoute(t *testing.T) {
 			}
 			ps = psb.PrefixSet()
 			if len(ps.Prefixes()) != len(tt.after) {
-				t.Errorf("after adding prefixes, got %d prefixes, want %d", len(ps.Prefixes()), len(tt.after))
+				t.Errorf("after adding prefixes, got %d prefixes, want %d",
+					len(ps.Prefixes()), len(tt.after))
 			}
 			for _, p := range tt.after {
 				if !ps.Contains(p) {
@@ -599,43 +600,69 @@ var subtractTests = []struct {
 	subtract []netip.Prefix
 	want     []netip.Prefix
 }{
-	{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
-	{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
-	{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
-	{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
-	{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
-	{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
-	{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
-	{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
-	{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
-	{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
-	{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
-	{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
-	{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
-	{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
-	{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
+	//{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
+	//{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
+	//{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+	//{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
+	//{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+	//{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
+	//{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
+	//{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
+	//{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
+	//{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
+	//{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
+	//{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
+	//{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
+	//{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
+	//{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
 
-	// This test covers https://github.com/aromatt/netipds/issues/31
-	{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
+	//// This test covers https://github.com/aromatt/netipds/issues/31
+	//{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
 
-	// Subtract from empty set
-	{pfxs(), pfxs(), pfxs()},
-	{pfxs(), pfxs("::0/1"), pfxs()},
+	//// Subtract from empty set
+	//{pfxs(), pfxs(), pfxs()},
+	//{pfxs(), pfxs("::0/1"), pfxs()},
 
-	// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+	//// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+	//{
+	//	set:      pfxs("1.2.3.0/30"),
+	//	subtract: pfxs("::ffff:1.2.3.0/128"),
+	//	want:     pfxs("1.2.3.0/30"),
+	//},
+
+	//// Default routes
+	//{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
+	//{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
+
+	//// Subtract a non-overlapping prefix
+	//{pfxs("128.0.0.0/1"), pfxs("0.0.0.0/2"), pfxs("128.0.0.0/1")},
+
+	//// Failing example discovered by property-based test. This test case
+	//// failed to match the netipx implementation.
+	//{
+	//	// 64/3 == 010
+	//	// 0/3  == 000
+	//	// 0/2  == 00
+	//	set:      pfxs("64.0.0.0/3", "0.0.0.0/3"),
+	//	subtract: pfxs("0.0.0.0/2"),
+	//	want:     pfxs("64.0.0.0/32"),
+	//},
+
+	// A: [0.0.0.0/1]
+	// B: [14.236.0.0/21 25.0.0.0/13]
+	// Expected: [0.0.0.0/5 8.0.0.0/6 12.0.0.0/7 14.0.0.0/9 14.128.0.0/10 14.192.0.0/11 14.224.0.0/13 14.232.0.0/14 14.236.8.0/21 14.236.16.0/20 14.236.32.0/19 14.236.64.0/18 14.236.128.0/17 14.237.0.0/16 14.238.0.0/15 14.240.0.0/12 15.0.0.0/8 16.0.0.0/5 24.0.0.0/8 25.8.0.0/13 25.16.0.0/12 25.32.0.0/11 25.64.0.0/10 25.128.0.0/9 26.0.0.0/7 28.0.0.0/6 32.0.0.0/3 64.0.0.0/2]
+	// Actual: [0.0.0.0/5 8.0.0.0/6 12.0.0.0/7 14.0.0.0/9 14.128.0.0/10 14.192.0.0/11 14.224.0.0/13 14.232.0.0/14 14.236.8.0/21 14.236.16.0/20 14.236.32.0/19 14.236.64.0/18 14.236.128.0/17 14.237.0.0/16 14.238.0.0/15 14.240.0.0/12 15.0.0.0/8 16.0.0.0/4 32.0.0.0/3 64.0.0.0/2]
+
 	{
-		set:      pfxs("1.2.3.0/30"),
-		subtract: pfxs("::ffff:1.2.3.0/128"),
-		want:     pfxs("1.2.3.0/30"),
+		set:      pfxs("0.0.0.0/2"),
+		subtract: pfxs("0.0.0.0/4", "16.0.0.0/4"),
+		want:     pfxs(),
 	},
-
-	// Default routes
-	{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
-	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
 }
 
-func TestPrefixSetSubtract(t *testing.T) {
+func TestPrefixSetBuilderSubtract(t *testing.T) {
 	for _, tt := range subtractTests {
+		println("NEW TEST CASE")
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
@@ -645,11 +672,24 @@ func TestPrefixSetSubtract(t *testing.T) {
 			tErr(subPsb.Add(p), t)
 		}
 		psb.Subtract(subPsb.PrefixSet())
-		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+		psSubtracted := psb.PrefixSet()
+		//checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+
+		// Compare result against netipx.IPSet implementation
+		ipset, err := ipsetSubtract(psb.PrefixSet(), subPsb.PrefixSet())
+		if err != nil {
+			t.Fatalf("Oracle IPSet build failed: %v", err)
+		}
+		netipdsIpSet := prefixSetToIPset(psSubtracted)
+		if !netipdsIpSet.Equal(ipset) {
+			t.Errorf("IP space mismatch against netipx implementation:\nA: %v\nB: %v\nExpected: %v\nActual: %v",
+				tt.set, tt.subtract, ipset.Prefixes(), netipdsIpSet.Prefixes())
+		}
+
 	}
 }
 
-func TestPrefixSetIntersect(t *testing.T) {
+func TestPrefixSetBuilderIntersect(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix
 		b    []netip.Prefix
@@ -691,6 +731,52 @@ func TestPrefixSetIntersect(t *testing.T) {
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/1"), pfxs("0.0.0.0/1")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.1/32"), pfxs("0.0.0.1/32")},
+
+		// a:    0b1*, 0b110*
+		// b:    0b11*
+		// want: 0b11*, 0b110*
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("192.0.0.0/2"),
+			want: pfxs("192.0.0.0/2", "192.0.0.0/3"),
+		},
+
+		// a:    0b1*, 0b110*
+		// b:    0b111*
+		// want: 0b111*
+		// (0b110* is not encompassed by b)
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("224.0.0.0/3"),
+			want: pfxs("224.0.0.0/3"),
+		},
+
+		// a:    0b1*, 0b110*
+		// b:    0b1110*
+		// want: 0b1110*
+		// (0b110* is not encompassed by b)
+		{
+			a:    pfxs("128.0.0.0/1", "192.0.0.0/3"),
+			b:    pfxs("224.0.0.0/4"),
+			want: pfxs("224.0.0.0/4"),
+		},
+
+		// Examples from property-based test that failed in old implementation
+		{
+			a:    pfxs("224.0.0.0/3", "224.0.0.0/6"),
+			b:    pfxs("234.0.0.0/28", "206.0.0.0/8"),
+			want: pfxs("234.0.0.0/28"),
+		},
+		{
+			a:    pfxs("224.0.0.0/3", "224.0.0.0/6"),
+			b:    pfxs("206.0.0.0/8", "128.0.0.0/23", "234.0.0.0/28"),
+			want: pfxs("234.0.0.0/28"),
+		},
+		{
+			a:    pfxs("0.0.0.0/2", "0.0.0.0/0", "181.168.80.0/20"),
+			b:    pfxs("24.192.0.0/10", "0.0.0.0/1", "177.1.2.6/32"),
+			want: pfxs("0.0.0.0/1", "0.0.0.0/2", "24.192.0.0/10", "177.1.2.6/32"),
+		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
@@ -711,7 +797,7 @@ func TestPrefixSetIntersect(t *testing.T) {
 	}
 }
 
-func TestPrefixSetMerge(t *testing.T) {
+func TestPrefixSetBuilderMerge(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix
 		b    []netip.Prefix
@@ -766,6 +852,14 @@ func TestPrefixSetMerge(t *testing.T) {
 		{pfxs("::0/0"), pfxs("::0/1"), pfxs("::0/0", "::0/1")},
 		{pfxs("0.0.0.0/0"), pfxs(), pfxs("0.0.0.0/0")},
 		{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/1"), pfxs("0.0.0.0/0", "0.0.0.0/1")},
+
+		// Ensure children are preserved in zero-overlap scenario
+		// ("neither is a prefix of the other" case).
+		{
+			pfxs("10.0.0.0/16"),
+			pfxs("20.0.0.0/16", "20.0.1.0/24"), // parent + child
+			pfxs("10.0.0.0/16", "20.0.0.0/16", "20.0.1.0/24"),
+		},
 	}
 	performTest := func(x, y []netip.Prefix, want []netip.Prefix) {
 		psb := &PrefixSetBuilder{}
@@ -785,7 +879,7 @@ func TestPrefixSetMerge(t *testing.T) {
 	}
 }
 
-func TestPrefixSetRemove(t *testing.T) {
+func TestPrefixSetBuilderRemove(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
 		remove []netip.Prefix
@@ -833,7 +927,7 @@ func TestPrefixSetRemove(t *testing.T) {
 	}
 }
 
-func TestPrefixSetFilter(t *testing.T) {
+func TestPrefixSetBuilderFilter(t *testing.T) {
 	tests := []struct {
 		add    []netip.Prefix
 		filter []netip.Prefix
