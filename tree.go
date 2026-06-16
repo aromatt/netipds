@@ -105,9 +105,9 @@ func (t *tree[T, B]) insert(k key[B], v T) *tree[T, B] {
 	}
 
 	common := t.key.CommonPrefixLen(k)
-	switch {
+	switch common {
 	// Inserting at a descendant; recurse into the appropriate child
-	case common == t.key.len:
+	case t.key.len:
 		child := t.child(k.Bit(t.key.len))
 		if *child == nil {
 			*child = newTree[T](k.Rest(t.key.len)).setValue(v)
@@ -116,7 +116,7 @@ func (t *tree[T, B]) insert(k key[B], v T) *tree[T, B] {
 		return t
 	// Inserting at a prefix of t.key; create a new parent node with t as its
 	// sole child
-	case common == k.len:
+	case k.len:
 		return t.newParent(k).setValue(v)
 	// Neither is a prefix of the other; create a new parent at their common
 	// prefix with children t and its new sibling
@@ -198,83 +198,167 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 // child of t is removed, then new nodes may be created to fill in the gaps
 // around the removed node.
 func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
-	println("subtractTree")
-	//println("Subtracting", o.key.String(), "from", t.key.String())
-	println("t", t.String())
-	println("o", o.String())
-	// Subtracting from empty tree yields empty tree
-	if t.isEmpty() {
+	if t == nil || t.isEmpty() || o == nil || o.isEmpty() {
 		return t
 	}
-	if o.hasEntry {
-		switch {
-		// We're subtracting a parent of t, so all of t will be removed
-		case o.key.IsPrefixOf(t.key):
-			println("  ST o is prefix of t")
+	var zero T
+	return t.subtractTreeImpl(o, zero, false)
+}
+
+func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherited bool) *tree[T, B] {
+	if t == nil || o == nil || o.isEmpty() {
+		return t
+	}
+
+	curVal := inheritedVal
+	curHasVal := hasInherited
+	if t.hasEntry {
+		curHasVal = true
+		curVal = t.value
+	}
+
+	switch {
+	case o.key.EqualFromRoot(t.key):
+		if o.hasEntry {
 			return t.nilOrEmptyRoot()
-		// We're subtracting a descendant of t, so create a hole there
-		case t.key.IsPrefixOf(o.key):
-			println("  ST t is prefix of o. Inserting a hole!")
-			return t.insertHole(o.key, t.value, t.hasEntry)
-		// No overlap; nothing to do
-		default:
-			println("  ST no overlap")
+		}
+		t.shatter(curVal, curHasVal)
+		for _, bit := range [2]bit{bitL, bitR} {
+			oChild := o.child(bit)
+			if *oChild == nil {
+				continue
+			}
+			childPtr := t.child(bit)
+			t.ensureChildForBit(childPtr, curHasVal, curVal, bit)
+			if *childPtr == nil {
+				continue
+			}
+			*childPtr = (*childPtr).subtractTreeImpl(*oChild, curVal, curHasVal)
+		}
+		return t.normalize()
+
+	case o.key.IsPrefixOf(t.key):
+		if o.hasEntry {
+			return t.nilOrEmptyRoot()
+		}
+		bit := t.key.Bit(o.key.len)
+		next := o.child(bit)
+		if *next == nil {
 			return t
 		}
-	}
-	// Consider the children of both t and o
-	// TODO if o has both children and both have entries, then we don't need to
-	// insert holes; we just need to remove both of t's children.
-	var tNext, oNext **tree[T, B]
-	for _, bit := range [2]bit{bitL, bitR} {
-		switch {
-		// (t would be nil if subtracting o's child ended up removing t)
-		case t == nil:
-			break
-		// If t and o are counterparts, traverse their children in lock-step
-		case t.key.EqualFromRoot(o.key):
-			tNext, oNext = t.child(bit), o.child(bit)
-		// If t is an ancestor of o, then consider both of o's children against t
-		case t.key.IsPrefixOf(o.key):
-			tNext, oNext = &t, o.child(bit)
-		default:
-			panic("didn't expect this to happen") // TODO
+		return t.subtractTreeImpl(*next, curVal, curHasVal)
+
+	case t.key.IsPrefixOf(o.key):
+		t.shatter(curVal, curHasVal)
+		bit := o.key.Bit(t.key.len)
+		childPtr := t.child(bit)
+		t.ensureChildForBit(childPtr, curHasVal, curVal, bit)
+		if *childPtr == nil {
+			return t.normalize()
 		}
-		switch {
-		// both children exist
-		case *tNext != nil && *oNext != nil:
-			println("  ST both t", t.key.String(), "and o", o.key.String(), "have a child at", bit)
-			*tNext = (*tNext).subtractTree(*oNext)
-		// t has a child but o does not; subtract o from t's child
-		case *tNext != nil && *oNext == nil:
-			println("  ST t has a child but o does not")
-			*tNext = (*tNext).subtractTree(o)
-		// o has a child but t does not; subtract o's child from t
-		case *tNext == nil && *oNext != nil:
-			println("  ST o has a child but t does not")
-			t = t.subtractTree(*oNext)
-		// no children to consider
-		case *tNext == nil && *oNext == nil:
-			println("  ST no children to consider")
-			// nothing to do
-		}
+		*childPtr = (*childPtr).subtractTreeImpl(o, curVal, curHasVal)
+		return t.normalize()
+
+	default:
+		return t
 	}
-	return t
+}
+
+// shatter materializes the entire key space under t so that subtractTree can
+// remove specific subranges without losing everything.
+//   - If t has an entry, clear it and treat its value as the inherited value.
+//   - Ensure both children exist, inheriting that value.
+//
+// After this runs, the space beneath t is explicit and ready to be carved.
+func (t *tree[T, B]) shatter(val T, hasVal bool) {
+	if t == nil {
+		return
+	}
+	if t.hasEntry {
+		val = t.value
+		hasVal = true
+	}
+	if !hasVal {
+		return
+	}
+	t.hasEntry = false
+	t.ensureChildForBit(t.child(bitL), true, val, bitL)
+	t.ensureChildForBit(t.child(bitR), true, val, bitR)
+}
+
+// ensureChildForBit guarantees that the child referenced by childPtr starts at
+// exactly one bit beyond t.key.
+//   - If the pointer is nil and we have an inherited value, creates a new child
+//     covering that single bit (shallowest possible).
+//   - If the pointer already exists but its compressed edge skips over that bit,
+//     splices in an intermediate parent so a node exists at the desired prefix.
+//
+// In both cases, the child ends up at the correct prefix and optionally inherits
+// the provided value.
+func (t *tree[T, B]) ensureChildForBit(childPtr **tree[T, B], hasVal bool, val T, bit bit) {
+	if childPtr == nil {
+		return
+	}
+	target := t.key.Next(bit)
+	if *childPtr == nil {
+		if !hasVal {
+			return
+		}
+		*childPtr = newTree[T](target).setValue(val)
+		return
+	}
+	// target is a prefix of the existing child's key. If the child already
+	// starts at target, keep it; otherwise splice a new parent at target with
+	// the existing child beneath it.
+	child := *childPtr
+	if child.key.len != target.len {
+		parent := newTree[T](target)
+		if child.key.Bit(target.len) == bitL {
+			parent.left = child
+		} else {
+			parent.right = child
+		}
+		child.key.offset = target.len
+		*childPtr = parent
+	}
+	if hasVal {
+		(*childPtr).setValue(val)
+	}
+}
+
+// normalize compresses t, collapsing redundant nodes, preserving the root
+// invariant and reusing existing children when only one remains.
+func (t *tree[T, B]) normalize() *tree[T, B] {
+	if t == nil {
+		return nil
+	}
+	if t.hasEntry {
+		return t
+	}
+	switch {
+	case t.left == nil && t.right == nil:
+		return t.nilOrEmptyRoot()
+	case t.left != nil && t.right == nil:
+		t.left.key.offset = t.key.offset
+		return t.left
+	case t.left == nil && t.right != nil:
+		t.right.key.offset = t.key.offset
+		return t.right
+	default:
+		return t
+	}
 }
 
 // insertHole removes k and sets t, and all of its descendants, to v.
 func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
-	println("insertHole", k.String(), "into", t.key.String())
 	switch {
 
 	// Removing t itself (no descendants will receive v)
 	case t.key.EqualFromRoot(k):
-		println("  IH removing t itself")
 		return t.nilOrEmptyRoot()
 
 	// k is a descendant of t; start digging a hole to k
 	case t.key.IsPrefixOf(k):
-		println("  IH t is prefix of k")
 		t.clearValue()
 		bit := k.Bit(t.key.len)
 		child, sibling := t.children(bit)
@@ -283,34 +367,27 @@ func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
 		// under an entry, then there is nothing to do. If we were under an
 		// entry, then we would need to create new entries around the k hole.
 		if *child == nil && !tPathHasEntry {
-			println("  IH *child == nil && !tPathHasEntry")
 			return t
 		}
 
 		// Create a new sibling to receive v if needed, then continue traversing
 		if *sibling == nil {
 			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
-			println("  IH *sibling == nil; creating sibling:", (*sibling).key.String())
 		}
 
 		// (child could be nil if we were carving a hole out of an entry)
 		if *child == nil {
 			*child = newTree[T](t.key.Next(bit))
-			println("  IH *child == nil; creating child before continuing to dig:",
-				(*child).key.String())
 		}
 
 		// Continue digging hole
-		println("  IH continue digging hole")
 		*child = (*child).insertHole(k, v, t.hasEntry || tPathHasEntry)
 
 	// k is an ancestor of t; remove t's entire branch
 	case k.IsPrefixOf(t.key):
-		println("  IH remove t's entire branch")
 		return t.nilOrEmptyRoot()
 
 	default:
-		println("  IH nothing to do")
 		// Nothing to do
 	}
 
@@ -356,9 +433,9 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 	}
 
 	common := t.key.CommonPrefixLen(o.key)
-	switch {
+	switch common {
 	// t.key is a prefix of o.key
-	case common == t.key.len:
+	case t.key.len:
 		// Traverse t in the direction of o
 		tChildFollow := t.child(o.key.Bit(t.key.len))
 		if *tChildFollow == nil {
@@ -369,7 +446,7 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 		}
 		return t
 	// o.key is a prefix of t.key
-	case common == o.key.len:
+	case o.key.len:
 		// o needs to inserted as a parent of t regardless of whether o has an
 		// entry (if the node exists in the o tree, it will need to be in the
 		// union tree). Insert it and continue traversing from there.
@@ -620,7 +697,7 @@ func (t *tree[T, B]) isRoot() bool {
 // and could return nil to a user.
 //
 // Note: this method should be the only method of tree containing the statement
-// `return nil`.
+// `return nil` (unless the receiver is known to be nil).
 func (t *tree[T, B]) nilOrEmptyRoot() *tree[T, B] {
 	if t.isRoot() {
 		return &tree[T, B]{}

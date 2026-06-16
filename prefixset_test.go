@@ -317,7 +317,7 @@ func TestPrefixSetDescendantsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
 		}
-		checkPrefixSlice(t, psb.PrefixSet().DescendantsOf(tt.get).Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().DescendantsOf(tt.get).Prefixes(), tt.want)
 	}
 }
 
@@ -406,7 +406,7 @@ func TestPrefixSetAncestorsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
 		}
-		checkPrefixSlice(t, psb.PrefixSet().AncestorsOf(tt.get).Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().AncestorsOf(tt.get).Prefixes(), tt.want)
 	}
 }
 
@@ -448,7 +448,9 @@ func TestPrefixSetOverlapsPrefix(t *testing.T) {
 	}
 }
 
-func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
+// assertEqualPrefixSlice asserts that the two slices contain the same Prefixes
+// TODO just use slices.Equal
+func assertEqualPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 	if len(got) != len(want) {
 		t.Errorf("got %v (len %d), want %v (len %d)", got, len(got), want, len(want))
 		return
@@ -459,7 +461,6 @@ func checkPrefixSlice(t *testing.T, got, want []netip.Prefix) {
 			return
 		}
 	}
-
 }
 
 var subtractPrefixTests = []struct {
@@ -514,7 +515,7 @@ func TestPrefixSetBuilderSubtractPrefix(t *testing.T) {
 		for _, p := range tt.subtract {
 			tErr(psb.SubtractPrefix(p), t)
 		}
-		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
 
@@ -600,52 +601,52 @@ var subtractTests = []struct {
 	subtract []netip.Prefix
 	want     []netip.Prefix
 }{
-	//{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
-	//{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
-	//{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
-	//{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
-	//{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
-	//{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
-	//{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
-	//{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
-	//{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
-	//{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
-	//{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
-	//{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
-	//{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
-	//{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
-	//{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
+	{pfxs("::0/1"), pfxs("::0/1"), pfxs()},
+	{pfxs("::0/2"), pfxs("::0/2"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/128"), pfxs()},
+	{pfxs("::0/128"), pfxs("::0/127"), pfxs()},
+	{pfxs("::0/128"), pfxs("::1/128"), pfxs("::0/128")},
+	{pfxs("::0/127"), pfxs("::0/128"), pfxs("::1/128")},
+	{pfxs("::2/127"), pfxs("::3/128"), pfxs("::2/128")},
+	{pfxs("::0/126"), pfxs("::0/128"), pfxs("::1/128", "::2/127")},
+	{pfxs("::0/126"), pfxs("::3/128"), pfxs("::0/127", "::2/128")},
+	{pfxs("::0/127"), pfxs("::0/128", "::1/128"), pfxs()},
+	{pfxs("::3/128"), pfxs("::2/127"), pfxs()},
+	{pfxs("::0/128", "::1/128"), pfxs("::0/128"), pfxs("::1/128")},
+	{pfxs("::0/128", "::1/128"), pfxs("::0/128", "::1/128"), pfxs()},
+	{pfxs("::0/127", "::1/128"), pfxs("::0/127"), pfxs()},
+	{pfxs("::3/128"), pfxs("::2/127", "::1/128"), pfxs()},
 
-	//// This test covers https://github.com/aromatt/netipds/issues/31
-	//{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
+	// This test covers https://github.com/aromatt/netipds/issues/31
+	{pfxs("::0/128"), pfxs("::0/128", "::1/128"), pfxs()},
 
-	//// Subtract from empty set
-	//{pfxs(), pfxs(), pfxs()},
-	//{pfxs(), pfxs("::0/1"), pfxs()},
+	// Subtract from empty set
+	{pfxs(), pfxs(), pfxs()},
+	{pfxs(), pfxs("::0/1"), pfxs()},
 
-	//// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
-	//{
-	//	set:      pfxs("1.2.3.0/30"),
-	//	subtract: pfxs("::ffff:1.2.3.0/128"),
-	//	want:     pfxs("1.2.3.0/30"),
-	//},
+	// IPv4-mapped IPv6 addresses are distinct from IPv4 addresses
+	{
+		set:      pfxs("1.2.3.0/30"),
+		subtract: pfxs("::ffff:1.2.3.0/128"),
+		want:     pfxs("1.2.3.0/30"),
+	},
 
-	//// Default routes
-	//{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
-	//{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
+	// Default routes
+	{pfxs("::0/0"), pfxs("::0/0"), pfxs()},
+	{pfxs("0.0.0.0/0"), pfxs("0.0.0.0/0"), pfxs()},
 
-	//// Subtract a non-overlapping prefix
-	//{pfxs("128.0.0.0/1"), pfxs("0.0.0.0/2"), pfxs("128.0.0.0/1")},
+	// Subtract a non-overlapping prefix
+	{pfxs("128.0.0.0/1"), pfxs("0.0.0.0/2"), pfxs("128.0.0.0/1")},
 
-	//// Failing example discovered by property-based test. This test case
-	//// failed to match the netipx implementation.
-	//{
-	//	set:      pfxs("64.0.0.0/3", "0.0.0.0/3"), // 010, 000
-	//	subtract: pfxs("0.0.0.0/2"),               // 00
-	//	want:     pfxs("64.0.0.0/3"),              // 010
-	//},
+	// Previously failing example discovered by property-based test. This test case
+	// failed to match the netipx implementation.
+	{
+		set:      pfxs("64.0.0.0/3", "0.0.0.0/3"), // 010, 000
+		subtract: pfxs("0.0.0.0/2"),               // 00
+		want:     pfxs("64.0.0.0/3"),              // 010
+	},
 
-	// Failing example discovered by property-based test. This test case failed
+	// Previously failing example discovered by property-based test. This test case failed
 	// to match the netipx implementation.
 	//
 	// In this example, we start with a single node, then subtract both
@@ -655,58 +656,11 @@ var subtractTests = []struct {
 		set:      pfxs("0.0.0.0/2"),               // 00
 		subtract: pfxs("0.0.0.0/4", "16.0.0.0/4"), // 0000, 0001
 		want:     pfxs("32.0.0.0/3"),              // 001
-		// actual:                                 // 0001, 001
 	},
-	// What does the current algorithm do?
-	// subtractTree gets to:
-	//   t: 00
-	//   o: ...0
-	// then calls insertHole on those (insertHole 0,3-4 into 0,0-2)
-	// IH adds children to 00 (..0 and ..1) and follows ..0
-	// IH adds children to ..0 (...0 and ...1) and follows ...0 but returns from that
-	//
-	// subtractTree then sees that both t 00 and o 000 have a child at 1 and goes to:
-	//   t: ..1 (created by insertHole)
-	//   o: ...1
-	// ST says no overlap, and no children to consider.
-	// This is ok: ..1 is ok to keep
-	//
-	// The problem is that it never compares t 0001 to o 0001
-	//
-	// After the first hole is inserted and it comes back out to t 00, it needs
-	// to see that 00 ALSO matches o 0001.
-	//
-	// A couple of ideas:
-	//  1. Keep track of whether t is updated, and keep calling subtractTree until
-	//     no changes are made. This way, after 0001 is inserted in t, it would then
-	//     run subtractTree on t 00 o ...1, and remove t 0001.
-	//  2. Do this breadth-first instead of depth-first. Right now we're doing a
-	//     best-effort dual traversal, so you end up with t and o at different
-	//     depths (like t 00 and o ...0).
-	//  3. When considering children, we should really be considering more (all?)
-	//     combinations of t and o children. At least, if t is an ancestor of o,
-	//     it doesn't really make sense to compare same-side children of t and o.
-	//     Only if t and o are exact counterparts does it make sense to recurse in
-	//     lock-step. If t is an ancestor of o, then we really should be comparing
-	//     both of t's children to o itself, right?
-	//     - UPDATE: this was pretty easy to implement, but it has this problem:
-	//               you volley the problem over to the other bit. We make the same
-	//               mistake on the other side now. The problem persists: when
-	//               we insert a hole, we do it without knowledge of whether we're
-	//               creating stuff that's also supposed to be subtracted.
-	//  4. Use a mark-and-delete approach: you traverse both trees to figure out
-	//     what holes need to be created and which nodes of t need to be completely
-	//     removed.
-	//
-	//  Option 2 seems most correct.
-	//
-	//
-
 }
 
 func TestPrefixSetBuilderSubtract(t *testing.T) {
 	for _, tt := range subtractTests {
-		println("NEW TEST CASE")
 		psb := &PrefixSetBuilder{}
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
@@ -717,7 +671,7 @@ func TestPrefixSetBuilderSubtract(t *testing.T) {
 		}
 		psb.Subtract(subPsb.PrefixSet())
 		psSubtracted := psb.PrefixSet()
-		//checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 
 		// Compare result against netipx.IPSet implementation
 		ipset, err := ipsetSubtract(psb.PrefixSet(), subPsb.PrefixSet())
@@ -729,7 +683,6 @@ func TestPrefixSetBuilderSubtract(t *testing.T) {
 			t.Errorf("IP space mismatch against netipx implementation:\nA: %v\nB: %v\nExpected: %v\nActual: %v",
 				tt.set, tt.subtract, ipset.Prefixes(), netipdsIpSet.Prefixes())
 		}
-
 	}
 }
 
@@ -832,7 +785,7 @@ func TestPrefixSetBuilderIntersect(t *testing.T) {
 			tErr(intersectPsb.Add(p), t)
 		}
 		psb.Intersect(intersectPsb.PrefixSet())
-		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
 	}
 
 	for _, tt := range tests {
@@ -915,7 +868,7 @@ func TestPrefixSetBuilderMerge(t *testing.T) {
 			tErr(unionPsb.Add(p), t)
 		}
 		psb.Merge(unionPsb.PrefixSet())
-		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), want)
 	}
 	for _, tt := range tests {
 		performTest(tt.a, tt.b, tt.want)
@@ -967,7 +920,7 @@ func TestPrefixSetBuilderRemove(t *testing.T) {
 			tErr(psb.Remove(p), t)
 		}
 		ps := psb.PrefixSet()
-		checkPrefixSlice(t, ps.Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, ps.Prefixes(), tt.want)
 	}
 }
 
@@ -1017,7 +970,7 @@ func TestPrefixSetBuilderFilter(t *testing.T) {
 			tErr(filterPsb.Add(p), t)
 		}
 		psb.Filter(filterPsb.PrefixSet())
-		checkPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), tt.want)
 	}
 }
 
@@ -1058,7 +1011,7 @@ func TestPrefixSetPrefixesCompact(t *testing.T) {
 			tErr(psb.Add(p), t)
 		}
 		ps := psb.PrefixSet()
-		checkPrefixSlice(t, ps.PrefixesCompact(), tt.want)
+		assertEqualPrefixSlice(t, ps.PrefixesCompact(), tt.want)
 	}
 }
 
