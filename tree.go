@@ -174,9 +174,9 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	if t.isEmpty() {
 		return t
 	}
-	// t is equal to, or a child of, the subtracted key; all of t will be removed
-	// TODO EqualFromRoot call is now redundant
-	if t.key.EqualFromRoot(k) || k.IsPrefixOf(t.key) {
+	// t is equal to, or a child of, the subtracted key; all of t will be
+	// removed (IsPrefixOf is true for equal keys as well)
+	if k.IsPrefixOf(t.key) {
 		return t.nilOrEmptyRoot()
 	}
 	// A descendant of t is being subtracted
@@ -205,6 +205,11 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 	return t.subtractTreeImpl(o, zero, false)
 }
 
+// subtractTreeImpl is the recursive core of subtractTree. As it descends, it
+// may need to materialize parts of t's key space that were implied by an
+// ancestor entry (see shatter). inheritedVal and hasInherited carry the value
+// of the nearest enclosing entry so that any nodes created along the way
+// inherit the correct value. They are zero/false until an entry is seen.
 func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherited bool) *tree[T, B] {
 	if t == nil || o == nil || o.isEmpty() {
 		return t
