@@ -1,4 +1,4 @@
-//foo go:build debug
+//go:build debug
 
 package netipds
 
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// DumpTree prints a human-readable representation of s's internal tree structure.
+// DumpTree prints a human-readable representation of m's internal tree structure.
 func (m *PrefixMapBuilder[T]) DumpTree() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		m.tree4.stringImpl("", "", false),
@@ -14,7 +14,7 @@ func (m *PrefixMapBuilder[T]) DumpTree() string {
 	)
 }
 
-// DumpTree prints a human-readable representation of s's internal tree structure.
+// DumpTree prints a human-readable representation of m's internal tree structure.
 func (m *PrefixMap[T]) DumpTree() string {
 	return fmt.Sprintf("IPv4:\n%s\nIPv6:\n%s",
 		m.tree4.stringImpl("", "", false),
