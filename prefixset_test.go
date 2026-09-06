@@ -534,6 +534,24 @@ func TestPrefixSetBuilderSubtractExplicitPrefixFromEncompassingEntry(t *testing.
 	}
 }
 
+// Removing every entry beneath a shared-prefix node must not leave that node
+// behind. A leftover node has no entry and no children, and subtracting a set
+// containing one shatters the matching entry in the target.
+func TestPrefixSetBuilderSubtractSetWithEmptiedBranch(t *testing.T) {
+	other := &PrefixSetBuilder{}
+	tErr(other.Add(pfx("1.0.0.0/32")), t)
+	tErr(other.Add(pfx("1.0.0.1/32")), t)
+	tErr(other.Add(pfx("2.0.0.0/32")), t)
+	tErr(other.Remove(pfx("1.0.0.0/32")), t)
+	tErr(other.Remove(pfx("1.0.0.1/32")), t)
+
+	psb := &PrefixSetBuilder{}
+	tErr(psb.Add(pfx("1.0.0.0/31")), t)
+	psb.Subtract(other.PrefixSet())
+
+	assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), pfxs("1.0.0.0/31"))
+}
+
 func TestPrefixSet1MPrefixes(t *testing.T) {
 	// Create a PrefixSet containing 1 million prefixes spread across the IPv4
 	// space, and then verify that it contains exactly 1 million prefixes.
