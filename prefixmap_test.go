@@ -927,3 +927,14 @@ func TestPrefixMapSize(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixMapToMapAtMaxIPv6Depth(t *testing.T) {
+	pmb := &PrefixMapBuilder[int]{}
+	for bits := 0; bits <= 128; bits++ {
+		tErr(pmb.Set(netip.PrefixFrom(netip.IPv6Unspecified(), bits), bits), t)
+	}
+
+	if got := len(pmb.PrefixMap().ToMap()); got != 129 {
+		t.Fatalf("len(ToMap()) = %d, want 129", got)
+	}
+}

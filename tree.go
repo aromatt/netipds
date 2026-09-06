@@ -343,6 +343,10 @@ func (t *tree[T, B]) normalize() *tree[T, B] {
 	switch {
 	case t.left == nil && t.right == nil:
 		return t.nilOrEmptyRoot()
+	// The root must retain its zero-length key. Returning one of its children
+	// would violate that invariant and make later builder mutations unsafe.
+	case t.isRoot():
+		return t
 	case t.left != nil && t.right == nil:
 		t.left.key.offset = t.key.offset
 		return t.left
@@ -524,8 +528,12 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 		}
 		stop = fn(n)
 		if n.key.len < stackMaxDepth && !stop {
-			st.Push(n.right)
-			st.Push(n.left)
+			if n.right != nil {
+				st.Push(n.right)
+			}
+			if n.left != nil {
+				st.Push(n.left)
+			}
 		}
 	}
 }

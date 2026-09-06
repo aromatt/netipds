@@ -686,6 +686,26 @@ func TestPrefixSetBuilderSubtract(t *testing.T) {
 	}
 }
 
+func TestPrefixSetBuilderSubtractPreservesRoot(t *testing.T) {
+	psb := &PrefixSetBuilder{}
+	tErr(psb.Add(pfx("0.0.0.0/0")), t)
+
+	sub := &PrefixSetBuilder{}
+	tErr(sub.Add(pfx("0.0.0.0/1")), t)
+	psb.Subtract(sub.PrefixSet())
+
+	if !psb.tree4.isRoot() {
+		t.Fatalf("Subtract left a non-root key at the tree root: %v", psb.tree4.key)
+	}
+	assertEqualPrefixSlice(t, psb.PrefixSet().Prefixes(), pfxs("128.0.0.0/1"))
+
+	// The builder must remain safe to mutate after subtraction.
+	tErr(psb.Remove(pfx("128.0.0.0/1")), t)
+	if got := psb.PrefixSet().Size(); got != 0 {
+		t.Fatalf("Size() after removing the remainder = %d, want 0", got)
+	}
+}
+
 func TestPrefixSetBuilderIntersect(t *testing.T) {
 	tests := []struct {
 		a    []netip.Prefix
