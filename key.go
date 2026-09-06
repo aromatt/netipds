@@ -80,10 +80,10 @@ func (k key[B]) IsPrefixOf(o key[B]) bool {
 	return k.content == o.content.BitsClearedFrom(k.len)
 }
 
-// Next returns a one-bit key just beyond k, set to 1 iff b == bitR.
-func (k key[B]) Next(b bit) key[B] {
+// Next returns a one-bit key just beyond k, set to 1 iff right.
+func (k key[B]) Next(right bit) key[B] {
 	content := k.content
-	if b == bitR {
+	if right {
 		content = content.WithBitSet(k.len)
 	}
 	return newKey(content, k.len, k.len+1)

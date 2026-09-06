@@ -1,6 +1,6 @@
 # netipds
 [![Go Reference](https://pkg.go.dev/badge/github.com/aromatt/netipds)](https://pkg.go.dev/github.com/aromatt/netipds)
-[![Go Report Card](https://goreportcard.com/badge/github.com/aromatt/netipds)](https://goreportcard.com/report/github.com/aromatt/netipds)
+[![Go](https://github.com/aromatt/netipds/actions/workflows/go.yml/badge.svg)](https://github.com/aromatt/netipds/actions/workflows/go.yml)
 [![codecov](https://codecov.io/gh/aromatt/netipds/graph/badge.svg?token=WJ1JHSM05F)](https://codecov.io/gh/aromatt/netipds)
 
 This package builds on the
@@ -9,9 +9,6 @@ family by adding two immutable, trie-based collection types for IP prefixes (CID
 * `PrefixMap[T]` - a map from `netip.Prefix` to `T` supporting CIDR-based retrieval
   (longest-match, subnets, supernets, etc.)
 * `PrefixSet` - a set of `netip.Prefix` values supporting [semantic combination](#combining-sets-and-maps)
-
-Both provide a rich set of queries enabled by a binary [radix
-tree](https://en.wikipedia.org/wiki/Radix_tree).
 
 ### Goals
 * **Efficiency.** This package aims to provide fast, immutable collection types for

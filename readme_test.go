@@ -7,6 +7,8 @@ import (
 
 // This is the README example copied and pasted; it's just a sanity check that
 // it compiles.
+//
+//nolint:errcheck,ineffassign,staticcheck // Keep this function identical to the illustrative README snippet.
 func TestReadmeExampleLiteral(t *testing.T) {
 	/*** README snippet pasted below ***/
 
@@ -59,8 +61,12 @@ func TestReadmeExampleVerify(t *testing.T) {
 
 	// Build a PrefixMap
 	pmb := PrefixMapBuilder[string]{}
-	pmb.Set(px("1.2.0.0/16"), "hello")
-	pmb.Set(px("1.2.3.0/24"), "world")
+	if err := pmb.Set(px("1.2.0.0/16"), "hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pmb.Set(px("1.2.3.0/24"), "world"); err != nil {
+		t.Fatal(err)
+	}
 	pm := pmb.PrefixMap()
 
 	// Fetch an exact entry from the PrefixMap.

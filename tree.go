@@ -42,16 +42,16 @@ func (t *tree[T, B]) setValueFrom(o *tree[T, B]) *tree[T, B] {
 }
 
 // child returns a pointer to the specified child of t.
-func (t *tree[T, B]) child(b bit) **tree[T, B] {
-	if b == bitR {
+func (t *tree[T, B]) child(right bit) **tree[T, B] {
+	if right {
 		return &t.right
 	}
 	return &t.left
 }
 
 // children returns pointers to t's children.
-func (t *tree[T, B]) children(whichFirst bit) (a **tree[T, B], b **tree[T, B]) {
-	if whichFirst == bitR {
+func (t *tree[T, B]) children(rightFirst bit) (a **tree[T, B], b **tree[T, B]) {
+	if rightFirst {
 		return &t.right, &t.left
 	}
 	return &t.left, &t.right
@@ -318,7 +318,7 @@ func (t *tree[T, B]) ensureChildForBit(childPtr **tree[T, B], hasVal bool, val T
 	child := *childPtr
 	if child.key.len != target.len {
 		parent := newTree[T](target)
-		if child.key.Bit(target.len) == bitL {
+		if child.key.Bit(target.len) == bitL { //nolint:staticcheck // more readable
 			parent.left = child
 		} else {
 			parent.right = child
@@ -475,7 +475,7 @@ func (t *tree[T, B]) mergeTree(o *tree[T, B]) *tree[T, B] {
 // An entry is included in the result iff it is encompassed by both t and o.
 func (t *tree[T, B]) intersectTree(o *tree[T, B]) *tree[T, B] {
 	var path key[B]
-	var result *tree[T, B] = &tree[T, B]{}
+	result := &tree[T, B]{}
 
 	// Include every entry in t that o encompasses
 	t.walk(path, func(n *tree[T, B]) bool {
@@ -519,14 +519,12 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 
 	// After path is exhausted, visit all children
 	var st stack[*tree[T, B]]
-	var stop bool
 	st.Push(n)
 	for !st.IsEmpty() {
-		stop = false
 		if n = st.Pop(); n == nil {
 			continue
 		}
-		stop = fn(n)
+		stop := fn(n)
 		if n.key.len < stackMaxDepth && !stop {
 			if n.right != nil {
 				st.Push(n.right)
