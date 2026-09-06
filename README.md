@@ -118,48 +118,34 @@ During the build stage, `netipds` collections can be combined in the following w
 
 ## Errors
 Not every possible value of `netip.Prefix` is a valid IP prefix. For example,
-`netip.Prefix{}` is invalid.
-
-CIDR collection libraries such as `netipds` handle invalid prefixes in different
-ways. `netipds` takes the following approach:
+`netip.Prefix{}` is invalid. CIDR collection libraries such as `netipds` handle
+invalid prefixes in different ways. `netipds` takes the following approach:
 
 _If an invalid prefix is provided to a PrefixMapBuilder or PrefixSetBuilder,
 then an error is returned immediately and the builder remains valid._
 
-<details><summary>Rationale</summary>
+Rationale: returning errors at the mutation call site is familiar and unopinionated,
+allowing callers to decide between failing immediately, collecting errors for later,
+or explicitly ignoring them.
 
-When the user passes a `netip.Prefix` to a `netipds` method, they are signaling an
-expectation that the prefix is — or at least <i>might be</i> — valid, and that the
-receiver should do something with it.
+Example patterns:
 
-`netipds` cannot assume (1) that the user knows whether the prefix is valid, and (2)
-that if it is _not_ valid, whether the user would prefer to ignore it, find out right
-away, or find out later.
-
-The only way to preserve the user's ability to choose how to handle invalid-prefix
-errors is to return them right away.
-
-</details>
-
-This design is intended to be familiar and unopinionated, allowing you to decide how
-to handle bad input. Here are a few reasonable patterns:
-
-
-### 1. Silently skip invalid prefixes
-This is pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart), which
-does not return errors at all (invalid prefixes result in no-ops).
+### 1. Fail fast
+If you want to build a collection from unvetted prefixes and let `netipds` tell you
+about the invalid ones right away, you can do that:
 
 ```go
 for _, p := range prefixes {
-    _ = builder.Add(p)
+    if err := builder.Add(p); err != nil {
+        return err
+    }
 }
 ```
-If you use this pattern, then presumably, you have already validated your prefixes
-before building your collection.
 
 ### 2. Batch errors
 This pattern is used by [netipx](https://pkg.go.dev/go4.org/netipx), which
 accumulates errors during the build phase, then returns them as a batch.
+
 ```go
 var errs []error
 for _, p := range prefixes {
@@ -172,19 +158,20 @@ return errors.Join(errs...)
 ```
 
 `netipds` tries to follow the idioms of `netipx` in general, but forced
-error-batching adds extra machinery, is not what all users want, and is easily
-implemented on top of the `netipds` API.
+error-batching adds extra internal machinery, is not what all users want, and is
+easily implemented on top of the `netipds` API.
 
-### 3. Fail fast
-Finally, if you want to build a collection from unvetted prefixes and let `netipds`
-tell you about the invalid ones right away, you can do that, too:
+### 3. Silently skip invalid prefixes
+This pattern is used by [bart](https://pkg.go.dev/github.com/gaissmai/bart), which
+does not return errors at all for insertions (invalid prefixes result in no-ops).
+
 ```go
 for _, p := range prefixes {
-    if err := builder.Add(p); err != nil {
-        return err
-    }
+    _ = builder.Add(p)
 }
 ```
+
+Use this pattern when invalid prefixes can safely be ignored.
 
 ## Note about Value-Copying in PrefixMap
 When generating an immutable PrefixMap from a PrefixMapBuilder (using
@@ -200,6 +187,7 @@ tests](prefixset_property_test.go).
 
 These tests generate large sets of random inputs and test for properties such as
 commutativity and exact parity against reference implementations.
+
 ## Related Packages
 
 ### [gaissmai/bart](https://github.com/gaissmai/bart)
@@ -232,28 +220,15 @@ The benchmark suite at [gaissmai/iprbench](https://github.com/gaissmai/iprbench)
 compares several "IP routing table implementations," including `netipds`.
 
 As with any benchmark, these results do not necessarily reflect real-world
-performance, but here are some highlights from the iprbench results:
+performance. In the currently published results:
 
-* **Lookup time.** `netipds` performs longest-prefix-match (LPM) lookups in tens of
-  nanoseconds, on par with `art` and only 2x the LPM-optimized `bart`.
-
-* **Memory usage.** `netipds` uses about 66 bytes per entry, which is two orders of
-  magnitude smaller than `art` and only 18% larger than `bart`.
-
-* **Update time.** `netipds` uses builders to construct immutable collections, so it
-  is not optimized for update time. Still, its builders provide serviceable update
-  time at about 2.5x `art`, 7x `bart`, and still better than some libraries.
-
-<details>
-<summary>Benchmark Plots</summary>
-<br>
-
-![LPM vs size](docs/images/benchplot_lpm_vs_size.png)
-
-![Update vs LPM](docs/images/benchplot_update_vs_lpm.png)
-
-![Update vs size](docs/images/benchplot_update_vs_size.png)
-</details>
+- **Lookup time:** `netipds` is the only implementation other than the benchmark
+  author's (`bart`) with a longest-prefix-match geomean below 30 nanoseconds.
+- **Memory usage:** `netipds` has the lowest memory usage other than `bart.Lite`, the
+  author's memory-optimized variant.
+- **Update time:** `netipds` uses builders to construct immutable collections, so it
+  is not optimized for update time; however it still beats most of the
+  implementations in this benchmark.
 
 ## Pre-1.0 Breaking Changes
 The following versions have breaking API changes:
