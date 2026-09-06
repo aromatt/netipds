@@ -151,6 +151,132 @@ func prefixSetToIPset(ps *PrefixSet) *netipx.IPSet {
 	return ipset
 }
 
+func mustIPSet(t *rapid.T, prefixes []netip.Prefix) *netipx.IPSet {
+	var b netipx.IPSetBuilder
+	for _, p := range prefixes {
+		b.AddPrefix(p)
+	}
+	result, err := b.IPSet()
+	if err != nil {
+		t.Fatalf("building oracle IPSet: %v", err)
+	}
+	return result
+}
+
+func mutateIPSet(t *rapid.T, current *netipx.IPSet, mutate func(*netipx.IPSetBuilder)) *netipx.IPSet {
+	var b netipx.IPSetBuilder
+	b.AddSet(current)
+	mutate(&b)
+	result, err := b.IPSet()
+	if err != nil {
+		t.Fatalf("mutating oracle IPSet: %v", err)
+	}
+	return result
+}
+
+func drawStatefulPrefix(t *rapid.T, existing []netip.Prefix, label string) netip.Prefix {
+	if len(existing) > 0 && rapid.Bool().Draw(t, label+" related") {
+		base := existing[rapid.IntRange(0, len(existing)-1).Draw(t, label+" base")]
+		maxBits := 128
+		if base.Addr().Is4() {
+			maxBits = 32
+		}
+
+		switch rapid.IntRange(0, 2).Draw(t, label+" relationship") {
+		case 0:
+			return base
+		case 1:
+			bits := rapid.IntRange(0, base.Bits()).Draw(t, label+" ancestor bits")
+			return netip.PrefixFrom(base.Addr(), bits).Masked()
+		default:
+			bits := rapid.IntRange(base.Bits(), maxBits).Draw(t, label+" descendant bits")
+			return netip.PrefixFrom(base.Addr(), bits).Masked()
+		}
+	}
+
+	if rapid.Bool().Draw(t, label+" family") {
+		return rapid.Custom(genIPv4Prefix).Draw(t, label+" IPv4")
+	}
+	return rapid.Custom(genIPv6Prefix).Draw(t, label+" IPv6")
+}
+
+func drawOperandPrefixes(t *rapid.T, existing []netip.Prefix, label string) []netip.Prefix {
+	count := rapid.IntRange(0, 4).Draw(t, label+" count")
+	prefixes := make([]netip.Prefix, 0, count)
+	candidates := append([]netip.Prefix(nil), existing...)
+	for i := 0; i < count; i++ {
+		p := drawStatefulPrefix(t, candidates, fmt.Sprintf("%s prefix %d", label, i))
+		prefixes = append(prefixes, p)
+		candidates = append(candidates, p)
+	}
+	return prefixes
+}
+
+func assertTreeInvariants[B keybits[B]](t *rapid.T, root *tree[bool, B], maxBits uint8, name string) int {
+	if !root.key.IsZero() || root.key.offset != 0 || !root.key.content.IsZero() {
+		t.Fatalf("%s root has invalid key %v", name, root.key)
+	}
+
+	seen := make(map[*tree[bool, B]]struct{})
+	entries := 0
+	var visit func(*tree[bool, B], *tree[bool, B], bit)
+	visit = func(n, parent *tree[bool, B], direction bit) {
+		if _, ok := seen[n]; ok {
+			t.Fatalf("%s tree contains a cycle or shared node at %v", name, n.key)
+		}
+		seen[n] = struct{}{}
+
+		if n.key.len > maxBits || n.key.offset > n.key.len {
+			t.Fatalf("%s node has invalid key bounds %v", name, n.key)
+		}
+		if n.key.content != n.key.content.BitsClearedFrom(n.key.len) {
+			t.Fatalf("%s node key has bits set beyond its prefix length: %v", name, n.key)
+		}
+
+		if parent != nil {
+			if n.key.len <= parent.key.len || n.key.offset != parent.key.len {
+				t.Fatalf("%s child %v has invalid relationship to parent %v", name, n.key, parent.key)
+			}
+			if !parent.key.IsPrefixOf(n.key) || n.key.Bit(parent.key.len) != direction {
+				t.Fatalf("%s child %v is on the wrong branch of parent %v", name, n.key, parent.key)
+			}
+			if n.isEmpty() {
+				t.Fatalf("%s contains an empty non-root node at %v", name, n.key)
+			}
+			if !n.hasEntry && (n.left == nil || n.right == nil) {
+				t.Fatalf("%s contains an uncompressed node at %v", name, n.key)
+			}
+		}
+
+		if n.hasEntry {
+			entries++
+			if !n.value {
+				t.Fatalf("%s entry at %v has a false value", name, n.key)
+			}
+		}
+		if n.left != nil {
+			visit(n.left, n, bitL)
+		}
+		if n.right != nil {
+			visit(n.right, n, bitR)
+		}
+	}
+
+	visit(root, nil, bitL)
+	return entries
+}
+
+func assertBuilderInvariants(t *rapid.T, b *PrefixSetBuilder) *PrefixSet {
+	entries4 := assertTreeInvariants(t, &b.tree4, 32, "IPv4")
+	entries6 := assertTreeInvariants(t, &b.tree6, 128, "IPv6")
+	snapshot := b.PrefixSet()
+	if snapshot.size4 != entries4 || snapshot.size6 != entries6 {
+		t.Fatalf("stored sizes are (%d, %d), want (%d, %d)",
+			snapshot.size4, snapshot.size6, entries4, entries6)
+	}
+	return snapshot
+}
+
 // testPrefixSetMergeRandom tests the merger of two large random PrefixSets.
 // It validates expected properties of merging:
 //  1. Merging should be commutative: A + B = B + A
@@ -381,6 +507,104 @@ func TestPrefixSetContainsProp(t *testing.T) {
 		for _, p := range a {
 			if !psA.Contains(p) {
 				t.Errorf("PrefixSet should contain %s", p)
+			}
+		}
+	})
+}
+
+func TestPrefixSetBuilderStatefulProp(t *testing.T) {
+	const (
+		opAdd = iota
+		opRemove
+		opSubtractPrefix
+		opMerge
+		opSubtract
+		opIntersect
+		opCount
+	)
+
+	rapid.Check(t, func(rt *rapid.T) {
+		var b PrefixSetBuilder
+		oracle := mustIPSet(rt, nil)
+		operations := make([]string, 0)
+		steps := rapid.IntRange(opCount, 30).Draw(rt, "operation count")
+
+		for step := 0; step < steps; step++ {
+			before := assertBuilderInvariants(rt, &b)
+			existing := before.Prefixes()
+			op := step
+			if op >= opCount {
+				op = rapid.IntRange(0, opCount-1).Draw(rt, fmt.Sprintf("operation %d", step))
+			}
+
+			switch op {
+			case opAdd:
+				p := drawStatefulPrefix(rt, existing, fmt.Sprintf("add %d", step))
+				if err := b.Add(p); err != nil {
+					rt.Fatalf("Add(%v): %v", p, err)
+				}
+				oracle = mutateIPSet(rt, oracle, func(ob *netipx.IPSetBuilder) {
+					ob.AddPrefix(p)
+				})
+				operations = append(operations, "add "+p.String())
+
+			case opRemove:
+				p := drawStatefulPrefix(rt, existing, fmt.Sprintf("remove %d", step))
+				remaining := make([]netip.Prefix, 0, len(existing))
+				for _, entry := range existing {
+					if entry != p {
+						remaining = append(remaining, entry)
+					}
+				}
+				if err := b.Remove(p); err != nil {
+					rt.Fatalf("Remove(%v): %v", p, err)
+				}
+				oracle = mustIPSet(rt, remaining)
+				operations = append(operations, "remove "+p.String())
+
+			case opSubtractPrefix:
+				p := drawStatefulPrefix(rt, existing, fmt.Sprintf("subtract prefix %d", step))
+				if err := b.SubtractPrefix(p); err != nil {
+					rt.Fatalf("SubtractPrefix(%v): %v", p, err)
+				}
+				oracle = mutateIPSet(rt, oracle, func(ob *netipx.IPSetBuilder) {
+					ob.RemovePrefix(p)
+				})
+				operations = append(operations, "subtract-prefix "+p.String())
+
+			case opMerge, opSubtract, opIntersect:
+				prefixes := drawOperandPrefixes(rt, existing, fmt.Sprintf("operand %d", step))
+				other := buildSet(t, prefixes)
+				otherOracle := mustIPSet(rt, prefixes)
+
+				switch op {
+				case opMerge:
+					b.Merge(other)
+					oracle = mutateIPSet(rt, oracle, func(ob *netipx.IPSetBuilder) {
+						ob.AddSet(otherOracle)
+					})
+					operations = append(operations, fmt.Sprintf("merge %v", prefixes))
+				case opSubtract:
+					b.Subtract(other)
+					oracle = mutateIPSet(rt, oracle, func(ob *netipx.IPSetBuilder) {
+						ob.RemoveSet(otherOracle)
+					})
+					operations = append(operations, fmt.Sprintf("subtract %v", prefixes))
+				case opIntersect:
+					b.Intersect(other)
+					oracle = mutateIPSet(rt, oracle, func(ob *netipx.IPSetBuilder) {
+						ob.Intersect(otherOracle)
+					})
+					operations = append(operations, fmt.Sprintf("intersect %v", prefixes))
+				}
+			}
+
+			rt.Logf("operations: %v", operations)
+			actual := assertBuilderInvariants(rt, &b)
+			actualIPSet := mustIPSet(rt, actual.Prefixes())
+			if !actualIPSet.Equal(oracle) {
+				rt.Fatalf("semantic mismatch after step %d:\noperations: %v\nwant: %v\ngot: %v",
+					step, operations, oracle.Prefixes(), actualIPSet.Prefixes())
 			}
 		}
 	})

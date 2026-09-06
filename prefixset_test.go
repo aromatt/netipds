@@ -519,6 +519,21 @@ func TestPrefixSetBuilderSubtractPrefix(t *testing.T) {
 	}
 }
 
+func TestPrefixSetBuilderSubtractExplicitPrefixFromEncompassingEntry(t *testing.T) {
+	psb := &PrefixSetBuilder{}
+	tErr(psb.Add(pfx("::/0")), t)
+	tErr(psb.Add(pfx("::/128")), t)
+	tErr(psb.SubtractPrefix(pfx("::/128")), t)
+
+	ps := psb.PrefixSet()
+	if ps.OverlapsPrefix(pfx("::/128")) {
+		t.Fatal("set still overlaps the subtracted prefix")
+	}
+	if !ps.Encompasses(pfx("::1/128")) {
+		t.Fatal("set no longer encompasses the adjacent address")
+	}
+}
+
 func TestPrefixSet1MPrefixes(t *testing.T) {
 	// Create a PrefixSet containing 1 million prefixes spread across the IPv4
 	// space, and then verify that it contains exactly 1 million prefixes.

@@ -159,7 +159,7 @@ func (t *tree[T, B]) remove(k key[B]) *tree[T, B] {
 		if child := t.child(k.Bit(t.key.len)); *child != nil {
 			*child = (*child).remove(k)
 		}
-		return t
+		return t.normalize()
 	// Nothing to do
 	default:
 		return t
@@ -182,16 +182,16 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	// A descendant of t is being subtracted
 	if t.key.IsPrefixOf(k) {
 		child := t.child(k.Bit(t.key.len))
-		if *child != nil {
+		if t.hasEntry {
+			return t.insertHole(k, t.value, true)
+		} else if *child != nil {
 			*child = (*child).subtractKey(k.Rest(t.key.len))
-		} else {
-			t.insertHole(k, t.value, t.hasEntry)
 		}
 		if t.right == nil && t.left == nil && !t.hasEntry {
 			return t.nilOrEmptyRoot()
 		}
 	}
-	return t
+	return t.normalize()
 }
 
 // subtractTree removes all entries from t that have counterparts in o. If a
@@ -210,11 +210,8 @@ func (t *tree[T, B]) subtractTree(o *tree[T, B]) *tree[T, B] {
 // ancestor entry (see shatter). inheritedVal and hasInherited carry the value
 // of the nearest enclosing entry so that any nodes created along the way
 // inherit the correct value. They are zero/false until an entry is seen.
+// Callers must provide non-nil, non-empty trees.
 func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherited bool) *tree[T, B] {
-	if t == nil || o == nil || o.isEmpty() {
-		return t
-	}
-
 	curVal := inheritedVal
 	curHasVal := hasInherited
 	if t.hasEntry {
@@ -276,9 +273,6 @@ func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherite
 //
 // After this runs, the space beneath t is explicit and ready to be carved.
 func (t *tree[T, B]) shatter(val T, hasVal bool) {
-	if t == nil {
-		return
-	}
 	if t.hasEntry {
 		val = t.value
 		hasVal = true
@@ -301,9 +295,6 @@ func (t *tree[T, B]) shatter(val T, hasVal bool) {
 // In both cases, the child ends up at the correct prefix and optionally inherits
 // the provided value.
 func (t *tree[T, B]) ensureChildForBit(childPtr **tree[T, B], hasVal bool, val T, bit bit) {
-	if childPtr == nil {
-		return
-	}
 	target := t.key.Next(bit)
 	if *childPtr == nil {
 		if !hasVal {
@@ -334,9 +325,6 @@ func (t *tree[T, B]) ensureChildForBit(childPtr **tree[T, B], hasVal bool, val T
 // normalize compresses t, collapsing redundant nodes, preserving the root
 // invariant and reusing existing children when only one remains.
 func (t *tree[T, B]) normalize() *tree[T, B] {
-	if t == nil {
-		return nil
-	}
 	if t.hasEntry {
 		return t
 	}
@@ -378,10 +366,15 @@ func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
 		if *child == nil && !tPathHasEntry {
 			return t
 		}
+		if *child != nil {
+			t.ensureChildForBit(child, false, v, bit)
+		}
 
-		// Create a new sibling to receive v if needed, then continue traversing
-		if *sibling == nil {
-			*sibling = newTree[T](t.key.Next(!bit)).setValue(v)
+		// Everything on the sibling branch remains covered by the inherited
+		// entry. Materialize that coverage at the shallowest possible prefix,
+		// even when a more-specific sibling already exists.
+		if tPathHasEntry {
+			t.ensureChildForBit(sibling, true, v, !bit)
 		}
 
 		// (child could be nil if we were carving a hole out of an entry)
@@ -400,7 +393,7 @@ func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
 		// Nothing to do
 	}
 
-	return t
+	return t.normalize()
 }
 
 // isEmpty returns true if t is a completely empty tree (no entry and no
@@ -411,7 +404,8 @@ func (t *tree[T, B]) isEmpty() bool {
 
 // newParent returns a new node with key k whose sole child is t.
 func (t *tree[T, B]) newParent(k key[B]) *tree[T, B] {
-	t.key.offset = (k.len)
+	k.offset = t.key.offset
+	t.key.offset = k.len
 	parent := newTree[T](k).setChild(t)
 	return parent
 }
@@ -521,9 +515,7 @@ func (t *tree[T, B]) walk(path key[B], fn func(*tree[T, B]) bool) {
 	var st stack[*tree[T, B]]
 	st.Push(n)
 	for !st.IsEmpty() {
-		if n = st.Pop(); n == nil {
-			continue
-		}
+		n = st.Pop()
 		stop := fn(n)
 		if n.key.len < stackMaxDepth && !stop {
 			if n.right != nil {
