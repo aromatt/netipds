@@ -6,7 +6,7 @@
 This package builds on the
 [netip](https://pkg.go.dev/net/netip) / [netipx](https://pkg.go.dev/go4.org/netipx)
 family by adding two immutable, trie-based collection types for IP prefixes (CIDRs):
-* `PrefixMap[T]` - a map from `netip.Prefix` to `T` supporting CIDR-based retrieval
+* `PrefixMap[T]` - a map with `netip.Prefix` keys supporting CIDR-based retrieval
   (longest-match, subnets, supernets, etc.)
 * `PrefixSet` - a set of `netip.Prefix` values supporting [semantic combination](#combining-sets-and-maps)
 
@@ -179,11 +179,10 @@ storing pointers (https://github.com/aromatt/netipds/issues/27 aims to improve t
 The same warning applies to any PrefixMap method that returns a new PrefixMap.
 
 ## Tests
-In addition to 100% line coverage in unit tests, `netipds` includes [property-based
-tests](prefixset_property_test.go).
-
-These tests generate large sets of random inputs and test for properties such as
-commutativity and exact parity against reference implementations.
+In addition to 100% line coverage, `netipds` includes [property-based
+tests](prefixset_property_test.go). These tests pass random inputs through random
+sequences of operations, then verify algebraic properties such as commutativity and
+idempotence as well as parity with reference implementations.
 
 ## Related Packages
 
