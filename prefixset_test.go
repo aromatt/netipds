@@ -47,12 +47,12 @@ func TestPrefixSetInvalidPrefix(t *testing.T) {
 		t.Errorf("Expected ps.ParentOf(%s) to return ok=false", invalidPrefix)
 	}
 
-	if ps.DescendantsOf(invalidPrefix).Size() != 0 {
-		t.Errorf("Expected ps.DescendantsOf(%s) to return empty slice", invalidPrefix)
+	if ps.Subnets(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected ps.Subnets(%s) to return empty slice", invalidPrefix)
 	}
 
-	if ps.AncestorsOf(invalidPrefix).Size() != 0 {
-		t.Errorf("Expected ps.AncestorsOf(%s) to return empty slice", invalidPrefix)
+	if ps.Supernets(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected ps.Supernets(%s) to return empty slice", invalidPrefix)
 	}
 }
 
@@ -226,7 +226,7 @@ func TestPrefixSetParentOf(t *testing.T) {
 	}
 }
 
-func TestPrefixSetDescendantsOf(t *testing.T) {
+func TestPrefixSetSubnets(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -317,11 +317,11 @@ func TestPrefixSetDescendantsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
 		}
-		assertEqualPrefixSlice(t, psb.PrefixSet().DescendantsOf(tt.get).Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Subnets(tt.get).Prefixes(), tt.want)
 	}
 }
 
-func TestPrefixSetAncestorsOf(t *testing.T) {
+func TestPrefixSetSupernets(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -406,7 +406,7 @@ func TestPrefixSetAncestorsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(psb.Add(p), t)
 		}
-		assertEqualPrefixSlice(t, psb.PrefixSet().AncestorsOf(tt.get).Prefixes(), tt.want)
+		assertEqualPrefixSlice(t, psb.PrefixSet().Supernets(tt.get).Prefixes(), tt.want)
 	}
 }
 

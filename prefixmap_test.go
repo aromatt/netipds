@@ -83,12 +83,12 @@ func TestPrefixMapInvalidPrefix(t *testing.T) {
 		t.Errorf("Expected ParentOf(invalidPrefix) to return ok == false")
 	}
 
-	if pm.DescendantsOf(invalidPrefix).Size() != 0 {
-		t.Errorf("Expected DescendantsOf(invalidPrefix) to return empty map")
+	if pm.Subnets(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected Subnets(invalidPrefix) to return empty map")
 	}
 
-	if pm.AncestorsOf(invalidPrefix).Size() != 0 {
-		t.Errorf("Expected AncestorsOf(invalidPrefix) to return empty map")
+	if pm.Supernets(invalidPrefix).Size() != 0 {
+		t.Errorf("Expected Supernets(invalidPrefix) to return empty map")
 	}
 
 	if pm.ToMap()[invalidPrefix] {
@@ -510,7 +510,7 @@ func TestPrefixMapParentOf(t *testing.T) {
 	}
 }
 
-func TestPrefixMapDescendantsOf(t *testing.T) {
+func TestPrefixMapSubnets(t *testing.T) {
 	tests := []struct {
 		set  []netip.Prefix
 		get  netip.Prefix
@@ -598,11 +598,11 @@ func TestPrefixMapDescendantsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(pmb.Set(p, true), t)
 		}
-		checkMap(t, tt.want, pmb.PrefixMap().DescendantsOf(tt.get).ToMap())
+		checkMap(t, tt.want, pmb.PrefixMap().Subnets(tt.get).ToMap())
 	}
 }
 
-func TestPrefixMapAncestorsOf(t *testing.T) {
+func TestPrefixMapSupernets(t *testing.T) {
 	result := func(prefixes ...string) map[netip.Prefix]bool {
 		m := make(map[netip.Prefix]bool, len(prefixes))
 		for _, pStr := range prefixes {
@@ -693,7 +693,7 @@ func TestPrefixMapAncestorsOf(t *testing.T) {
 		for _, p := range tt.set {
 			tErr(pmb.Set(p, true), t)
 		}
-		checkMap(t, tt.want, pmb.PrefixMap().AncestorsOf(tt.get).ToMap())
+		checkMap(t, tt.want, pmb.PrefixMap().Supernets(tt.get).ToMap())
 	}
 
 }

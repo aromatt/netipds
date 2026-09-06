@@ -82,12 +82,12 @@ p, val, ok := pm.ParentOf(px("1.2.3.4/32"))      // => (1.2.3.0/24, "world", tru
 
 // Fetch all of a Prefix's ancestors, and
 // convert the result to a map[Prefix]string.
-m := pm.AncestorsOf(px("1.2.3.4/32")).ToMap()    // => map[1.2.0.0/16:"hello"
+m := pm.Supernets(px("1.2.3.4/32")).ToMap()      // => map[1.2.0.0/16:"hello"
                                                  //        1.2.3.0/24:"world"]
 
 // Fetch all of a Prefix's descendants, and
 // convert the result to a map[Prefix]string.
-m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()    // => map[1.2.0.0/16:"hello"
+m = pm.Subnets(px("1.0.0.0/8")).ToMap()          // => map[1.2.0.0/16:"hello"
                                                  //        1.2.3.0/24:"world"]
 ```
 </details>
@@ -103,8 +103,8 @@ Both PrefixMaps and PrefixSets support the following queries:
 * [OverlapsPrefix](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.OverlapsPrefix) - Ask if the collection has any overlap with a prefix.
 * [ParentOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.ParentOf) - Fetch a prefix's smallest supernet in the collection (longest-prefix match).
 * [RootOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.RootOf) - Fetch a prefix's largest supernet in the collection (shortest-prefix match).
-* [AncestorsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.AncestorsOf) - Fetch all of a prefix's supernets in the collection.
-* [DescendantsOf](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.DescendantsOf) - Fetch all of a prefix's subnets in the collection.
+* [Supernets](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Supernets) - Fetch all of a prefix's supernets in the collection.
+* [Subnets](https://pkg.go.dev/github.com/aromatt/netipds#PrefixMap.Subnets) - Fetch all of a prefix's subnets in the collection.
 
 ### Combining Sets and Maps
 During the build stage, `netipds` collections can be combined in the following ways:

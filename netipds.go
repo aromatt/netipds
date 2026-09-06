@@ -210,11 +210,11 @@ func (m *PrefixMap[T]) ToMap() map[netip.Prefix]T {
 	return res
 }
 
-// DescendantsOf returns a PrefixMap containing all descendants of p in m,
-// including p itself if it has an entry.
+// Subnets returns a PrefixMap containing all subnets of p in m, including p
+// itself if it has an entry.
 //
-// DescendantsOf returns an empty PrefixMap if p is invalid.
-func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
+// Subnets returns an empty PrefixMap if p is invalid.
+func (m *PrefixMap[T]) Subnets(p netip.Prefix) *PrefixMap[T] {
 	if !p.IsValid() {
 		return &PrefixMap[T]{}
 	}
@@ -226,11 +226,11 @@ func (m *PrefixMap[T]) DescendantsOf(p netip.Prefix) *PrefixMap[T] {
 	return &PrefixMap[T]{tree6: *t, size6: t.size()}
 }
 
-// AncestorsOf returns a PrefixMap containing all ancestors of p in m,
-// including p itself if it has an entry.
+// Supernets returns a PrefixMap containing all supernets of p in m, including
+// p itself if it has an entry.
 //
-// AncestorsOf returns an empty PrefixMap if p is invalid.
-func (m *PrefixMap[T]) AncestorsOf(p netip.Prefix) *PrefixMap[T] {
+// Supernets returns an empty PrefixMap if p is invalid.
+func (m *PrefixMap[T]) Supernets(p netip.Prefix) *PrefixMap[T] {
 	if !p.IsValid() {
 		return &PrefixMap[T]{}
 	}
@@ -472,11 +472,11 @@ func (s *PrefixSet) ParentOf(p netip.Prefix) (parent netip.Prefix, ok bool) {
 	return
 }
 
-// DescendantsOf returns a PrefixSet containing all descendants of p in s,
-// including p itself if it has an entry.
+// Subnets returns a PrefixSet containing all subnets of p in s, including p
+// itself if it has an entry.
 //
-// DescendantsOf returns an empty PrefixSet if p is invalid.
-func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
+// Subnets returns an empty PrefixSet if p is invalid.
+func (s *PrefixSet) Subnets(p netip.Prefix) *PrefixSet {
 	if !p.IsValid() {
 		return &PrefixSet{}
 	}
@@ -488,11 +488,11 @@ func (s *PrefixSet) DescendantsOf(p netip.Prefix) *PrefixSet {
 	return &PrefixSet{tree6: *t, size6: t.size()}
 }
 
-// AncestorsOf returns a PrefixSet containing all ancestors of p in s,
-// including p itself if it has an entry.
+// Supernets returns a PrefixSet containing all supernets of p in s, including
+// p itself if it has an entry.
 //
-// AncestorsOf returns an empty PrefixSet if p is invalid.
-func (s *PrefixSet) AncestorsOf(p netip.Prefix) *PrefixSet {
+// Supernets returns an empty PrefixSet if p is invalid.
+func (s *PrefixSet) Supernets(p netip.Prefix) *PrefixSet {
 	if !p.IsValid() {
 		return &PrefixSet{}
 	}

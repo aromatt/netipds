@@ -40,12 +40,12 @@ func TestReadmeExampleLiteral(t *testing.T) {
 
 	// Fetch all of a Prefix's ancestors, and
 	// convert the result to a map[Prefix]string.
-	m := pm.AncestorsOf(px("1.2.3.4/32")).ToMap() // => map[1.2.0.0/16:"hello"
+	m := pm.Supernets(px("1.2.3.4/32")).ToMap() // => map[1.2.0.0/16:"hello"
 	//        1.2.3.0/24:"world"]
 
 	// Fetch all of a Prefix's descendants, and
 	// convert the result to a map[Prefix]string.
-	m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap() // => map[1.2.0.0/16:"hello"
+	m = pm.Subnets(px("1.0.0.0/8")).ToMap() // => map[1.2.0.0/16:"hello"
 	//        1.2.3.0/24:"world"]
 
 	/*** README snippet ends here ***/
@@ -114,11 +114,11 @@ func TestReadmeExampleVerify(t *testing.T) {
 
 	// Fetch all of a Prefix's ancestors, and
 	// convert the result to a map[Prefix]string.
-	m := pm.AncestorsOf(px("1.2.3.4/32")).ToMap()
+	m := pm.Supernets(px("1.2.3.4/32")).ToMap()
 	checkMap(t, want, m)
 
 	// Fetch all of a Prefix's descendants, and
 	// convert the result to a map[Prefix]string.
-	m = pm.DescendantsOf(px("1.0.0.0/8")).ToMap()
+	m = pm.Subnets(px("1.0.0.0/8")).ToMap()
 	checkMap(t, want, m)
 }
