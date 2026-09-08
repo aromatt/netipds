@@ -183,7 +183,7 @@ func (t *tree[T, B]) subtractKey(k key[B]) *tree[T, B] {
 	if t.key.IsPrefixOf(k) {
 		child := t.child(k.Bit(t.key.len))
 		if t.hasEntry {
-			return t.insertHole(k, t.value, true)
+			return t.insertHole(k, t.value)
 		} else if *child != nil {
 			*child = (*child).subtractKey(k.Rest(t.key.len))
 		}
@@ -219,8 +219,8 @@ func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherite
 		curVal = t.value
 	}
 
-	switch {
-	case o.key.EqualFromRoot(t.key):
+	// o covers exactly the same space as t; carve o's children out of t.
+	if o.key.EqualFromRoot(t.key) {
 		if o.hasEntry {
 			return t.nilOrEmptyRoot()
 		}
@@ -238,32 +238,21 @@ func (t *tree[T, B]) subtractTreeImpl(o *tree[T, B], inheritedVal T, hasInherite
 			*childPtr = (*childPtr).subtractTreeImpl(*oChild, curVal, curHasVal)
 		}
 		return t.normalize()
-
-	case o.key.IsPrefixOf(t.key):
-		if o.hasEntry {
-			return t.nilOrEmptyRoot()
-		}
-		bit := t.key.Bit(o.key.len)
-		next := o.child(bit)
-		if *next == nil {
-			return t
-		}
-		return t.subtractTreeImpl(*next, curVal, curHasVal)
-
-	case t.key.IsPrefixOf(o.key):
-		t.shatter(curVal, curHasVal)
-		bit := o.key.Bit(t.key.len)
-		childPtr := t.child(bit)
-		t.ensureChildForBit(childPtr, curHasVal, curVal, bit)
-		if *childPtr == nil {
-			return t.normalize()
-		}
-		*childPtr = (*childPtr).subtractTreeImpl(o, curVal, curHasVal)
-		return t.normalize()
-
-	default:
-		return t
 	}
+
+	// The roots initially match, and recursive calls only move t toward o.
+	// Since the equal case is handled above, o must be below t here.
+	mustPrefixOf(t.key, o.key)
+
+	t.shatter(curVal, curHasVal)
+	bit := o.key.Bit(t.key.len)
+	childPtr := t.child(bit)
+	t.ensureChildForBit(childPtr, curHasVal, curVal, bit)
+	if *childPtr == nil {
+		return t.normalize()
+	}
+	*childPtr = (*childPtr).subtractTreeImpl(o, curVal, curHasVal)
+	return t.normalize()
 }
 
 // shatter materializes the entire key space under t so that subtractTree can
@@ -346,52 +335,37 @@ func (t *tree[T, B]) normalize() *tree[T, B] {
 	}
 }
 
-// insertHole removes k and sets t, and all of its descendants, to v.
-func (t *tree[T, B]) insertHole(k key[B], v T, tPathHasEntry bool) *tree[T, B] {
-	switch {
-
+// insertHole removes k from the space covered by v, materializing entries
+// around the hole to preserve the rest of that space.
+func (t *tree[T, B]) insertHole(k key[B], v T) *tree[T, B] {
 	// Removing t itself (no descendants will receive v)
-	case t.key.EqualFromRoot(k):
+	if t.key.EqualFromRoot(k) {
 		return t.nilOrEmptyRoot()
-
-	// k is a descendant of t; start digging a hole to k
-	case t.key.IsPrefixOf(k):
-		t.clearValue()
-		bit := k.Bit(t.key.len)
-		child, sibling := t.children(bit)
-
-		// If there's no child in the direction of k and we're not currently
-		// under an entry, then there is nothing to do. If we were under an
-		// entry, then we would need to create new entries around the k hole.
-		if *child == nil && !tPathHasEntry {
-			return t
-		}
-		if *child != nil {
-			t.ensureChildForBit(child, false, v, bit)
-		}
-
-		// Everything on the sibling branch remains covered by the inherited
-		// entry. Materialize that coverage at the shallowest possible prefix,
-		// even when a more-specific sibling already exists.
-		if tPathHasEntry {
-			t.ensureChildForBit(sibling, true, v, !bit)
-		}
-
-		// (child could be nil if we were carving a hole out of an entry)
-		if *child == nil {
-			*child = newTree[T](t.key.Next(bit))
-		}
-
-		// Continue digging hole
-		*child = (*child).insertHole(k, v, t.hasEntry || tPathHasEntry)
-
-	// k is an ancestor of t; remove t's entire branch
-	case k.IsPrefixOf(t.key):
-		return t.nilOrEmptyRoot()
-
-	default:
-		// Nothing to do
 	}
+
+	// subtractKey handles ancestors and disjoint keys before calling insertHole.
+	// Recursive calls only descend toward k, so t must remain a prefix of k.
+	mustPrefixOf(t.key, k)
+
+	// Start digging a hole to k
+	t.clearValue()
+	bit := k.Bit(t.key.len)
+	child, sibling := t.children(bit)
+
+	if *child != nil {
+		t.ensureChildForBit(child, false, v, bit)
+	}
+
+	// Preserve v on the branch outside the hole.
+	t.ensureChildForBit(sibling, true, v, !bit)
+
+	// (child could be nil if we were carving a hole out of an entry)
+	if *child == nil {
+		*child = newTree[T](t.key.Next(bit))
+	}
+
+	// Continue digging hole
+	*child = (*child).insertHole(k, v)
 
 	return t.normalize()
 }
@@ -604,10 +578,16 @@ func (t *tree[T, B]) descendantsOf(k key[B]) (ret *tree[T, B]) {
 	ret = &tree[T, B]{}
 	t.walk(k, func(n *tree[T, B]) bool {
 		if k.IsPrefixOf(n.key) {
-			ret.key = n.key.Rooted()
-			ret.left = n.left
-			ret.right = n.right
-			ret.setValueFrom(n)
+			// Keep the result rooted at the zero key without copying the whole
+			// subtree. The matching node is copied so its offset can change;
+			// immutable descendants remain shared with t.
+			subtree := *n
+			subtree.key = n.key.Rooted()
+			if subtree.isRoot() {
+				*ret = subtree
+			} else {
+				ret.setChild(&subtree)
+			}
 			return true
 		}
 		return false
